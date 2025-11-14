@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Historic Addresses — About</title>
+	<meta name="description" content="About the Historic Addresses project.">
+	<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>🏛️</text></svg>">
+	<script>
+		// Apply theme immediately to prevent flash
+		(function() {
+			try {
+				var stored = localStorage.getItem('theme-preference');
+				if (stored === 'system') stored = 'dark';
+				var theme = (stored === 'dark' || stored === 'light') ? stored : 'dark';
+				document.documentElement.setAttribute('data-theme', theme);
+			} catch(e) {}
+		})();
+	</script>
+	<link rel="stylesheet" href="assets/css/styles.css">
+	<script defer src="assets/js/theme.js"></script>
+	<script defer src="assets/js/transitions.js"></script>
+</head>
+<body>
+	<header class="site-header">
+		<a class="logo" href="index.html">Historic Addresses</a>
+		<nav class="nav">
+			<a href="index.html">Home</a>
+			<a href="map.html">Map</a>
+			<a href="addresses.html">Homes</a>
+			<a href="about.html">About</a>
+		</nav>
+		<button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode"></button>
+	</header>
+
+	<main class="container">
+		<h1 class="page-title gradient-text">📖 About Historic Addresses</h1>
+		<div style="max-width: 800px; margin: 0 auto;">
+			<p style="font-size: 1.1rem; line-height: 1.8; margin-bottom: 2rem;">
+				Welcome to the Historic Addresses Atlas, a digital archive preserving the stories and locations of legendary residences from around the world. Our mission is to celebrate architectural heritage and the cultural icons who shaped history.
+			</p>
+			
+			<h2 style="color: var(--accent-strong); margin-top: 2rem; margin-bottom: 1rem;">🏛️ Our Mission</h2>
+			<p style="line-height: 1.8; margin-bottom: 2rem;">
+				We document and share the rich history of historic addresses, making their stories accessible to everyone. Each entry includes detailed biographies, historical photographs, precise locations, and verified sources.
+			</p>
+			
+			<h2 style="color: var(--accent-strong); margin-top: 2rem; margin-bottom: 1rem;">✨ Features</h2>
+			<ul style="line-height: 2; margin-bottom: 2rem;">
+				<li><strong>Interactive Map</strong> - Explore addresses by location with our vintage-styled map</li>
+				<li><strong>Rich Biographies</strong> - Learn about the people and stories behind each residence</li>
+				<li><strong>Historical Photos</strong> - View authentic period photographs and documentation</li>
+				<li><strong>Verified Sources</strong> - All information backed by historical records and references</li>
+				<li><strong>Tag System</strong> - Filter addresses by era, architectural style, and significance</li>
+			</ul>
+			
+			<h2 style="color: var(--accent-strong); margin-top: 2rem; margin-bottom: 1rem;">📧 Contact</h2>
+			<p style="line-height: 1.8;">
+				Have a historic address to suggest or information to share? Send us an email at <a href="mailto:info@historichomes.com" style="color: var(--link); text-decoration: underline;">info@historichomes.com</a>
+			</p>
+		</div>
+	</main>
+
+	<footer class="site-footer">
+		<p>© <span id="year"></span> Historic Addresses</p>
+	</footer>
+
+	<script>document.getElementById('year').textContent = new Date().getFullYear();</script>
+</body>
+</html>
+

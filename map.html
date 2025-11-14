@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Historic Addresses — Map</title>
+	<meta name="description" content="Map of historic addresses.">
+	<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>🏛️</text></svg>">
+	<script>
+		// Apply theme immediately to prevent flash
+		(function() {
+			try {
+				var stored = localStorage.getItem('theme-preference');
+				if (stored === 'system') stored = 'dark';
+				var theme = (stored === 'dark' || stored === 'light') ? stored : 'dark';
+				document.documentElement.setAttribute('data-theme', theme);
+			} catch(e) {}
+		})();
+	</script>
+	<link rel="stylesheet" href="assets/css/styles.css">
+	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+	<script defer src="assets/js/theme.js"></script>
+	<script defer src="assets/js/transitions.js"></script>
+	<script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+</head>
+<body>
+	<header class="site-header">
+		<a class="logo" href="index.html">Historic Addresses</a>
+		<nav class="nav">
+			<a href="index.html">Home</a>
+			<a href="map.html">Map</a>
+			<a href="addresses.html">Homes</a>
+			<a href="about.html">About</a>
+		</nav>
+		<button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode"></button>
+	</header>
+
+	<div id="map" class="map-wrap" role="region" aria-label="Map of locations"></div>
+
+	<footer class="site-footer">
+		<p>© <span id="year"></span> Historic Addresses</p>
+	</footer>
+
+	<script>
+	window.addEventListener('DOMContentLoaded', function() {
+		var params = new URLSearchParams(location.search);
+		var targetSlug = params.get('slug');
+
+		var m = L.map('map', {
+			zoomControl: true,
+			worldCopyJump: true,
+			maxBounds: [[-85, -180], [85, 180]]
+		});
+		var tiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+			maxZoom: 19,
+			attribution: '&copy; OpenStreetMap contributors'
+		});
+		tiles.addTo(m);
+
+		var markersLayer = L.layerGroup().addTo(m);
+		
+		function renderMarkers(people){
+			markersLayer.clearLayers();
+			var bounds = [];
+			var placeholder = 'assets/img/placeholder.svg';
+			var focused = null;
+			people.forEach(function(p){
+				var ll = [Number(p.coordinates.lat), Number(p.coordinates.lng)];
+				bounds.push(ll);
+				var img = (p.images && p.images[0] && p.images[0].path) ? p.images[0].path : placeholder;
+				var icon = L.divIcon({
+					className: '',
+					html: '<div class="pin" style="background-image:url(\'' + img.replace(/"/g,'&quot;') + '\')"></div>',
+					iconSize: [44,44],
+					iconAnchor: [22,22]
+				});
+				var marker = L.marker(ll, { icon: icon }).addTo(markersLayer);
+				marker.on('click', function(){ location.href = 'address.html?slug=' + encodeURIComponent(p.slug||p.id); });
+				marker.bindTooltip(p.name, { direction: 'top', offset: [0,-24] });
+				if (targetSlug && (p.slug === targetSlug || p.id === targetSlug)) { focused = { ll: ll, marker: marker }; }
+			});
+			if (bounds.length) { m.fitBounds(bounds, { padding: [20,20] }); }
+			if (focused) { m.setView(focused.ll, Math.max(m.getZoom(), 15)); focused.marker.openTooltip(); }
+		}
+		function setDynamicMinZoom(){
+			var w = m.getSize().x;
+			var target = Math.ceil(Math.log2(Math.max(1, w / 256)));
+			m.setMinZoom(target);
+		}
+		setDynamicMinZoom();
+		window.addEventListener('resize', function(){ setDynamicMinZoom(); });
+		
+		// Fetch homes from API
+		function loadHomes() {
+			var apiBase = window.location.protocol === 'file:' ? 'http://localhost:3000' : window.location.origin;
+			fetch(apiBase + '/api/homes')
+				.then(function(res){ return res.json(); })
+				.then(function(data){
+					var people = data.filter(function(p){
+						return p && p.published && p.coordinates && isFinite(p.coordinates.lat) && isFinite(p.coordinates.lng);
+					});
+					renderMarkers(people);
+					if (!people.length) { m.setView([20,0], m.getMinZoom()); }
+				})
+				.catch(function(err){
+					console.error('Error loading homes:', err);
+					m.setView([20,0], m.getMinZoom());
+				});
+		}
+		
+		loadHomes();
+		// Refresh map when tab becomes visible
+		document.addEventListener('visibilitychange', function(){ if (!document.hidden) loadHomes(); });
+		document.getElementById('year').textContent = new Date().getFullYear();
+	});
+	</script>
+</body>
+</html>
+

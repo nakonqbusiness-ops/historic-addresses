@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Historic Addresses — Home</title>
+	<meta name="description" content="Historic address details.">
+	<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>🏛️</text></svg>">
+	<script>
+		// Apply theme immediately to prevent flash
+		(function() {
+			try {
+				var stored = localStorage.getItem('theme-preference');
+				if (stored === 'system') stored = 'dark';
+				var theme = (stored === 'dark' || stored === 'light') ? stored : 'dark';
+				document.documentElement.setAttribute('data-theme', theme);
+			} catch(e) {}
+		})();
+	</script>
+	<link rel="stylesheet" href="assets/css/styles.css">
+	<script defer src="assets/js/theme.js"></script>
+	<script defer src="assets/js/transitions.js"></script>
+</head>
+<body>
+	<header class="site-header">
+		<a class="logo" href="index.html">Historic Addresses</a>
+		<nav class="nav">
+			<a href="index.html">Home</a>
+			<a href="map.html">Map</a>
+			<a href="addresses.html">Homes</a>
+			<a href="about.html">About</a>
+		</nav>
+		<button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode"></button>
+	</header>
+
+	<main class="container detail" id="detail" aria-live="polite"></main>
+
+	<footer class="site-footer">
+		<p>© <span id="year"></span> Historic Addresses</p>
+	</footer>
+
+	<script>
+	(function() {
+		function q(name){ var p=new URLSearchParams(location.search); return p.get(name); }
+		var slug = q('slug');
+		var root = document.getElementById('detail');
+		
+		if (!slug) {
+			root.innerHTML = '<p>No home specified.</p>';
+			return;
+		}
+		
+		// Fetch home from API
+		var apiBase = window.location.protocol === 'file:' ? 'http://localhost:3000' : window.location.origin;
+		fetch(apiBase + '/api/homes/' + encodeURIComponent(slug))
+			.then(function(res){
+				if (!res.ok) throw new Error('Home not found');
+				return res.json();
+			})
+			.then(function(person){
+				renderHome(person);
+			})
+			.catch(function(err){
+				console.error('Error loading home:', err);
+				root.innerHTML = '<p>Not found.</p>';
+			});
+		
+		function renderHome(person) {
+			document.title = person.name + ' — Historic Addresses';
+			var ph = 'assets/img/placeholder.svg';
+			var gallery = (person.images||[]);
+			var hero = gallery[0] || null;
+			var imgHtml = '<img alt="'+((hero && hero.alt) || ('Facade of '+person.name))+'" loading="lazy" src="'+((hero && hero.path) || ph)+'" onerror="this.onerror=null;this.src=\''+ph+'\';">'; 
+			var tags = (person.tags||[]).map(function(t){ return '<a class="tag" href="addresses.html?tag='+encodeURIComponent(t)+'">'+t+'</a>'; }).join(' ');
+			var mapLink = person.coordinates ? ('map.html?slug=' + encodeURIComponent(person.slug||person.id)) : '';
+			var sources = (person.sources||[]).map(function(s){
+				var isUrl = /^https?:\/\//i.test(s);
+				return isUrl ? '<li><a href="'+s+'" rel="noopener" target="_blank">'+s+'</a></li>' : '<li>'+s+'</li>';
+			}).join('');
+			var galleryHtml = '';
+			if ((gallery||[]).length > 1) {
+				galleryHtml = '<div class="gallery">' + gallery.map(function(i){ var s = (i && i.path) || ph; var a = (i && i.alt) || ('Facade of '+person.name); return '<img alt="'+a+'" loading="lazy" src="'+s+'" onerror="this.onerror=null;this.src=\''+ph+'\';">'; }).join('') + '</div>';
+			}
+			root.innerHTML =
+				(imgHtml ? ('<p>'+imgHtml+'</p>') : '') +
+				galleryHtml +
+				'<h1 class="gradient-text">'+person.name+'</h1>'+
+				'<p class="meta">Address: '+(person.address||'')+(mapLink ? ' — <a href="'+mapLink+'">View on map</a>' : '')+'</p>'+
+				'<p>'+ (person.biography||'') +'</p>'+
+				(person.photo_date ? ('<p class="meta">Photo date: '+person.photo_date+'</p>') : '')+
+				(sources ? ('<h3>Sources</h3><ul>'+sources+'</ul>') : '')+
+				(tags ? ('<p class="tags">'+tags+'</p>') : '');
+			document.getElementById('year').textContent = new Date().getFullYear();
+		}
+	})();
+	</script>
+</body>
+</html>
+

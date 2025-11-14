@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Historic Addresses — Home</title>
+	<meta name="description" content="Browse historic addresses with photos, bios, addresses, and map.">
+	<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>🏛️</text></svg>">
+	<script>
+		// Apply theme immediately to prevent flash
+		(function() {
+			try {
+				var stored = localStorage.getItem('theme-preference');
+				if (stored === 'system') stored = 'dark';
+				var theme = (stored === 'dark' || stored === 'light') ? stored : 'dark';
+				document.documentElement.setAttribute('data-theme', theme);
+			} catch(e) {}
+		})();
+	</script>
+	<link rel="stylesheet" href="assets/css/styles.css">
+	<script defer src="assets/js/theme.js"></script>
+	<script defer src="assets/js/transitions.js"></script>
+</head>
+<body>
+	<header class="site-header">
+		<a class="logo" href="index.html">Historic Addresses</a>
+		<nav class="nav">
+			<a href="index.html">Home</a>
+			<a href="map.html">Map</a>
+			<a href="addresses.html">Homes</a>
+			<a href="about.html">About</a>
+		</nav>
+		<button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode"></button>
+	</header>
+
+	<main class="container">
+		<section class="hero">
+			<h1 class="gradient-text">🏛️ Historic Addresses Atlas</h1>
+			<p>Step into a neon-tinged timeline of legendary residences from around the world. ✨ Wander through stories, uncover coordinates, and relive the brilliance of cultural icons across eras.</p>
+			<div class="stats" id="stats">📚 Loading collection…</div>
+		</section>
+
+		<section class="quick-links">
+			<a class="card" href="addresses.html">
+				<h2>🏠 Browse Addresses</h2>
+				<p>Glide through the gallery, filter by tags, and open immersive dossiers for every facade.</p>
+			</a>
+			<a class="card" href="map.html">
+				<h2>🗺️ Open Map</h2>
+				<p>Jump into the holographic map, tap radiant pins, and teleport to each home's dedicated page.</p>
+			</a>
+			<a class="card" href="about.html">
+				<h2>📖 About</h2>
+				<p>Discover our mission to preserve architectural heritage and learn about the Historic Addresses project.</p>
+			</a>
+		</section>
+	</main>
+
+	<footer class="site-footer">
+		<p>© <span id="year"></span> Historic Addresses</p>
+	</footer>
+
+	<script>
+		(function() {
+			var stats = document.getElementById('stats');
+			// Fetch home count from API
+			var apiBase = window.location.protocol === 'file:' ? 'http://localhost:3000' : window.location.origin;
+			fetch(apiBase + '/api/homes')
+				.then(function(res){ return res.json(); })
+				.then(function(data){
+					var count = data.filter(function(p){ return p.published; }).length;
+					if (stats) { stats.textContent = '📚 ' + count + ' addresses archived'; }
+				})
+				.catch(function(err){
+					console.error('Error loading homes:', err);
+					if (stats) { stats.textContent = '📚 Historic homes collection'; }
+				});
+			document.getElementById('year').textContent = new Date().getFullYear();
+		})();
+	</script>
+</body>
+</html>

@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Historic Addresses — Homes</title>
+	<meta name="description" content="Browse all historic addresses.">
+	<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>🏛️</text></svg>">
+	<script>
+		// Apply theme immediately to prevent flash
+		(function() {
+			try {
+				var stored = localStorage.getItem('theme-preference');
+				if (stored === 'system') stored = 'dark';
+				var theme = (stored === 'dark' || stored === 'light') ? stored : 'dark';
+				document.documentElement.setAttribute('data-theme', theme);
+			} catch(e) {}
+		})();
+	</script>
+	<link rel="stylesheet" href="assets/css/styles.css">
+	<script defer src="assets/js/theme.js"></script>
+	<script defer src="assets/js/transitions.js"></script>
+</head>
+<body>
+	<header class="site-header">
+		<a class="logo" href="index.html">Historic Addresses</a>
+		<nav class="nav">
+			<a href="index.html">Home</a>
+			<a href="map.html">Map</a>
+			<a href="addresses.html">Homes</a>
+			<a href="about.html">About</a>
+		</nav>
+		<button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode"></button>
+	</header>
+
+	<main class="container">
+		<h1 class="page-title gradient-text">🏡 Addresses Registry</h1>
+		<div class="toolbar">
+			<input id="q" class="input" type="search" placeholder="Search addresses by name, tag, source..." aria-label="Search">
+			<select id="tag" class="select" aria-label="Filter by tag">
+				<option value="">All tags</option>
+			</select>
+		</div>
+		<div id="grid" class="grid" aria-live="polite"></div>
+	</main>
+
+	<footer class="site-footer">
+		<p>© <span id="year"></span> Historic Addresses</p>
+	</footer>
+
+	<script>
+	(function() {
+		var params = new URLSearchParams(location.search);
+		var initialTag = (params.get('tag')||'').toLowerCase();
+		var people = [];
+		
+		// Fetch homes from API
+		var apiBase = window.location.protocol === 'file:' ? 'http://localhost:3000' : window.location.origin;
+		fetch(apiBase + '/api/homes')
+			.then(function(res){ return res.json(); })
+			.then(function(data){
+				people = data.filter(function(p){ return p.published; });
+				people.sort(function(a,b){ return a.name.localeCompare(b.name); });
+				initialize();
+			})
+			.catch(function(err){
+				console.error('Error loading homes:', err);
+				alert('Error loading homes from server');
+			});
+		
+		function initialize() {
+
+		var tagSel = document.getElementById('tag');
+		var tagSet = new Set();
+		people.forEach(function(p){ (p.tags||[]).forEach(function(t){ if (t) tagSet.add(String(t)); }); });
+		Array.from(tagSet).sort(function(a,b){ return a.localeCompare(b); }).forEach(function(t){
+			var o=document.createElement('option'); o.value=t; o.textContent=t; tagSel.appendChild(o);
+		});
+		if (initialTag) {
+			// Try to select matching tag ignoring case
+			var match = Array.from(tagSel.options).find(function(o){ return o.value.toLowerCase() === initialTag; });
+			if (match) tagSel.value = match.value;
+		}
+
+		function render() {
+			var q = (document.getElementById('q').value || '').toLowerCase();
+			var t = (tagSel.value||'').toLowerCase();
+			var list = people.filter(function(p){
+				var tagsLc = (p.tags||[]).map(function(x){ return String(x).toLowerCase(); });
+				var hit = !q || (
+					(p.name||'').toLowerCase().includes(q) ||
+					(p.biography||'').toLowerCase().includes(q) ||
+					(p.sources||[]).join(' ').toLowerCase().includes(q) ||
+					tagsLc.join(' ').includes(q)
+				);
+				var tagOk = !t || tagsLc.includes(t);
+				return hit && tagOk;
+			});
+			var grid = document.getElementById('grid');
+			grid.innerHTML = '';
+			list.forEach(function(p){
+				var placeholder = 'assets/img/placeholder.svg';
+				var img = (p.images && p.images[0] && p.images[0].path) ? p.images[0].path : placeholder;
+				var el = document.createElement('a');
+				el.className = 'thumb';
+				el.href = 'address.html?slug=' + encodeURIComponent(p.slug || p.id);
+				el.innerHTML = '<img alt="'+(p.images && p.images[0] && p.images[0].alt || ('Facade of '+p.name))+'" loading="lazy" src="'+img+'" onerror="this.onerror=null;this.src=\''+placeholder+'\';">' +
+					'<div class="meta"><strong>'+p.name+'</strong><div class="muted">'+(p.address||'')+'</div></div>';
+				grid.appendChild(el);
+			});
+		}
+
+			document.getElementById('q').addEventListener('input', render);
+			tagSel.addEventListener('change', render);
+			render();
+			document.getElementById('year').textContent = new Date().getFullYear();
+		}
+	})();
+	</script>
+</body>
+</html>
+

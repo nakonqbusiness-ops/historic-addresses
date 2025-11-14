@@ -1,0 +1,411 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Historic Addresses — Admin</title>
+	<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>🏛️</text></svg>">
+	<script>
+		// Apply theme immediately to prevent flash
+		(function() {
+			try {
+				var stored = localStorage.getItem('theme-preference');
+				if (stored === 'system') stored = 'dark';
+				var theme = (stored === 'dark' || stored === 'light') ? stored : 'dark';
+				document.documentElement.setAttribute('data-theme', theme);
+			} catch(e) {}
+		})();
+	</script>
+	<link rel="stylesheet" href="assets/css/styles.css">
+	<script defer src="assets/js/theme.js"></script>
+	<script defer src="assets/js/transitions.js"></script>
+</head>
+<body>
+	<header class="site-header">
+		<a class="logo" href="index.html">Historic Addresses</a>
+		<nav class="nav">
+			<a href="index.html">Home</a>
+			<a href="map.html">Map</a>
+			<a href="addresses.html">Homes</a>
+			<a href="about.html">About</a>
+			<a href="admin.html">Admin</a>
+		</nav>
+		<button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode"></button>
+	</header>
+
+	<main class="container" id="app">
+		<h1 class="page-title">Admin</h1>
+		<div id="login">
+			<p>Enter admin password:</p>
+			<input id="pw" class="input" type="password" placeholder="Password">
+			<button id="loginBtn" class="theme-toggle">Login</button>
+		</div>
+
+		<section id="panel" style="display:none">
+			<div class="toolbar">
+				<button id="logout" class="theme-toggle">Logout</button>
+				<button id="exportBtn" class="theme-toggle">Export JSON</button>
+				<label class="theme-toggle" for="importFile" style="display:inline-flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;">Import JSON<input id="importFile" type="file" accept="application/json" style="display:none"></label>
+			</div>
+
+			<div class="toolbar">
+				<button id="addBtn" class="theme-toggle">Add New</button>
+				<input id="search" class="input" placeholder="Search...">
+			</div>
+
+			<div id="list" class="grid"></div>
+		</section>
+	</main>
+
+	<!-- Modal for Add/Edit -->
+	<div id="modal" class="backdrop">
+		<div class="modal" role="dialog" aria-modal="true" aria-labelledby="dlgTitle">
+			<header>
+				<h2 id="dlgTitle">Edit Object</h2>
+				<button id="closeDlg" class="theme-toggle" aria-label="Close" title="Close">×</button>
+			</header>
+			<form id="objForm">
+				<div class="content">
+					<input type="hidden" id="idx">
+					<input type="hidden" id="f_id">
+					<div class="form-grid">
+						<label class="full"><span class="label">Full name</span><input id="f_name" class="field" required></label>
+						<label><span class="label">Slug (id)</span><input id="f_slug" class="field" placeholder="address-name" aria-describedby="slugHelp"></label>
+						<div id="slugHelp" class="full" style="margin-top:-8px;color:var(--muted);font-size:.85rem;">Lowercase, URL-friendly identifier (e.g. historic-mansion-downtown). If left blank, it will be generated from the name.</div>
+						<label><span class="label">Published</span><span class="row"><input id="f_published" type="checkbox"><span>Visible</span></span></label>
+						<label class="full"><span class="label">Biography</span><textarea id="f_bio" class="field textarea" placeholder="5–6 sentences"></textarea></label>
+						<label class="full"><span class="label">Address</span><input id="f_addr" class="field"></label>
+						<label><span class="label">Latitude</span><input id="f_lat" class="field" inputmode="decimal"></label>
+						<label><span class="label">Longitude</span><input id="f_lng" class="field" inputmode="decimal"></label>
+					<label class="full"><span class="label">Image URLs (one per line) or drop/select files below</span><textarea id="f_imgs" class="field textarea" placeholder="/uploads/house1.jpg\nhttps://.../house2.jpg"></textarea></label>
+					<div class="full drop" id="imgDrop">Drop images here or <button type="button" id="imgPick" class="theme-toggle">Choose files</button><input id="imgFile" type="file" accept="image/*" multiple style="display:none"></div>
+					<div class="full" id="imgPrevWrap" style="display:none"><span class="label">Previews</span><div id="imgPreview" class="gallery"></div></div>
+						<label><span class="label">Photo date</span><input id="f_date" class="field" placeholder="YYYY-MM-DD"></label>
+						<label class="full"><span class="label">Sources (semicolon ; separated)</span><textarea id="f_sources" class="field textarea"></textarea></label>
+						<label class="full"><span class="label">Tags (comma , separated)</span><input id="f_tags" class="field" placeholder="poet, 19th-century"></label>
+					</div>
+				</div>
+				<div class="actions">
+					<button type="button" id="cancelDlg" class="theme-toggle">Cancel</button>
+					<button type="submit" class="theme-toggle">Save</button>
+				</div>
+			</form>
+		</div>
+	</div>
+
+	<footer class="site-footer">
+		<p>© <span id="year"></span> Historic Addresses</p>
+	</footer>
+
+	<script>
+	(function(){
+		var DEFAULT_PASSWORD = '123'; // Change this to your secure password
+		var STORAGE_KEY = 'admin-session';
+		var apiBase = window.location.protocol === 'file:' ? 'http://localhost:3000' : window.location.origin;
+		var API_URL = apiBase + '/api/homes';
+		var state = { people: [] };
+
+		function isAuthed(){ return sessionStorage.getItem(STORAGE_KEY) === '1'; }
+		function setAuthed(v){ if (v) sessionStorage.setItem(STORAGE_KEY,'1'); else sessionStorage.removeItem(STORAGE_KEY); }
+
+		function show(el){ el.style.display=''; }
+		function hide(el){ el.style.display='none'; }
+
+		// Fetch all homes from API
+		function loadHomes(){
+			fetch(API_URL + '?all=true')
+				.then(function(res){ return res.json(); })
+				.then(function(data){
+					state.people = data;
+					renderList();
+				})
+				.catch(function(err){
+					console.error('Error loading homes:', err);
+					alert('Error loading data from server');
+				});
+		}
+
+		function renderList(){
+			var q = (document.getElementById('search').value||'').toLowerCase();
+			var list = document.getElementById('list');
+			list.innerHTML = '';
+			state.people
+				.filter(function(p){
+					if (!q) return true;
+					return (p.name||'').toLowerCase().includes(q) || (p.biography||'').toLowerCase().includes(q) || (p.tags||[]).join(' ').toLowerCase().includes(q);
+				})
+				.sort(function(a,b){ return (a.name||'').localeCompare(b.name||''); })
+				.forEach(function(p, idx){
+					var card = document.createElement('div');
+					card.className = 'thumb';
+					var img = (p.images&&p.images[0])? p.images[0].path : '';
+					card.innerHTML = '<img alt="" loading="lazy" src="'+img+'" onerror="this.style.display=\'none\'">' +
+						'<div class="meta"><strong>'+(p.name||'(no name)')+'</strong><div class="muted">'+(p.address||'')+'</div>'+
+						'<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">'
+						+ '<button data-act="edit" data-id="'+(p.slug||p.id)+'" class="theme-toggle">Edit</button>'
+						+ '<button data-act="toggle" data-id="'+(p.slug||p.id)+'" class="theme-toggle">'+(p.published? 'Unpublish':'Publish')+'</button>'
+						+ '<button data-act="delete" data-id="'+(p.slug||p.id)+'" class="theme-toggle">Delete</button>'
+						+ '</div></div>';
+					list.appendChild(card);
+				});
+		}
+
+
+		function openModal(title){ document.getElementById('dlgTitle').textContent = title; document.getElementById('modal').style.display='flex'; }
+		function closeModal(){ document.getElementById('modal').style.display='none'; }
+
+		var imageSources = [];
+		function syncImageField(){ document.getElementById('f_imgs').value = imageSources.join('\n'); }
+		function renderImageList(){
+			var wrap = document.getElementById('imgPrevWrap');
+			var cont = document.getElementById('imgPreview');
+			cont.innerHTML = '';
+			if (!imageSources.length) { wrap.style.display = 'none'; return; }
+			wrap.style.display = '';
+			var ph = 'assets/img/placeholder.svg';
+			imageSources.forEach(function(src, idx){
+				var item = document.createElement('div');
+				item.className = 'preview-item';
+				var safe = src || ph;
+				item.innerHTML = '<img alt="Image preview" loading="lazy" src="'+safe+'" onerror="this.onerror=null;this.src=\''+ph+'\';">' +
+					'<button type="button" data-remove="'+idx+'">×</button>';
+				cont.appendChild(item);
+			});
+		}
+		function resetImages(){ imageSources = []; renderImageList(); syncImageField(); }
+
+		function fillForm(p){
+			document.getElementById('f_name').value = p.name||'';
+			document.getElementById('f_slug').value = p.slug || p.id || '';
+			document.getElementById('f_bio').value = p.biography||'';
+			document.getElementById('f_addr').value = p.address||'';
+			document.getElementById('f_lat').value = p.coordinates && p.coordinates.lat || '';
+			document.getElementById('f_lng').value = p.coordinates && p.coordinates.lng || '';
+			imageSources = (p.images||[]).map(function(i){ return i && i.path; }).filter(Boolean);
+			syncImageField();
+			document.getElementById('f_date').value = p.photo_date||'';
+			document.getElementById('f_sources').value = (p.sources||[]).join('; ');
+			document.getElementById('f_tags').value = (p.tags||[]).join(', ');
+			document.getElementById('f_published').checked = (typeof p.published === 'boolean') ? p.published : true;
+			renderImageList();
+		}
+
+		function slugify(text){
+			return (text||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
+		}
+
+		function readForm(existing){
+			var p = existing || {};
+			p.name = document.getElementById('f_name').value.trim();
+			var slugInput = document.getElementById('f_slug').value.trim();
+			if (!slugInput) slugInput = slugify(p.name);
+			p.slug = slugInput || p.slug || p.id || '';
+			p.biography = document.getElementById('f_bio').value.trim();
+			p.address = document.getElementById('f_addr').value.trim();
+			var lat = document.getElementById('f_lat').value.trim();
+			var lng = document.getElementById('f_lng').value.trim();
+			if (lat && lng) p.coordinates = { lat: parseFloat(lat), lng: parseFloat(lng) };
+			// sync from textarea in case user typed manually
+			var txtSources = document.getElementById('f_imgs').value.split(/\r?\n/).map(function(s){ return s.trim(); }).filter(Boolean);
+			imageSources = txtSources.slice();
+			if (imageSources.length) {
+				p.images = imageSources.map(function(src){ return { path: src, caption: '', alt: 'Facade of '+(p.name||'') }; });
+			} else {
+				p.images = [];
+			}
+			p.photo_date = document.getElementById('f_date').value.trim();
+			var sources = document.getElementById('f_sources').value.trim();
+			p.sources = sources ? sources.split(';').map(function(s){ return s.trim(); }).filter(Boolean) : [];
+			var tags = document.getElementById('f_tags').value.trim();
+			p.tags = tags ? tags.split(',').map(function(s){ return s.trim(); }).filter(Boolean) : [];
+			if (!p.id) p.id = p.slug || slugify(p.name);
+			var now = new Date().toISOString();
+			if (!p.created_at) p.created_at = now;
+			p.updated_at = now;
+			p.published = !!document.getElementById('f_published').checked;
+			return p;
+		}
+
+		function addNew(){
+			document.getElementById('idx').value = '';
+			document.getElementById('f_id').value = '';
+			fillForm({ published: true });
+			openModal('Add Object');
+		}
+
+		function editAt(idx){
+			document.getElementById('idx').value = String(idx);
+			var home = state.people[idx];
+			document.getElementById('f_id').value = home.id || home.slug;
+			fillForm(home);
+			openModal('Edit Object');
+		}
+
+		document.addEventListener('click', function(e){
+			var act = e.target && e.target.getAttribute('data-act');
+			if (!act) return;
+			var id = e.target.getAttribute('data-id');
+			var idx = (id != null) ? state.people.findIndex(function(pp){ return (pp.slug||pp.id) === id; }) : -1;
+			if (idx === -1 && id != null) return;
+			
+			if (act === 'edit') {
+				editAt(idx);
+			}
+			
+			if (act === 'toggle') {
+				var home = state.people[idx];
+				home.published = !home.published;
+				fetch(API_URL + '/' + (home.id || home.slug), {
+					method: 'PUT',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify(home)
+				})
+				.then(function(res){ return res.json(); })
+				.then(function(){ loadHomes(); })
+				.catch(function(err){ console.error('Error updating:', err); alert('Error updating home'); });
+			}
+			
+			if (act === 'delete') {
+				if (confirm('Delete this object?')) {
+					var home = state.people[idx];
+					fetch(API_URL + '/' + (home.id || home.slug), { method: 'DELETE' })
+						.then(function(res){ return res.json(); })
+						.then(function(){ loadHomes(); })
+						.catch(function(err){ console.error('Error deleting:', err); alert('Error deleting home'); });
+				}
+			}
+		});
+
+		document.getElementById('addBtn').addEventListener('click', addNew);
+		document.getElementById('search').addEventListener('input', renderList);
+
+		document.getElementById('exportBtn').addEventListener('click', function(){
+			var blob = new Blob([JSON.stringify(state.people, null, 2)], { type: 'application/json' });
+			var url = URL.createObjectURL(blob);
+			var a = document.createElement('a');
+			a.href = url; a.download = 'addresses.json'; a.click();
+			setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+		});
+
+		document.getElementById('importFile').addEventListener('change', function(ev){
+			var file = ev.target.files && ev.target.files[0];
+			if (!file) return;
+			var fr = new FileReader();
+			fr.onload = function(){
+				try {
+					var imported = JSON.parse(fr.result);
+					var count = 0;
+					imported.forEach(function(home){
+						fetch(API_URL, {
+							method: 'POST',
+							headers: { 'Content-Type': 'application/json' },
+							body: JSON.stringify(home)
+						})
+						.then(function(){ count++; if(count === imported.length) { loadHomes(); alert('Imported '+count+' entries.'); } });
+					});
+				} catch(e){ alert('Invalid JSON'); }
+			};
+			fr.readAsText(file);
+		});
+
+		document.getElementById('loginBtn').addEventListener('click', function(){
+			var pw = document.getElementById('pw').value;
+			if (pw === DEFAULT_PASSWORD) {
+				setAuthed(true);
+				hide(document.getElementById('login'));
+				show(document.getElementById('panel'));
+				loadHomes();
+			} else {
+				alert('Incorrect password');
+			}
+		});
+
+
+
+		document.getElementById('logout').addEventListener('click', function(){ setAuthed(false); location.reload(); });
+
+		// Modal wiring
+		document.getElementById('cancelDlg').addEventListener('click', closeModal);
+		document.getElementById('closeDlg').addEventListener('click', closeModal);
+		// Do not close when clicking outside the dialog
+
+		function loadImageFile(file){
+			if (!file) return;
+			if (!/^image\//.test(file.type)) { alert('Please select an image file'); return; }
+			var fr = new FileReader();
+			fr.onload = function(){
+				var dataUrl = fr.result;
+				imageSources.push(dataUrl);
+				syncImageField();
+				renderImageList();
+			};
+			fr.readAsDataURL(file);
+		}
+
+		document.getElementById('imgDrop').addEventListener('dragover', function(e){ e.preventDefault(); });
+		document.getElementById('imgDrop').addEventListener('drop', function(e){
+			e.preventDefault();
+			var files = (e.dataTransfer.files && Array.from(e.dataTransfer.files)) || [];
+			files.forEach(loadImageFile);
+		});
+		document.getElementById('imgPick').addEventListener('click', function(){ document.getElementById('imgFile').click(); });
+		document.getElementById('imgFile').addEventListener('change', function(e){ var files = (e.target.files && Array.from(e.target.files)) || []; files.forEach(loadImageFile); });
+		document.getElementById('imgPreview').addEventListener('click', function(e){
+			var btn = e.target.closest && e.target.closest('button[data-remove]');
+			if (!btn) return;
+			var idx = parseInt(btn.getAttribute('data-remove'), 10);
+			imageSources.splice(idx, 1);
+			syncImageField();
+			renderImageList();
+		});
+		document.getElementById('f_imgs').addEventListener('input', function(){
+			imageSources = this.value.split(/\r?\n/).map(function(s){ return s.trim(); }).filter(Boolean);
+			renderImageList();
+		});
+
+		document.getElementById('objForm').addEventListener('submit', function(e){
+			e.preventDefault();
+			var idxVal = document.getElementById('idx').value;
+			var homeId = document.getElementById('f_id').value;
+			
+			if (idxVal === '') {
+				// Create new
+				var pNew = readForm({});
+				fetch(API_URL, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify(pNew)
+				})
+				.then(function(res){ return res.json(); })
+				.then(function(){
+					closeModal();
+					loadHomes();
+					alert('Home created successfully!');
+				})
+				.catch(function(err){ console.error('Error creating:', err); alert('Error creating home'); });
+			} else {
+				// Update existing
+				var i = parseInt(idxVal, 10);
+				var pUpdated = readForm(state.people[i]);
+				fetch(API_URL + '/' + homeId, {
+					method: 'PUT',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify(pUpdated)
+				})
+				.then(function(res){ return res.json(); })
+				.then(function(){
+					closeModal();
+					loadHomes();
+					alert('Home updated successfully!');
+				})
+				.catch(function(err){ console.error('Error updating:', err); alert('Error updating home'); });
+			}
+		});
+
+		if (isAuthed()) { hide(document.getElementById('login')); show(document.getElementById('panel')); loadHomes(); }
+		document.getElementById('year').textContent = new Date().getFullYear();
+	})();
+	</script>
+</body>
+</html>
+
