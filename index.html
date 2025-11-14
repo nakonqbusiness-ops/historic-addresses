@@ -69,7 +69,7 @@
 				.then(function(res){ return res.json(); })
 				.then(function(data){
 					var count = data.filter(function(p){ return p.published; }).length;
-					if (stats) { stats.textContent = '📚 ' + count + ' addresses archived'; }
+					if (stats) { stats.textContent = '📚 ' + count + ' архивирани адреса'; }
 				})
 				.catch(function(err){
 					console.error('Error loading homes:', err);
