@@ -3,7 +3,7 @@
 <head>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<title>Historic Addresses — Homes</title>
+	<title>Адресът на историята- Домове</title>
 	<meta name="description" content="Browse all historic addresses.">
 	<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>🏛️</text></svg>">
 	<script>
@@ -23,29 +23,32 @@
 </head>
 <body>
 	<header class="site-header">
-		<a class="logo" href="index.html">Historic Addresses</a>
+		<a class="logo-link" href="index.html">
+        <img src="assets/img/HistAdrLogo.png" alt="Адресът на историята" class="header-logo">
+        <span class="logo-text">Адресът на историята</span>
+    </a>
 		<nav class="nav">
-			<a href="index.html">Home</a>
-			<a href="map.html">Map</a>
-			<a href="addresses.html">Homes</a>
-			<a href="about.html">About</a>
+			<a href="index.html">Начало</a>
+			<a href="map.html">Карта</a>
+			<a href="addresses.html">Домове</a>
+			<a href="about.html">За Нас</a>
 		</nav>
 		<button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode"></button>
 	</header>
 
 	<main class="container">
-		<h1 class="page-title gradient-text">🏡 Addresses Registry</h1>
+		<h1 class="page-title gradient-text">🏡 Списък на адресите</h1>
 		<div class="toolbar">
-			<input id="q" class="input" type="search" placeholder="Search addresses by name, tag, source..." aria-label="Search">
+			<input id="q" class="input" type="search" placeholder="Търсене на адреси по име, таг, източник..." aria-label="Search">
 			<select id="tag" class="select" aria-label="Filter by tag">
-				<option value="">All tags</option>
+				<option value="">Всички тагове</option>
 			</select>
 		</div>
 		<div id="grid" class="grid" aria-live="polite"></div>
 	</main>
 
 	<footer class="site-footer">
-		<p>© <span id="year"></span> Historic Addresses</p>
+		<p>© <span id="year"></span> Адресът на историята</p>
 	</footer>
 
 	<script>
