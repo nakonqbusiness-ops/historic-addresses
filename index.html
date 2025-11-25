@@ -18,15 +18,15 @@
 		})();
 	</script>
 	<link rel="stylesheet" href="assets/css/styles.css">
-	<script defer src="assets/js/theme.js"></script>
-	<script defer src="assets/js/transitions.js"></script>
+	<script src="assets/js/theme.js"></script>
+	<script src="assets/js/transitions.js"></script>
 </head>
 <body>
 	<header class="site-header">
 		<a class="logo-link" href="index.html">
-        <img src="assets/img/HistAdrLogo.png" alt="Адресът на историята" class="header-logo">
-        <span class="logo-text">Адресът на историята</span>
-    </a>
+        <img src="assets/img/HistAdrLogo.png" alt="Адресът на историята" class="header-logo">
+        <span class="logo-text">Адресът на историята</span>
+    </a>
 		<nav class="nav">
 			<a href="index.html">Начало</a>
 			<a href="map.html">Карта</a>
@@ -39,8 +39,16 @@
 	<main class="container">
 		<section class="hero">
 			<h1 class="gradient-text">Адресът на историята</h1>
+			
+			<!-- Добавяне на логото с float: left и отстъп отдясно и отдолу -->
+			<img src="assets/img/HistAdrLogo.png" alt="Лого на Адресът на историята" style="float: left; margin-right: 1.5rem; margin-bottom: 1rem; width: 120px; height: auto; border-radius: 0.5rem; box-shadow: var(--shadow-small);">
+			
 			<p>Това е дигитален каталог на домовете, в които са живели значими български личности.
 Сайтът събира на едно място адреси, снимки и кратка информация за хора, оставили следа в културата, науката, политиката и обществения живот.</p>
+			
+			<!-- Добавяне на clear: both, за да не обтича следващият елемент -->
+			<div style="clear: both;"></div>
+			
 			<div class="stats" id="stats">📚 Брой въведени адреси...</div>
 		</section>
 
