@@ -18,15 +18,15 @@
 		})();
 	</script>
 	<link rel="stylesheet" href="assets/css/styles.css">
-	<script defer src="assets/js/theme.js"></script>
-	<script defer src="assets/js/transitions.js"></script>
+	<script src="assets/js/theme.js"></script>
+	<script src="assets/js/transitions.js"></script>
 </head>
 <body>
 	<header class="site-header">
 		<a class="logo-link" href="index.html">
-        <img src="assets/img/HistAdrLogo.png" alt="Адресът на историята" class="header-logo">
-        <span class="logo-text">Адресът на историята</span>
-    </a>
+        <img src="assets/img/HistAdrLogo.png" alt="Адресът на историята" class="header-logo">
+        <span class="logo-text">Адресът на историята</span>
+    </a>
 		<nav class="nav">
 			<a href="index.html">Начало</a>
 			<a href="map.html">Карта</a>
@@ -39,9 +39,17 @@
 	<main class="container">
 		<h1 class="page-title gradient-text">📖 За „Адресът на историята“</h1>
 		<div style="max-width: 800px; margin: 0 auto;">
-			<p style="font-size: 1.1rem; line-height: 1.8; margin-bottom: 2rem;">
-				Добре дошли в „Адресът на историята“, дигитален архив, съхраняващ историите и местоположенията на легендарни домове и дейци от цяла България . 
 			
+			<!-- Добавяне на логото с float: left и отстъп отдясно и отдолу -->
+			<img src="assets/img/HistAdrLogoOrig.png" alt="Лого на Адресът на историята" style="float: left; margin-right: 1.5rem; margin-bottom: 1rem; width: 150px; height: auto; border-radius: 0.5rem; box-shadow: var(--shadow-small);">
+			
+			<p style="font-size: 1.1rem; line-height: 1.8; margin-bottom: 2rem;">
+				Добре дошли в „Адресът на историята“, дигитален архив, съхраняващ историите и местоположенията на легендарни домове и дейци от цяла България . 
+			</p>
+			
+			<!-- Добавяне на clear: both, за да не обтича следващият елемент -->
+			<div style="clear: both;"></div> 
+
 			<h2 style="color: var(--accent-strong); margin-top: 2rem; margin-bottom: 1rem;"> Нашата Мисия</h2>
 			<p style="line-height: 1.8; margin-bottom: 2rem;">
 				Ние сме група ученици от Първа английска езикова гимназия, обединени от любовта към България и желанието да съхраним спомена за нашите забележителни личности. Нашият проект цели да документира адресите на домовете на хора, които с делата, таланта и идеите си са оставили следа в българската история и култура.
@@ -72,4 +80,3 @@
 	<script>document.getElementById('year').textContent = new Date().getFullYear();</script>
 </body>
 </html>
-
