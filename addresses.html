@@ -18,15 +18,15 @@
 		})();
 	</script>
 	<link rel="stylesheet" href="assets/css/styles.css">
-	<script defer src="assets/js/theme.js"></script>
-	<script defer src="assets/js/transitions.js"></script>
+	<script src="assets/js/theme.js"></script>
+	<script src="assets/js/transitions.js"></script>
 </head>
 <body>
 	<header class="site-header">
 		<a class="logo-link" href="index.html">
-        <img src="assets/img/HistAdrLogo.png" alt="Адресът на историята" class="header-logo">
-        <span class="logo-text">Адресът на историята</span>
-    </a>
+        <img src="assets/img/HistAdrLogo.png" alt="Адресът на историята" class="header-logo">
+        <span class="logo-text">Адресът на историята</span>
+    </a>
 		<nav class="nav">
 			<a href="index.html">Начало</a>
 			<a href="map.html">Карта</a>
@@ -60,15 +60,27 @@
 		// Fetch homes from API
 		var apiBase = window.location.protocol === 'file:' ? 'http://localhost:3000' : window.location.origin;
 		fetch(apiBase + '/api/homes')
-			.then(function(res){ return res.json(); })
+			.then(function(res){ 
+                if (!res.ok) {
+                    throw new Error('Network response was not ok: ' + res.statusText);
+                }
+                return res.json(); 
+            })
 			.then(function(data){
-				people = data.filter(function(p){ return p.published; });
-				people.sort(function(a,b){ return a.name.localeCompare(b.name); });
+				// Check if data is an array before filtering
+                if (!Array.isArray(data)) {
+                    console.error('API did not return an array. Received:', data);
+                    throw new Error('Server data format is incorrect.');
+                }
+                
+                people = data.filter(function(p){ return p && p.published; });
+				people.sort(function(a,b){ return (a.name || '').localeCompare(b.name || ''); });
 				initialize();
 			})
 			.catch(function(err){
 				console.error('Error loading homes:', err);
-				alert('Error loading homes from server');
+				// Use a message box instead of alert()
+				document.getElementById('grid').innerHTML = '<p class="error-message">Грешка при зареждане на домовете от сървъра. Проверете конзолата за подробности.</p>';
 			});
 		
 		function initialize() {
@@ -102,11 +114,48 @@
 			var grid = document.getElementById('grid');
 			grid.innerHTML = '';
 			list.forEach(function(p){
+				
+				// --- КОРЕКЦИЯ НА ПРОБЛЕМА С [object Object] ---
+				// 1. Извличане на стойностите
+				var slugValue = p.slug;
+				var idValue = p.id;
+
+				// 2. ДЕБЪГВАНЕ: Изведете типа и стойността в конзолата
+				if (typeof slugValue !== 'string' && typeof slugValue === 'object' && slugValue !== null) {
+					console.warn('Home Name:', p.name, ' - WARNING: p.slug is an object!', slugValue);
+				}
+				if (typeof idValue !== 'string' && typeof idValue === 'object' && idValue !== null) {
+					console.warn('Home Name:', p.name, ' - WARNING: p.id is an object!', idValue);
+				}
+
+				// 3. Гарантиране, че стойността за URL е низ
+				// Ако slug/id е обект, го превръщаме в низ. Ако съдържа поле 'slug' или 'id', използваме него.
+				var finalSlug = '';
+				if (typeof slugValue === 'string' && slugValue) {
+					finalSlug = slugValue;
+				} else if (typeof slugValue === 'object' && slugValue !== null && slugValue.slug) {
+					finalSlug = String(slugValue.slug); // Ако е обект, но има поле 'slug'
+				} else if (typeof idValue === 'string' && idValue) {
+					finalSlug = idValue;
+				} else if (typeof idValue === 'object' && idValue !== null && idValue.id) {
+					finalSlug = String(idValue.id); // Ако е обект, но има поле 'id'
+				}
+				
+				// Ако въпреки всичко не получим валиден slug, спираме генерирането на линк
+				if (!finalSlug) {
+					console.error('Skipping home because neither slug nor id is a valid string/property:', p.name, p);
+					return; 
+				}
+				// ----------------------------------------------------
+
+
 				var placeholder = 'assets/img/placeholder.svg';
 				var img = (p.images && p.images[0] && p.images[0].path) ? p.images[0].path : placeholder;
 				var el = document.createElement('a');
 				el.className = 'thumb';
-				el.href = 'address.html?slug=' + encodeURIComponent(p.slug || p.id);
+				// ИЗПОЛЗВАНЕ на ГАРАНТИРАНО СТРИНГОВА СТОЙНОСТ
+				el.href = 'address.html?slug=' + encodeURIComponent(finalSlug); 
+				
 				el.innerHTML = '<img alt="'+(p.images && p.images[0] && p.images[0].alt || ('Facade of '+p.name))+'" loading="lazy" src="'+img+'" onerror="this.onerror=null;this.src=\''+placeholder+'\';">' +
 					'<div class="meta"><strong>'+p.name+'</strong><div class="muted">'+(p.address||'')+'</div></div>';
 				grid.appendChild(el);
@@ -122,4 +171,3 @@
 	</script>
 </body>
 </html>
-
