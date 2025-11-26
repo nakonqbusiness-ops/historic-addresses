@@ -18,13 +18,6 @@ const DB_PATH = process.env.RENDER
     : path.join(__dirname, 'database.db');
 
 console.log("📦 Using database at:", DB_PATH);
-// Ensure persistent storage directory exists
-const dataDir = path.dirname(DB_PATH);
-
-if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir, { recursive: true });
-    console.log("Created data directory:", dataDir);
-}
 
 const db = new sqlite3.Database(DB_PATH, (err) => {
     if (err) {
