@@ -160,19 +160,23 @@ https://.../house2.jpg"></textarea></label>
                     if (!res.ok) throw new Error('Server responded with ' + res.status);
                     return res.json(); 
                 })
-                .then(function(data){
+                .then(function(response){
                     // Handle different response formats
-                    if (Array.isArray(data)) {
-                        state.people = data;
-                    } else if (data && Array.isArray(data.homes)) {
-                        state.people = data.homes;
-                    } else if (data && typeof data === 'object') {
+                    if (Array.isArray(response)) {
+                        state.people = response;
+                    } else if (response && Array.isArray(response.data)) {
+                        // API returns {data: [...], pagination: {...}}
+                        state.people = response.data;
+                    } else if (response && Array.isArray(response.homes)) {
+                        state.people = response.homes;
+                    } else if (response && typeof response === 'object') {
                         // If it's an object with homes as properties
-                        state.people = Object.values(data);
+                        state.people = Object.values(response);
                     } else {
-                        console.error('Unexpected data format:', data);
+                        console.error('Unexpected data format:', response);
                         state.people = [];
                     }
+                    console.log('Loaded homes:', state.people.length);
                     applyFilters();
                 })
                 .catch(function(err){
