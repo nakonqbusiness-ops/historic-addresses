@@ -12,9 +12,6 @@ app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.static(path.join(__dirname)));
 
-// =================================================================
-// 🚨 КРИТИЧНА ПРОМЯНА: Дефиниране на пътя за постоянната база данни
-// =================================================================
 const DB_DIR = process.env.RENDER ? '/data' : '.';
 const DB_FILE = path.join(DB_DIR, 'database.db');
 
@@ -28,7 +25,7 @@ if (process.env.RENDER && !fs.existsSync(DB_DIR)) {
     }
 }
 console.log("📦 Using persistent database at:", DB_FILE);
-// =================================================================
+
 
 // Initialize SQLite database
 const db = new sqlite3.Database(DB_FILE, (err) => {
