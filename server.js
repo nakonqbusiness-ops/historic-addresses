@@ -183,20 +183,111 @@ function rowToHome(row) {
 
 // ============ API ROUTES ============
 
-// GET all homes
+// GET all homes with pagination
 app.get('/api/homes', (req, res) => {
     const showAll = req.query.all === 'true';
-    const query = showAll
-        ? 'SELECT * FROM homes ORDER BY name'
-        : 'SELECT * FROM homes WHERE published = 1 ORDER BY name';
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 6;
+    const search = req.query.search || '';
+    const tag = req.query.tag || '';
     
-    db.all(query, [], (err, rows) => {
+    const offset = (page - 1) * limit;
+    
+    // Build the WHERE clause based on filters
+    let whereConditions = [];
+    let params = [];
+    
+    if (!showAll) {
+        whereConditions.push('published = 1');
+    }
+    
+    // Search filter (name, biography, sources)
+    if (search) {
+        whereConditions.push(`(
+            name LIKE ? OR 
+            biography LIKE ? OR 
+            sources LIKE ? OR
+            tags LIKE ?
+        )`);
+        const searchPattern = `%${search}%`;
+        params.push(searchPattern, searchPattern, searchPattern, searchPattern);
+    }
+    
+    // Tag filter
+    if (tag) {
+        whereConditions.push('tags LIKE ?');
+        params.push(`%"${tag}"%`);
+    }
+    
+    const whereClause = whereConditions.length > 0 
+        ? 'WHERE ' + whereConditions.join(' AND ')
+        : '';
+    
+    // Get total count
+    const countQuery = `SELECT COUNT(*) as total FROM homes ${whereClause}`;
+    
+    db.get(countQuery, params, (err, countRow) => {
         if (err) {
             res.status(500).json({ error: err.message });
             return;
         }
-        const homes = rows.map(rowToHome);
-        res.json(homes);
+        
+        const total = countRow.total;
+        const totalPages = Math.ceil(total / limit);
+        
+        // Get paginated results
+        const dataQuery = `
+            SELECT * FROM homes 
+            ${whereClause}
+            ORDER BY name
+            LIMIT ? OFFSET ?
+        `;
+        
+        db.all(dataQuery, [...params, limit, offset], (err, rows) => {
+            if (err) {
+                res.status(500).json({ error: err.message });
+                return;
+            }
+            
+            const homes = rows.map(rowToHome);
+            
+            res.json({
+                data: homes,
+                pagination: {
+                    page: page,
+                    limit: limit,
+                    total: total,
+                    totalPages: totalPages,
+                    hasNext: page < totalPages,
+                    hasPrev: page > 1
+                }
+            });
+        });
+    });
+});
+
+// GET all tags (for the filter dropdown)
+app.get('/api/tags', (req, res) => {
+    db.all('SELECT DISTINCT tags FROM homes WHERE published = 1', [], (err, rows) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        
+        const tagSet = new Set();
+        rows.forEach(row => {
+            try {
+                const tags = JSON.parse(row.tags || '[]');
+                tags.forEach(tag => {
+                    if (tag) tagSet.add(String(tag));
+                });
+            } catch (e) {
+                console.error('Error parsing tags:', e);
+            }
+        });
+        
+        const tagArray = Array.from(tagSet).sort((a, b) => a.localeCompare(b));
+        res.json(tagArray);
     });
 });
 
