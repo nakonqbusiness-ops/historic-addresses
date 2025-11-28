@@ -91,23 +91,18 @@
             document.title = person.name + ' — Historic Addresses';
             var ph = 'assets/img/placeholder.svg';
             
-            // --- НОВА HTML СТРУКТУРА ЗА ПОРТРЕТ И БИОГРАФИЯ ---
             var portraitHtml = '';
             if (person.portrait_url) {
-                // Използваме 'portrait-image' за стилизиране
                 portraitHtml = '<div class="portrait-container slide-in-left"><img class="portrait-image" alt="Portrait of ' + person.name + '" src="' + person.portrait_url + '" loading="lazy"></div>';
             }
-            // ----------------------------
             
             var gallery = (person.images||[]);
             var hero = gallery[0] || null;
             
-            // Основна снимка (Първата от галерията)
             var imgHtml = hero ? 
                 '<img alt="'+((hero && hero.alt) || ('Facade of '+person.name))+'" loading="lazy" src="'+((hero && hero.path) || ph)+'" onerror="this.onerror=null;this.src=\''+ph+'\';">' :
                 '';
 
-            // Останалата галерия (снимки от 2-ра нататък)
             var galleryHtml = '';
             if ((gallery||[]).length > 1) {
                 galleryHtml = '<div class="gallery slide-up">' + gallery.slice(1).map(function(i){ 
@@ -131,7 +126,6 @@
                 '<h1 class="gradient-text slide-up">'+person.name+'</h1>'+
                 '<p class="meta slide-up">Address: '+(person.address||'')+(mapLink ? ' — <a href="'+mapLink+'">View on map</a>' : '')+'</p>'+
                 
-                // ГРУПИРАНЕ НА ПОРТРЕТ И БИОГРАФИЯ (с новия клас)
                 '<div class="content-split">'+
                     portraitHtml +
                     '<div class="biography-text slide-up">'+
@@ -156,16 +150,9 @@
 
     <script>
     (function() {
-        // ... (съществуващите функции q, renderHome и fetch logic) ...
+
 
         function renderHome(person) {
-            // ... (съществуващият код за renderHome) ...
-
-            // В КРАЯ НА ФУНКЦИЯТА renderHome, добавете слушатели за събития:
-            
-            // -------------------------------------------------------------
-            // НОВА ЛОГИКА ЗА LIGHTBOX (Уголемяване на снимки)
-            // -------------------------------------------------------------
             var lightbox = document.getElementById('lightbox');
             var lightboxImage = document.getElementById('lightboxImage');
             var closeLightbox = document.getElementById('closeLightbox');
@@ -174,7 +161,6 @@
             function openLightbox(src) {
                 lightboxImage.src = src;
                 lightbox.style.display = 'flex';
-                // За да предотвратим превъртане на основната страница
                 document.body.style.overflow = 'hidden'; 
             }
 
@@ -183,36 +169,33 @@
                 document.body.style.overflow = '';
             }
 
-            // Слушател за клик върху снимка (Главна или от Галерията)
             detailContainer.addEventListener('click', function(e) {
                 var target = e.target;
-                // Проверява дали кликнатият елемент е img вътре в .detail
+
                 if (target.tagName === 'IMG' && target.closest('.detail')) {
                     var imgSrc = target.getAttribute('src');
-                    if (imgSrc && imgSrc.indexOf(ph) === -1) { // Избягваме placeholder-а
+                    if (imgSrc && imgSrc.indexOf(ph) === -1) { 
                         openLightbox(imgSrc);
                     }
                 }
             });
 
-            // Слушател за затваряне на lightbox
             closeLightbox.addEventListener('click', closeLightboxModal);
             
-            // Слушател за затваряне при клик върху затъмнения фон
+
             lightbox.addEventListener('click', function(e) {
                 if (e.target.id === 'lightbox') {
                     closeLightboxModal();
                 }
             });
 
-            // Слушател за затваряне при натискане на ESC
             document.addEventListener('keydown', function(e) {
                 if (e.key === 'Escape' && lightbox.style.display === 'flex') {
                     closeLightboxModal();
                 }
             });
 
-            // -------------------------------------------------------------
+
 
             document.getElementById('year').textContent = new Date().getFullYear();
         }
@@ -241,7 +224,7 @@
 
         var slug = q('slug');
         var root = document.getElementById('detail');
-        var ph = 'assets/img/placeholder.svg'; // Дефинираме го тук, за да е достъпен
+        var ph = 'assets/img/placeholder.svg'; 
 
         if (!slug) {
             root.innerHTML = '<p>No home specified.</p>';
@@ -268,11 +251,10 @@
                 root.innerHTML = '<p>Error: ' + err.message + '. Please check the URL or server status.</p>';
             });
         
-        // --- ФУНКЦИЯ ЗА ГЕНЕРИРАНЕ НА HTML СЪДЪРЖАНИЕ ---
+
         function renderHome(person) {
             document.title = person.name + ' — Historic Addresses';
             
-            // --- ГЕНЕРИРАНЕ НА HTML (Без промяна в тази част) ---
             var portraitHtml = '';
             if (person.portrait_url) {
                 portraitHtml = '<div class="portrait-container slide-in-left"><img class="portrait-image" alt="Portrait of ' + person.name + '" src="' + person.portrait_url + '" loading="lazy"></div>';
@@ -281,12 +263,10 @@
             var gallery = (person.images||[]);
             var hero = gallery[0] || null;
             
-            // Основна снимка - ДОБАВЕН КЛАС "zoomable-image"
             var imgHtml = hero ? 
                 '<img class="zoomable-image" alt="'+((hero && hero.alt) || ('Facade of '+person.name))+'" loading="lazy" src="'+((hero && hero.path) || ph)+'" onerror="this.onerror=null;this.src=\''+ph+'\';">' :
                 '';
 
-            // Останалата галерия - ДОБАВЕН КЛАС "zoomable-image"
             var galleryHtml = '';
             if ((gallery||[]).length > 1) {
                 galleryHtml = '<div class="gallery slide-up">' + gallery.slice(1).map(function(i){ 
@@ -343,30 +323,28 @@
             document.body.style.overflow = '';
         }
 
-        // 1. Слушател за клик върху снимка (Използваме делегиране на събития върху контейнера #detail)
         detailContainer.addEventListener('click', function(e) {
             var target = e.target;
-            // Търси елементи с новия клас "zoomable-image"
             if (target.classList.contains('zoomable-image')) {
                 var imgSrc = target.getAttribute('src');
-                if (imgSrc && imgSrc.indexOf(ph) === -1) { // Проверява дали не е placeholder
+                if (imgSrc && imgSrc.indexOf(ph) === -1) { 
                     openLightbox(imgSrc);
                 }
             }
         });
 
-        // 2. Слушател за затваряне на lightbox чрез бутон
+
         closeLightbox.addEventListener('click', closeLightboxModal);
         
-        // 3. Слушател за затваряне при клик върху затъмнения фон
+
         lightbox.addEventListener('click', function(e) {
-            // Затваря само ако се кликне върху самия фон (#lightbox), а не върху снимката
+
             if (e.target.id === 'lightbox') {
                 closeLightboxModal();
             }
         });
 
-        // 4. Слушател за затваряне при натискане на ESC
+
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape' && lightbox.style.display === 'flex') {
                 closeLightboxModal();
