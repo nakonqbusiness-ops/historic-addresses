@@ -156,19 +156,42 @@ https://.../house2.jpg"></textarea></label>
 
         function loadHomes(){
             fetch(API_URL + '?all=true')
-                .then(function(res){ return res.json(); })
+                .then(function(res){ 
+                    if (!res.ok) throw new Error('Server responded with ' + res.status);
+                    return res.json(); 
+                })
                 .then(function(data){
-                    state.people = data;
+                    // Handle different response formats
+                    if (Array.isArray(data)) {
+                        state.people = data;
+                    } else if (data && Array.isArray(data.homes)) {
+                        state.people = data.homes;
+                    } else if (data && typeof data === 'object') {
+                        // If it's an object with homes as properties
+                        state.people = Object.values(data);
+                    } else {
+                        console.error('Unexpected data format:', data);
+                        state.people = [];
+                    }
                     applyFilters();
                 })
                 .catch(function(err){
                     console.error('Error loading homes:', err);
-                    alert('Error loading data from server');
+                    alert('Error loading data from server: ' + err.message);
+                    state.people = [];
+                    applyFilters();
                 });
         }
 
         function applyFilters(){
             var q = (document.getElementById('search').value||'').toLowerCase();
+            
+            // Ensure state.people is an array
+            if (!Array.isArray(state.people)) {
+                console.error('state.people is not an array:', state.people);
+                state.people = [];
+            }
+            
             state.filteredPeople = state.people.filter(function(p){
                 if (!q) return true;
                 return (p.name||'').toLowerCase().includes(q) || 
