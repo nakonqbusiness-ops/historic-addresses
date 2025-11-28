@@ -3,13 +3,37 @@ const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const multer = require('multer'); // Добавяне на Multer
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// --- MULTER SETUP (ЗА УПРАВЛЕНИЕ НА ФАЙЛОВЕ) ---
+const UPLOADS_DIR = path.join(__dirname, 'assets');
+if (!fs.existsSync(UPLOADS_DIR)) {
+    fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+}
+
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, UPLOADS_DIR); 
+    },
+    filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+    }
+});
+
+const upload = multer({ 
+    storage: storage,
+    limits: { fileSize: 10 * 1024 * 1024 } // Ограничение до 10MB на файл
+});
+// --------------------------------------------------
+
 // Middleware
 app.use(cors());
-app.use(express.json({ limit: '50mb' }));
+// Намален лимит на JSON, тъй като снимките вече не са в JSON тялото!
+app.use(express.json({ limit: '1mb' })); 
 app.use(express.static(path.join(__dirname)));
 
 const DB_DIR = process.env.RENDER ? '/data' : '.';
@@ -27,7 +51,7 @@ if (process.env.RENDER && !fs.existsSync(DB_DIR)) {
 console.log("📦 Using persistent database at:", DB_FILE);
 
 
-// Initialize SQLite database
+// Initialize SQLite database (останалият код за базата данни е непроменен)
 const db = new sqlite3.Database(DB_FILE, (err) => {
     if (err) {
         console.error('Error opening database:', err);
@@ -37,7 +61,6 @@ const db = new sqlite3.Database(DB_FILE, (err) => {
     }
 });
 
-// Create tables if they don't exist and run necessary migrations
 function initializeDatabase() {
     db.run(`
         CREATE TABLE IF NOT EXISTS homes (
@@ -67,7 +90,6 @@ function initializeDatabase() {
     });
 }
 
-// Function to check and add missing columns (migration)
 function checkAndMigrateSchema() {
     db.all("PRAGMA table_info(homes)", (err, columns) => {
         if (err) {
@@ -96,7 +118,6 @@ function checkAndMigrateSchema() {
     });
 }
 
-// Import initial data from people.js if database is empty
 function importInitialData() {
     db.get('SELECT COUNT(*) as count FROM homes', (err, row) => {
         if (err) {
@@ -183,24 +204,67 @@ function rowToHome(row) {
 
 // ============ API ROUTES ============
 
-// GET all homes
-app.get('/api/homes', (req, res) => {
-    const showAll = req.query.all === 'true';
-    const query = showAll
-        ? 'SELECT * FROM homes ORDER BY name'
-        : 'SELECT * FROM homes WHERE published = 1 ORDER BY name';
-    
-    db.all(query, [], (err, rows) => {
-        if (err) {
-            res.status(500).json({ error: err.message });
-            return;
-        }
-        const homes = rows.map(rowToHome);
-        res.json(homes);
+// НОВ ЕНДПОЙНТ: Качване на снимка
+app.post('/api/upload-image', upload.single('file'), (req, res) => {
+    if (!req.file) {
+        return res.status(400).json({ error: 'No file uploaded' });
+    }
+    // Връщаме URL, който може да бъде достъпен от браузъра
+    const publicUrl = `/assets/${req.file.filename}`;
+    res.json({ 
+        message: 'File uploaded successfully', 
+        url: publicUrl 
     });
 });
 
-// GET single home by slug
+
+// GET all homes (С ПАГИНАЦИЯ)
+app.get('/api/homes', (req, res) => {
+    const showAll = req.query.all === 'true';
+    
+    // Добавяме параметри за пагинация
+    const page = parseInt(req.query.page) || 1; 
+    const limit = parseInt(req.query.limit) || 50; 
+    const offset = (page - 1) * limit;
+    
+    const whereClause = showAll ? '' : 'WHERE published = 1';
+    
+    // Заявка за броя на всички записи
+    const countQuery = `SELECT COUNT(*) AS count FROM homes ${whereClause}`;
+
+    db.get(countQuery, [], (err, countRow) => {
+        if (err) {
+            return res.status(500).json({ error: err.message });
+        }
+        const totalCount = countRow.count;
+
+        // Основна заявка с LIMIT и OFFSET
+        const dataQuery = `
+            SELECT * FROM homes ${whereClause} 
+            ORDER BY name 
+            LIMIT ? OFFSET ?
+        `;
+        
+        db.all(dataQuery, [limit, offset], (err, rows) => {
+            if (err) {
+                return res.status(500).json({ error: err.message });
+            }
+            const homes = rows.map(rowToHome);
+            
+            res.json({
+                homes,
+                meta: {
+                    total: totalCount,
+                    page: page,
+                    limit: limit,
+                    totalPages: Math.ceil(totalCount / limit)
+                }
+            });
+        });
+    });
+});
+
+// GET single home by slug (непроменен)
 app.get('/api/homes/:slug', (req, res) => {
     db.get('SELECT * FROM homes WHERE slug = ? OR id = ?', [req.params.slug, req.params.slug], (err, row) => {
         if (err) {
@@ -215,7 +279,7 @@ app.get('/api/homes/:slug', (req, res) => {
     });
 });
 
-// POST create new home
+// POST create new home (непроменен, тъй като не работи с файлове директно)
 app.post('/api/homes', (req, res) => {
     const home = req.body;
     
@@ -237,7 +301,7 @@ app.post('/api/homes', (req, res) => {
     res.status(201).json({ message: 'Home created successfully', id: home.id });
 });
 
-// PUT update existing home
+// PUT update existing home (непроменен, тъй като не работи с файлове директно)
 app.put('/api/homes/:id', (req, res) => {
     const home = req.body;
     home.updated_at = new Date().toISOString();
@@ -277,7 +341,7 @@ app.put('/api/homes/:id', (req, res) => {
     stmt.finalize();
 });
 
-// DELETE home
+// DELETE home (непроменен)
 app.delete('/api/homes/:id', (req, res) => {
     db.run('DELETE FROM homes WHERE id = ?', [req.params.id], function(err) {
         if (err) {
@@ -292,7 +356,7 @@ app.delete('/api/homes/:id', (req, res) => {
     });
 });
 
-// ============ SERVE HTML PAGES ============
+// ============ SERVE HTML PAGES (непроменен) ============
 
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
@@ -308,7 +372,7 @@ app.get('/:page.html', (req, res) => {
     }
 });
 
-// Start server on all network interfaces
+// Start server (непроменен)
 app.listen(PORT, '0.0.0.0', () => {
     const os = require('os');
     const interfaces = os.networkInterfaces();
@@ -338,7 +402,7 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`\n🔌 API Endpoint: /api/homes\n`);
 });
 
-// Graceful shutdown
+// Graceful shutdown (непроменен)
 process.on('SIGINT', () => {
     db.close((err) => {
         if (err) console.error(err.message);
