@@ -3,7 +3,7 @@ const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
-// const multer = require('multer'); // ❌ ПРЕМАХНАТО: Вече не използваме multer за качване на файлове
+// const multer = require('multer'); // ❌ Multer вече не се използва, тъй като работим с Base64
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -12,33 +12,9 @@ const PORT = process.env.PORT || 3000;
 const SERVER_SECRET_PASSWORD = '_endjvJ6!d'; // ⚠️ ЗАМЕНИ СИГУРНО, АКО Е НУЖНО
 const AUTH_HEADER_KEY = 'x-admin-token';
 
-// --- MULTER SETUP (БЕЗ ДЕЙСТВИЕ: КОМЕНТИРАН/ПРЕМАХНАТ) ---
-// Тъй като вече работим с Base64 Data URLs, тази логика е ненужна.
-// Ако искате да запазите възможността за качване на файлове в бъдеще,
-// запазете я, но променете ендпойнтите POST/PUT.
-
-// const UPLOADS_DIR = path.join(__dirname, 'assets');
-// if (!fs.existsSync(UPLOADS_DIR)) {
-//     fs.mkdirSync(UPLOADS_DIR, { recursive: true });
-// }
-
-// const storage = multer.diskStorage({
-//     destination: (req, file, cb) => { cb(null, UPLOADS_DIR); },
-//     filename: (req, file, cb) => {
-//         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-//         cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
-//     }
-// });
-
-// const upload = multer({
-//     storage: storage,
-//     limits: { fileSize: 10 * 1024 * 1024 }
-// });
-// --------------------------------------------------
-
 // Middleware
 app.use(cors());
-// ✅ ВАЖНА ПРОМЯНА: Увеличихме лимита до 50MB, за да поберем Base64 изображенията!
+// ✅ КРИТИЧНА ПРОМЯНА: Лимитът е увеличен до 50MB, за да побере Base64 изображенията!
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(express.static(path.join(__dirname)));
@@ -226,7 +202,7 @@ function rowToHome(row) {
 
 // ============ API ROUTES ============
 
-// НОВ ЕНДПОЙНТ: Вход в административния панел (непроменен)
+// ЕНДПОЙНТ: Вход в административния панел
 app.post('/api/login', (req, res) => {
     const { password } = req.body;
     if (password === SERVER_SECRET_PASSWORD) {
@@ -237,20 +213,22 @@ app.post('/api/login', (req, res) => {
     }
 });
 
-// ❌ ПРЕМАХНАТ/КОМЕНТИРАН ЕНДПОЙНТ: Качване на снимка
-// app.post('/api/upload-image', upload.single('file'), checkAuth, (req, res) => {
-//     if (!req.file) {
-//         return res.status(400).json({ error: 'No file uploaded' });
-//     }
-//     const publicUrl = `/assets/${req.file.filename}`;
-//     res.json({
-//         message: 'File uploaded successfully',
-//         url: publicUrl
-//     });
-// });
+// ЕНДПОЙНТ: Качване на снимка (ПРЕМАХНАТ/КОМЕНТИРАН - използваме Base64)
+/*
+app.post('/api/upload-image', upload.single('file'), checkAuth, (req, res) => {
+    if (!req.file) {
+        return res.status(400).json({ error: 'No file uploaded' });
+    }
+    const publicUrl = `/assets/${req.file.filename}`;
+    res.json({
+        message: 'File uploaded successfully',
+        url: publicUrl
+    });
+});
+*/
 
 
-// GET all homes (С ПАГИНАЦИЯ) (непроменен)
+// GET all homes (С ПАГИНАЦИЯ)
 app.get('/api/homes', (req, res) => {
     const showAll = req.query.all === 'true';
 
@@ -301,7 +279,7 @@ app.get('/api/homes', (req, res) => {
     });
 });
 
-// GET single home by slug (ПУБЛИЧЕН) (непроменен)
+// GET single home by slug (ПУБЛИЧЕН)
 app.get('/api/homes/:slug', (req, res) => {
     db.get('SELECT * FROM homes WHERE slug = ? OR id = ?', [req.params.slug, req.params.slug], (err, row) => {
         if (err) {
@@ -316,8 +294,134 @@ app.get('/api/homes/:slug', (req, res) => {
     });
 });
 
-// POST create new home (ЗАЩИТЕН с checkAuth) (непроменен - приема JSON с Base64)
+// POST create new home (ЗАЩИТЕН с checkAuth)
 app.post('/api/homes', checkAuth, (req, res) => {
     const home = req.body;
     
-    if (!home.
+    if (!home.name) {
+        res.status(400).json({ error: 'Name is required' });
+        return;
+    }
+    
+    if (!home.slug) {
+        home.slug = home.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    }
+    
+    home.id = home.id || home.slug;
+    home.created_at = new Date().toISOString();
+    home.updated_at = new Date().toISOString();
+    
+    insertHome(home);
+    
+    res.status(201).json({ message: 'Home created successfully', id: home.id });
+});
+
+// PUT update existing home (ЗАЩИТЕН с checkAuth)
+app.put('/api/homes/:id', checkAuth, (req, res) => {
+    const home = req.body;
+    home.updated_at = new Date().toISOString();
+    
+    const coordinates = home.coordinates || {};
+    const stmt = db.prepare(`
+        UPDATE homes SET
+            slug = ?, name = ?, biography = ?, address = ?,
+            lat = ?, lng = ?, images = ?, photo_date = ?,
+            sources = ?, tags = ?, published = ?, updated_at = ?,
+            portrait_url = ?
+        WHERE id = ?
+    `);
+    
+    stmt.run(
+        home.slug, home.name, home.biography, home.address,
+        coordinates.lat, coordinates.lng,
+        JSON.stringify(home.images || []), home.photo_date,
+        JSON.stringify(home.sources || []),
+        JSON.stringify(home.tags || []),
+        home.published !== false ? 1 : 0,
+        home.updated_at,
+        home.portrait_url || null,
+        req.params.id,
+        function(err) {
+            if (err) {
+                res.status(500).json({ error: err.message });
+                return;
+            }
+            if (this.changes === 0) {
+                res.status(404).json({ error: 'Home not found' });
+                return;
+            }
+            res.json({ message: 'Home updated successfully' });
+        }
+    );
+    stmt.finalize();
+});
+
+// DELETE home (ЗАЩИТЕН с checkAuth)
+app.delete('/api/homes/:id', checkAuth, (req, res) => {
+    db.run('DELETE FROM homes WHERE id = ?', [req.params.id], function(err) {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        if (this.changes === 0) {
+            res.status(404).json({ error: 'Home not found' });
+            return;
+        }
+        res.json({ message: 'Home deleted successfully' });
+    });
+});
+
+// ============ SERVE HTML PAGES ============
+
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+app.get('/:page.html', (req, res) => {
+    const page = req.params.page;
+    const filePath = path.join(__dirname, `${page}.html`);
+    if (fs.existsSync(filePath)) {
+        res.sendFile(filePath);
+    } else {
+        res.status(404).send('Page not found');
+    }
+});
+
+// Start server
+app.listen(PORT, '0.0.0.0', () => {
+    const os = require('os');
+    const interfaces = os.networkInterfaces();
+    const addresses = [];
+    
+    Object.keys(interfaces).forEach(name => {
+        interfaces[name].forEach(iface => {
+            if (iface.family === 'IPv4' && !iface.internal) {
+                addresses.push(iface.address);
+            }
+        });
+    });
+    
+    console.log(`\n🏛️ Historic Addresses Server`);
+    console.log(`✅ Server running on port ${PORT}`);
+    console.log(`📊 Database: SQLite (Persistent at ${DB_FILE})`);
+    
+    console.log(`\n📍 Access from this computer:`);
+    console.log(`  http://localhost:${PORT}`);
+    
+    if (addresses.length > 0) {
+        console.log(`\n🌐 Access from other devices on your network:`);
+        addresses.forEach(addr => {
+            console.log(`  http://${addr}:${PORT}`);
+        });
+    }
+    console.log(`\n🔌 API Endpoint: /api/homes\n`);
+});
+
+// Graceful shutdown
+process.on('SIGINT', () => {
+    db.close((err) => {
+        if (err) console.error(err.message);
+        console.log('\n✅ Database connection closed.');
+        process.exit(0);
+    });
+});
