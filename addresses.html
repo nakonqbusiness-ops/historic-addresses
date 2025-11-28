@@ -18,15 +18,69 @@
 		})();
 	</script>
 	<link rel="stylesheet" href="assets/css/styles.css">
+	<style>
+		/* Pagination styles */
+		.pagination {
+			display: flex;
+			justify-content: center;
+			align-items: center;
+			gap: 0.5rem;
+			margin: 2rem 0;
+			flex-wrap: wrap;
+		}
+		
+		.pagination button {
+			padding: 0.5rem 1rem;
+			border: 1px solid var(--border-color, #444);
+			background: var(--bg-secondary, #2a2a2a);
+			color: var(--text-color, #fff);
+			cursor: pointer;
+			border-radius: 4px;
+			transition: all 0.2s;
+		}
+		
+		.pagination button:hover:not(:disabled) {
+			background: var(--primary-color, #007bff);
+			border-color: var(--primary-color, #007bff);
+		}
+		
+		.pagination button:disabled {
+			opacity: 0.5;
+			cursor: not-allowed;
+		}
+		
+		.pagination button.active {
+			background: var(--primary-color, #007bff);
+			border-color: var(--primary-color, #007bff);
+			font-weight: bold;
+		}
+		
+		.pagination-info {
+			color: var(--text-muted, #999);
+			font-size: 0.9rem;
+		}
+		
+		.loading {
+			text-align: center;
+			padding: 2rem;
+			color: var(--text-muted, #999);
+		}
+		
+		.error-message {
+			text-align: center;
+			padding: 2rem;
+			color: #ff6b6b;
+		}
+	</style>
 	<script src="assets/js/theme.js"></script>
 	<script src="assets/js/transitions.js"></script>
 </head>
 <body>
 	<header class="site-header">
 		<a class="logo-link" href="index.html">
-        <img src="assets/img/HistAdrLogo.png" alt="Адресът на историята" class="header-logo">
-        <span class="logo-text">Адресът на историята</span>
-    </a>
+        <img src="assets/img/HistAdrLogo.png" alt="Адресът на историята" class="header-logo">
+        <span class="logo-text">Адресът на историята</span>
+    </a>
 		<nav class="nav">
 			<a href="index.html">Начало</a>
 			<a href="map.html">Карта</a>
@@ -44,7 +98,10 @@
 				<option value="">Всички тагове</option>
 			</select>
 		</div>
+		
+		<div class="pagination-info" id="pagination-info"></div>
 		<div id="grid" class="grid" aria-live="polite"></div>
+		<div class="pagination" id="pagination"></div>
 	</main>
 
 	<footer class="site-footer">
@@ -55,70 +112,96 @@
 	(function() {
 		var params = new URLSearchParams(location.search);
 		var initialTag = (params.get('tag')||'').toLowerCase();
-		var people = [];
-		
-		// Fetch homes from API
+		var currentPage = 1;
+		var totalPages = 1;
+		var isLoading = false;
 		var apiBase = window.location.protocol === 'file:' ? 'http://localhost:3000' : window.location.origin;
-		fetch(apiBase + '/api/homes')
-			.then(function(res){ 
-                if (!res.ok) {
-                    throw new Error('Network response was not ok: ' + res.statusText);
-                }
-                return res.json(); 
-            })
-			.then(function(data){
-				// Check if data is an array before filtering
-                if (!Array.isArray(data)) {
-                    console.error('API did not return an array. Received:', data);
-                    throw new Error('Server data format is incorrect.');
-                }
-                
-                people = data.filter(function(p){ return p && p.published; });
-				people.sort(function(a,b){ return (a.name || '').localeCompare(b.name || ''); });
-				initialize();
-			})
-			.catch(function(err){
-				console.error('Error loading homes:', err);
-				// Use a message box instead of alert()
-				document.getElementById('grid').innerHTML = '<p class="error-message">Грешка при зареждане на домовете от сървъра. Проверете конзолата за подробности.</p>';
-			});
 		
-		function initialize() {
-
-		var tagSel = document.getElementById('tag');
-		var tagSet = new Set();
-		people.forEach(function(p){ (p.tags||[]).forEach(function(t){ if (t) tagSet.add(String(t)); }); });
-		Array.from(tagSet).sort(function(a,b){ return a.localeCompare(b); }).forEach(function(t){
-			var o=document.createElement('option'); o.value=t; o.textContent=t; tagSel.appendChild(o);
-		});
-		if (initialTag) {
-			// Try to select matching tag ignoring case
-			var match = Array.from(tagSel.options).find(function(o){ return o.value.toLowerCase() === initialTag; });
-			if (match) tagSel.value = match.value;
+		// Fetch tags for dropdown
+		function loadTags() {
+			fetch(apiBase + '/api/tags')
+				.then(function(res){ return res.json(); })
+				.then(function(tags){
+					var tagSel = document.getElementById('tag');
+					tags.forEach(function(t){
+						var o = document.createElement('option');
+						o.value = t;
+						o.textContent = t;
+						tagSel.appendChild(o);
+					});
+					
+					if (initialTag) {
+						var match = Array.from(tagSel.options).find(function(o){ 
+							return o.value.toLowerCase() === initialTag; 
+						});
+						if (match) tagSel.value = match.value;
+					}
+				})
+				.catch(function(err){
+					console.error('Error loading tags:', err);
+				});
 		}
-
-		function render() {
-			var q = (document.getElementById('q').value || '').toLowerCase();
-			var t = (tagSel.value||'').toLowerCase();
-			var list = people.filter(function(p){
-				var tagsLc = (p.tags||[]).map(function(x){ return String(x).toLowerCase(); });
-				var hit = !q || (
-					(p.name||'').toLowerCase().includes(q) ||
-					(p.biography||'').toLowerCase().includes(q) ||
-					(p.sources||[]).join(' ').toLowerCase().includes(q) ||
-					tagsLc.join(' ').includes(q)
-				);
-				var tagOk = !t || tagsLc.includes(t);
-				return hit && tagOk;
-			});
+		
+		// Fetch homes with pagination
+		function loadHomes(page) {
+			if (isLoading) return;
+			isLoading = true;
+			
+			var searchQuery = document.getElementById('q').value;
+			var tagFilter = document.getElementById('tag').value;
+			
+			var url = apiBase + '/api/homes?page=' + page + '&limit=6';
+			if (searchQuery) url += '&search=' + encodeURIComponent(searchQuery);
+			if (tagFilter) url += '&tag=' + encodeURIComponent(tagFilter);
+			
+			var grid = document.getElementById('grid');
+			grid.innerHTML = '<div class="loading">Зареждане...</div>';
+			
+			fetch(url)
+				.then(function(res){ 
+					if (!res.ok) {
+						throw new Error('Network response was not ok: ' + res.statusText);
+					}
+					return res.json(); 
+				})
+				.then(function(response){
+					isLoading = false;
+					
+					// Handle both old format (array) and new format (object with data/pagination)
+					var homes = response.data || response;
+					var pagination = response.pagination || {
+						page: 1,
+						totalPages: 1,
+						total: homes.length
+					};
+					
+					currentPage = pagination.page;
+					totalPages = pagination.totalPages;
+					
+					renderHomes(homes);
+					renderPagination(pagination);
+					updatePaginationInfo(pagination);
+				})
+				.catch(function(err){
+					isLoading = false;
+					console.error('Error loading homes:', err);
+					grid.innerHTML = '<p class="error-message">Грешка при зареждане на домовете от сървъра. Проверете конзолата за подробности.</p>';
+				});
+		}
+		
+		// Render homes grid
+		function renderHomes(homes) {
 			var grid = document.getElementById('grid');
 			grid.innerHTML = '';
-			list.forEach(function(p){
-				
-
+			
+			if (homes.length === 0) {
+				grid.innerHTML = '<p class="error-message">Няма намерени резултати.</p>';
+				return;
+			}
+			
+			homes.forEach(function(p){
 				var slugValue = p.slug;
 				var idValue = p.id;
-
 
 				if (typeof slugValue !== 'string' && typeof slugValue === 'object' && slugValue !== null) {
 					console.warn('Home Name:', p.name, ' - WARNING: p.slug is an object!', slugValue);
@@ -127,23 +210,21 @@
 					console.warn('Home Name:', p.name, ' - WARNING: p.id is an object!', idValue);
 				}
 
-
 				var finalSlug = '';
 				if (typeof slugValue === 'string' && slugValue) {
 					finalSlug = slugValue;
 				} else if (typeof slugValue === 'object' && slugValue !== null && slugValue.slug) {
-					finalSlug = String(slugValue.slug); // Ако е обект, но има поле 'slug'
+					finalSlug = String(slugValue.slug);
 				} else if (typeof idValue === 'string' && idValue) {
 					finalSlug = idValue;
 				} else if (typeof idValue === 'object' && idValue !== null && idValue.id) {
-					finalSlug = String(idValue.id); // Ако е обект, но има поле 'id'
+					finalSlug = String(idValue.id);
 				}
 				
 				if (!finalSlug) {
 					console.error('Skipping home because neither slug nor id is a valid string/property:', p.name, p);
 					return; 
 				}
-
 
 				var placeholder = 'assets/img/placeholder.svg';
 				var img = (p.images && p.images[0] && p.images[0].path) ? p.images[0].path : placeholder;
@@ -156,12 +237,122 @@
 				grid.appendChild(el);
 			});
 		}
-
-			document.getElementById('q').addEventListener('input', render);
-			tagSel.addEventListener('change', render);
-			render();
-			document.getElementById('year').textContent = new Date().getFullYear();
+		
+		// Render pagination controls
+		function renderPagination(pagination) {
+			var paginationDiv = document.getElementById('pagination');
+			paginationDiv.innerHTML = '';
+			
+			if (pagination.totalPages <= 1) return;
+			
+			// Previous button
+			var prevBtn = document.createElement('button');
+			prevBtn.textContent = '← Предишна';
+			prevBtn.disabled = !pagination.hasPrev;
+			prevBtn.onclick = function() {
+				if (pagination.hasPrev) {
+					loadHomes(currentPage - 1);
+					window.scrollTo({ top: 0, behavior: 'smooth' });
+				}
+			};
+			paginationDiv.appendChild(prevBtn);
+			
+			// Page numbers
+			var startPage = Math.max(1, currentPage - 2);
+			var endPage = Math.min(pagination.totalPages, currentPage + 2);
+			
+			if (startPage > 1) {
+				var firstBtn = document.createElement('button');
+				firstBtn.textContent = '1';
+				firstBtn.onclick = function() {
+					loadHomes(1);
+					window.scrollTo({ top: 0, behavior: 'smooth' });
+				};
+				paginationDiv.appendChild(firstBtn);
+				
+				if (startPage > 2) {
+					var dots = document.createElement('span');
+					dots.textContent = '...';
+					dots.style.padding = '0.5rem';
+					paginationDiv.appendChild(dots);
+				}
+			}
+			
+			for (var i = startPage; i <= endPage; i++) {
+				var pageBtn = document.createElement('button');
+				pageBtn.textContent = i;
+				pageBtn.className = i === currentPage ? 'active' : '';
+				pageBtn.dataset.page = i;
+				pageBtn.onclick = function() {
+					var page = parseInt(this.dataset.page);
+					loadHomes(page);
+					window.scrollTo({ top: 0, behavior: 'smooth' });
+				};
+				paginationDiv.appendChild(pageBtn);
+			}
+			
+			if (endPage < pagination.totalPages) {
+				if (endPage < pagination.totalPages - 1) {
+					var dots2 = document.createElement('span');
+					dots2.textContent = '...';
+					dots2.style.padding = '0.5rem';
+					paginationDiv.appendChild(dots2);
+				}
+				
+				var lastBtn = document.createElement('button');
+				lastBtn.textContent = pagination.totalPages;
+				lastBtn.onclick = function() {
+					loadHomes(pagination.totalPages);
+					window.scrollTo({ top: 0, behavior: 'smooth' });
+				};
+				paginationDiv.appendChild(lastBtn);
+			}
+			
+			// Next button
+			var nextBtn = document.createElement('button');
+			nextBtn.textContent = 'Следваща →';
+			nextBtn.disabled = !pagination.hasNext;
+			nextBtn.onclick = function() {
+				if (pagination.hasNext) {
+					loadHomes(currentPage + 1);
+					window.scrollTo({ top: 0, behavior: 'smooth' });
+				}
+			};
+			paginationDiv.appendChild(nextBtn);
 		}
+		
+		// Update pagination info text
+		function updatePaginationInfo(pagination) {
+			var info = document.getElementById('pagination-info');
+			var start = (pagination.page - 1) * pagination.limit + 1;
+			var end = Math.min(pagination.page * pagination.limit, pagination.total);
+			info.textContent = 'Показване ' + start + '-' + end + ' от ' + pagination.total + ' адреса';
+		}
+		
+		// Debounce function for search
+		var searchTimeout;
+		function debounce(func, delay) {
+			return function() {
+				clearTimeout(searchTimeout);
+				searchTimeout = setTimeout(func, delay);
+			};
+		}
+		
+		// Event listeners
+		document.getElementById('q').addEventListener('input', debounce(function() {
+			currentPage = 1;
+			loadHomes(1);
+		}, 500));
+		
+		document.getElementById('tag').addEventListener('change', function() {
+			currentPage = 1;
+			loadHomes(1);
+		});
+		
+		// Initialize
+		document.getElementById('year').textContent = new Date().getFullYear();
+		loadTags();
+		loadHomes(1);
 	})();
 	</script>
 </body>
