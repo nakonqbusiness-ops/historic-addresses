@@ -3,10 +3,14 @@ const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
-const multer = require('multer'); // Добавяне на Multer
+const multer = require('multer'); 
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// 🚨 АВТЕНТИКАЦИЯ: СЕКРЕТНАТА ПАРОЛА Е ТУК!
+const SERVER_SECRET_PASSWORD = '_endjvJ6!d'; // ⚠️ ЗАМЕНИ СИГУРНО, АКО Е НУЖНО
+const AUTH_HEADER_KEY = 'x-admin-token'; 
 
 // --- MULTER SETUP (ЗА УПРАВЛЕНИЕ НА ФАЙЛОВЕ) ---
 const UPLOADS_DIR = path.join(__dirname, 'assets');
@@ -26,13 +30,12 @@ const storage = multer.diskStorage({
 
 const upload = multer({ 
     storage: storage,
-    limits: { fileSize: 10 * 1024 * 1024 } // Ограничение до 10MB на файл
+    limits: { fileSize: 10 * 1024 * 1024 } 
 });
 // --------------------------------------------------
 
 // Middleware
 app.use(cors());
-// Намален лимит на JSON, тъй като снимките вече не са в JSON тялото!
 app.use(express.json({ limit: '1mb' })); 
 app.use(express.static(path.join(__dirname)));
 
@@ -50,8 +53,23 @@ if (process.env.RENDER && !fs.existsSync(DB_DIR)) {
 }
 console.log("📦 Using persistent database at:", DB_FILE);
 
+// --- АВТЕНТИКАЦИОНЕН MIDDLEWARE ---
 
-// Initialize SQLite database (останалият код за базата данни е непроменен)
+// Междинно приложение за проверка на автентикацията
+function checkAuth(req, res, next) {
+    const providedToken = req.headers[AUTH_HEADER_KEY];
+
+    // Проверка дали предоставеният токен съвпада с нашата секретна парола
+    if (providedToken === SERVER_SECRET_PASSWORD) {
+        next(); // Успешна автентикация
+    } else {
+        res.status(401).json({ error: 'Authentication required. Please log in.' });
+    }
+}
+// -------------------------------------
+
+
+// Initialize SQLite database
 const db = new sqlite3.Database(DB_FILE, (err) => {
     if (err) {
         console.error('Error opening database:', err);
@@ -204,8 +222,19 @@ function rowToHome(row) {
 
 // ============ API ROUTES ============
 
-// НОВ ЕНДПОЙНТ: Качване на снимка
-app.post('/api/upload-image', upload.single('file'), (req, res) => {
+// НОВ ЕНДПОЙНТ: Вход в административния панел
+app.post('/api/login', (req, res) => {
+    const { password } = req.body;
+    if (password === SERVER_SECRET_PASSWORD) {
+        // Връщаме секретната парола като "токен"
+        res.json({ message: 'Login successful', token: SERVER_SECRET_PASSWORD });
+    } else {
+        res.status(401).json({ error: 'Incorrect password' });
+    }
+});
+
+// НОВ ЕНДПОЙНТ: Качване на снимка (ЗАЩИТЕН с checkAuth)
+app.post('/api/upload-image', upload.single('file'), checkAuth, (req, res) => {
     if (!req.file) {
         return res.status(400).json({ error: 'No file uploaded' });
     }
@@ -221,6 +250,11 @@ app.post('/api/upload-image', upload.single('file'), (req, res) => {
 // GET all homes (С ПАГИНАЦИЯ)
 app.get('/api/homes', (req, res) => {
     const showAll = req.query.all === 'true';
+
+    // Ако заявката е за всички записи (т.е. за административния панел), проверяваме за токен
+    if (showAll && req.headers[AUTH_HEADER_KEY] !== SERVER_SECRET_PASSWORD) {
+        return res.status(401).json({ error: 'Admin access required for "all" data.' });
+    }
     
     // Добавяме параметри за пагинация
     const page = parseInt(req.query.page) || 1; 
@@ -264,7 +298,7 @@ app.get('/api/homes', (req, res) => {
     });
 });
 
-// GET single home by slug (непроменен)
+// GET single home by slug (ПУБЛИЧЕН)
 app.get('/api/homes/:slug', (req, res) => {
     db.get('SELECT * FROM homes WHERE slug = ? OR id = ?', [req.params.slug, req.params.slug], (err, row) => {
         if (err) {
@@ -279,8 +313,8 @@ app.get('/api/homes/:slug', (req, res) => {
     });
 });
 
-// POST create new home (непроменен, тъй като не работи с файлове директно)
-app.post('/api/homes', (req, res) => {
+// POST create new home (ЗАЩИТЕН с checkAuth)
+app.post('/api/homes', checkAuth, (req, res) => {
     const home = req.body;
     
     if (!home.name) {
@@ -301,8 +335,8 @@ app.post('/api/homes', (req, res) => {
     res.status(201).json({ message: 'Home created successfully', id: home.id });
 });
 
-// PUT update existing home (непроменен, тъй като не работи с файлове директно)
-app.put('/api/homes/:id', (req, res) => {
+// PUT update existing home (ЗАЩИТЕН с checkAuth)
+app.put('/api/homes/:id', checkAuth, (req, res) => {
     const home = req.body;
     home.updated_at = new Date().toISOString();
     
@@ -341,8 +375,8 @@ app.put('/api/homes/:id', (req, res) => {
     stmt.finalize();
 });
 
-// DELETE home (непроменен)
-app.delete('/api/homes/:id', (req, res) => {
+// DELETE home (ЗАЩИТЕН с checkAuth)
+app.delete('/api/homes/:id', checkAuth, (req, res) => {
     db.run('DELETE FROM homes WHERE id = ?', [req.params.id], function(err) {
         if (err) {
             res.status(500).json({ error: err.message });
