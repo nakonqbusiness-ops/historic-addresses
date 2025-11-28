@@ -19,6 +19,23 @@
     <link rel="stylesheet" href="assets/css/styles.css">
     <script defer src="assets/js/theme.js"></script>
     <script defer src="assets/js/transitions.js"></script>
+    <style>
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+            margin: 24px 0;
+            flex-wrap: wrap;
+        }
+        .pagination button {
+            min-width: 40px;
+        }
+        .pagination .page-info {
+            padding: 8px 16px;
+            color: var(--text);
+        }
+    </style>
 </head>
 <body>
     <header class="site-header">
@@ -54,6 +71,14 @@
             </div>
 
             <div id="list" class="grid"></div>
+            
+            <div class="pagination">
+                <button id="firstPage" class="theme-toggle">First</button>
+                <button id="prevPage" class="theme-toggle">Previous</button>
+                <span class="page-info" id="pageInfo">Page 1 of 1</span>
+                <button id="nextPage" class="theme-toggle">Next</button>
+                <button id="lastPage" class="theme-toggle">Last</button>
+            </div>
         </section>
     </main>
 
@@ -87,7 +112,8 @@
                         <label class="full"><span class="label">Address</span><input id="f_addr" class="field"></label>
                         <label><span class="label">Latitude</span><input id="f_lat" class="field" inputmode="decimal"></label>
                         <label><span class="label">Longitude</span><input id="f_lng" class="field" inputmode="decimal"></label>
-                    <label class="full"><span class="label">Image URLs (one per line) or drop/select files below</span><textarea id="f_imgs" class="field textarea" placeholder="/uploads/house1.jpg\nhttps://.../house2.jpg"></textarea></label>
+                    <label class="full"><span class="label">Image URLs (one per line) or drop/select files below</span><textarea id="f_imgs" class="field textarea" placeholder="/uploads/house1.jpg
+https://.../house2.jpg"></textarea></label>
                     <div class="full drop" id="imgDrop">Drop images here or <button type="button" id="imgPick" class="theme-toggle">Choose files</button><input id="imgFile" type="file" accept="image/*" multiple style="display:none"></div>
                     <div class="full" id="imgPrevWrap" style="display:none"><span class="label">Previews</span><div id="imgPreview" class="gallery"></div></div>
                         <label><span class="label">Photo date</span><input id="f_date" class="field" placeholder="YYYY-MM-DD"></label>
@@ -109,11 +135,16 @@
 
     <script>
     (function(){
-        var DEFAULT_PASSWORD = '_endjvJ6!d'; // Change this to your secure password
+        var DEFAULT_PASSWORD = '_endjvJ6!d';
         var STORAGE_KEY = 'admin-session';
         var apiBase = window.location.protocol === 'file:' ? 'http://localhost:3000' : window.location.origin;
         var API_URL = apiBase + '/api/homes';
-        var state = { people: [] };
+        var state = { 
+            people: [],
+            currentPage: 1,
+            itemsPerPage: 6,
+            filteredPeople: []
+        };
         var portraitPreviewEl = document.getElementById('portraitPreview');
         var fPortraitEl = document.getElementById('f_portrait');
 
@@ -123,13 +154,12 @@
         function show(el){ el.style.display=''; }
         function hide(el){ el.style.display='none'; }
 
-        // Fetch all homes from API
         function loadHomes(){
             fetch(API_URL + '?all=true')
                 .then(function(res){ return res.json(); })
                 .then(function(data){
                     state.people = data;
-                    renderList();
+                    applyFilters();
                 })
                 .catch(function(err){
                     console.error('Error loading homes:', err);
@@ -137,35 +167,79 @@
                 });
         }
 
-        function renderList(){
+        function applyFilters(){
             var q = (document.getElementById('search').value||'').toLowerCase();
+            state.filteredPeople = state.people.filter(function(p){
+                if (!q) return true;
+                return (p.name||'').toLowerCase().includes(q) || 
+                       (p.biography||'').toLowerCase().includes(q) || 
+                       (p.tags||[]).join(' ').toLowerCase().includes(q);
+            }).sort(function(a,b){ return (a.name||'').localeCompare(b.name||''); });
+            
+            state.currentPage = 1;
+            renderList();
+        }
+
+        function renderList(){
             var list = document.getElementById('list');
             list.innerHTML = '';
-            state.people
-                .filter(function(p){
-                    if (!q) return true;
-                    return (p.name||'').toLowerCase().includes(q) || (p.biography||'').toLowerCase().includes(q) || (p.tags||[]).join(' ').toLowerCase().includes(q);
-                })
-                .sort(function(a,b){ return (a.name||'').localeCompare(b.name||''); })
-                .forEach(function(p, idx){
-                    var card = document.createElement('div');
-                    card.className = 'thumb';
-                    var img = (p.images&&p.images[0])? p.images[0].path : '';
-                    card.innerHTML = '<img alt="" loading="lazy" src="'+img+'" onerror="this.style.display=\'none\'">' +
-                        '<div class="meta"><strong>'+(p.name||'(no name)')+'</strong><div class="muted">'+(p.address||'')+'</div>'+
-                        '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">'
-                        + '<button data-act="edit" data-id="'+(p.slug||p.id)+'" class="theme-toggle">Edit</button>'
-                        + '<button data-act="toggle" data-id="'+(p.slug||p.id)+'" class="theme-toggle">'+(p.published? 'Unpublish':'Publish')+'</button>'
-                        + '<button data-act="delete" data-id="'+(p.slug||p.id)+'" class="theme-toggle">Delete</button>'
-                        + '</div></div>';
-                    list.appendChild(card);
-                });
+            
+            var totalPages = Math.ceil(state.filteredPeople.length / state.itemsPerPage);
+            if (totalPages === 0) totalPages = 1;
+            
+            var startIdx = (state.currentPage - 1) * state.itemsPerPage;
+            var endIdx = Math.min(startIdx + state.itemsPerPage, state.filteredPeople.length);
+            
+            var pagePeople = state.filteredPeople.slice(startIdx, endIdx);
+            
+            pagePeople.forEach(function(p){
+                var card = document.createElement('div');
+                card.className = 'thumb';
+                var img = (p.images&&p.images[0])? p.images[0].path : '';
+                card.innerHTML = '<img alt="" loading="lazy" src="'+img+'" onerror="this.style.display=\'none\'">' +
+                    '<div class="meta"><strong>'+(p.name||'(no name)')+'</strong><div class="muted">'+(p.address||'')+'</div>'+
+                    '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">'
+                    + '<button data-act="edit" data-id="'+(p.slug||p.id)+'" class="theme-toggle">Edit</button>'
+                    + '<button data-act="toggle" data-id="'+(p.slug||p.id)+'" class="theme-toggle">'+(p.published? 'Unpublish':'Publish')+'</button>'
+                    + '<button data-act="delete" data-id="'+(p.slug||p.id)+'" class="theme-toggle">Delete</button>'
+                    + '</div></div>';
+                list.appendChild(card);
+            });
+            
+            updatePagination(totalPages);
         }
+
+        function updatePagination(totalPages){
+            document.getElementById('pageInfo').textContent = 'Page ' + state.currentPage + ' of ' + totalPages;
+            document.getElementById('firstPage').disabled = state.currentPage === 1;
+            document.getElementById('prevPage').disabled = state.currentPage === 1;
+            document.getElementById('nextPage').disabled = state.currentPage === totalPages;
+            document.getElementById('lastPage').disabled = state.currentPage === totalPages;
+        }
+
+        function goToPage(page){
+            var totalPages = Math.ceil(state.filteredPeople.length / state.itemsPerPage);
+            if (totalPages === 0) totalPages = 1;
+            
+            if (page < 1) page = 1;
+            if (page > totalPages) page = totalPages;
+            
+            state.currentPage = page;
+            renderList();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        document.getElementById('firstPage').addEventListener('click', function(){ goToPage(1); });
+        document.getElementById('prevPage').addEventListener('click', function(){ goToPage(state.currentPage - 1); });
+        document.getElementById('nextPage').addEventListener('click', function(){ goToPage(state.currentPage + 1); });
+        document.getElementById('lastPage').addEventListener('click', function(){ 
+            var totalPages = Math.ceil(state.filteredPeople.length / state.itemsPerPage);
+            goToPage(totalPages); 
+        });
 
         function openModal(title){ document.getElementById('dlgTitle').textContent = title; document.getElementById('modal').style.display='flex'; }
         function closeModal(){ document.getElementById('modal').style.display='none'; }
 
-        // ====================== LOGIC FOR IMAGE GALLERY (f_imgs) ======================
         var imageSources = [];
         function syncImageField(){ document.getElementById('f_imgs').value = imageSources.join('\n'); }
         function renderImageList(){
@@ -186,7 +260,6 @@
         }
         function resetImages(){ imageSources = []; renderImageList(); syncImageField(); }
 
-        // ====================== LOGIC FOR PORTRAIT URL (f_portrait) ======================
         function renderPortraitPreview() {
             portraitPreviewEl.innerHTML = '';
             var url = fPortraitEl.value.trim();
@@ -221,23 +294,17 @@
 
             var fr = new FileReader();
             fr.onload = function(){
-                // Use Data URL (Base64) for temporary storage
                 fPortraitEl.value = fr.result;
                 renderPortraitPreview();
             };
             fr.readAsDataURL(file);
         }
 
-        // ====================== FORM HANDLERS ======================
-
         function fillForm(p){
             document.getElementById('f_name').value = p.name||'';
             document.getElementById('f_slug').value = p.slug || p.id || '';
-            
-            // Попълване на Portrait URL и визуализация
             fPortraitEl.value = p.portrait_url||'';
-            renderPortraitPreview(); // RENDER PREVIEW
-
+            renderPortraitPreview();
             document.getElementById('f_bio').value = p.biography||'';
             document.getElementById('f_addr').value = p.address||'';
             document.getElementById('f_lat').value = p.coordinates && p.coordinates.lat || '';
@@ -261,16 +328,12 @@
             var slugInput = document.getElementById('f_slug').value.trim();
             if (!slugInput) slugInput = slugify(p.name);
             p.slug = slugInput || p.slug || p.id || '';
-            
-            // Четене на Portrait URL
             p.portrait_url = fPortraitEl.value.trim() || null;
-            
             p.biography = document.getElementById('f_bio').value.trim();
             p.address = document.getElementById('f_addr').value.trim();
             var lat = document.getElementById('f_lat').value.trim();
             var lng = document.getElementById('f_lng').value.trim();
             if (lat && lng) p.coordinates = { lat: parseFloat(lat), lng: parseFloat(lng) };
-            // sync from textarea in case user typed manually
             var txtSources = document.getElementById('f_imgs').value.split(/\r?\n/).map(function(s){ return s.trim(); }).filter(Boolean);
             imageSources = txtSources.slice();
             if (imageSources.length) {
@@ -306,11 +369,8 @@
             openModal('Edit Object');
         }
 
-        // ====================== EVENT LISTENERS ======================
-
         document.addEventListener('click', function(e){
             var act = e.target && e.target.getAttribute('data-act');
-            // ... (rest of the edit/toggle/delete logic is unchanged)
             if (!act) return;
             var id = e.target.getAttribute('data-id');
             var idx = (id != null) ? state.people.findIndex(function(pp){ return (pp.slug||pp.id) === id; }) : -1;
@@ -345,9 +405,7 @@
         });
 
         document.getElementById('addBtn').addEventListener('click', addNew);
-        document.getElementById('search').addEventListener('input', renderList);
-
-        // ... (login, logout, export/import logic is unchanged)
+        document.getElementById('search').addEventListener('input', applyFilters);
 
         document.getElementById('loginBtn').addEventListener('click', function(){
             var pw = document.getElementById('pw').value;
@@ -363,11 +421,9 @@
 
         document.getElementById('logout').addEventListener('click', function(){ setAuthed(false); location.reload(); });
 
-        // Modal wiring
         document.getElementById('cancelDlg').addEventListener('click', closeModal);
         document.getElementById('closeDlg').addEventListener('click', closeModal);
 
-        // --- IMAGE GALLERY (f_imgs) Drag/Drop Logic ---
         function loadImageFile(file){
             if (!file) return;
             if (!/^image\//.test(file.type)) { alert('Please select an image file'); return; }
@@ -402,7 +458,6 @@
             renderImageList();
         });
 
-        // --- PORTRAIT (f_portrait) Drag/Drop Logic ---
         document.getElementById('portraitDrop').addEventListener('dragover', function(e){ e.preventDefault(); });
         document.getElementById('portraitDrop').addEventListener('drop', function(e){
             e.preventDefault();
@@ -417,7 +472,6 @@
             if (file) {
                 loadPortraitFile(file);
             }
-            // Clear the file input so the 'change' event fires again if the same file is selected
             e.target.value = '';
         });
         fPortraitEl.addEventListener('input', renderPortraitPreview);
@@ -427,9 +481,7 @@
             var idxVal = document.getElementById('idx').value;
             var homeId = document.getElementById('f_id').value;
             
-            // ... (rest of the submit logic is unchanged)
             if (idxVal === '') {
-                // Create new
                 var pNew = readForm({});
                 fetch(API_URL, {
                     method: 'POST',
@@ -444,7 +496,6 @@
                 })
                 .catch(function(err){ console.error('Error creating:', err); alert('Error creating home'); });
             } else {
-                // Update existing
                 var i = parseInt(idxVal, 10);
                 var pUpdated = readForm(state.people[i]);
                 fetch(API_URL + '/' + homeId, {
