@@ -1,80 +1,29 @@
 <script>
     (function(){
-        // ⚠️ ПАРОЛАТА Е ПРЕМЕСТЕНА В server.js!
-        var ADMIN_TOKEN_KEY = 'admin-token'; // Ключ за съхранение на токена
-        var AUTH_HEADER_KEY = 'x-admin-token'; // Ключ на хедъра (трябва да съвпада с server.js)
+        // ⚠️ ВАЖНО: Този код използва автентикация с локална парола и Base64 за файлове,
+        // а не по-сигурния метод с токени и Multer upload към сървъра.
+        var DEFAULT_PASSWORD = '_endjvJ6!d'; // Change this to your secure password
+        var STORAGE_KEY = 'admin-session';
         var apiBase = window.location.protocol === 'file:' ? 'http://localhost:3000' : window.location.origin;
         var API_URL = apiBase + '/api/homes';
-        var state = { people: [], page: 1, totalPages: 1, limit: 50 }; 
+        var state = { people: [] };
+        
+        // Променливи, които могат да бъдат null, ако HTML е непълен (но във Вашия случай трябва да са ОК)
         var portraitPreviewEl = document.getElementById('portraitPreview');
         var fPortraitEl = document.getElementById('f_portrait');
 
-        function getAdminToken(){ return sessionStorage.getItem(ADMIN_TOKEN_KEY); }
-        function isAuthed(){ return !!getAdminToken(); }
-        function setAuthed(v){ 
-            if (v) sessionStorage.setItem(ADMIN_TOKEN_KEY, v); // v е токенът (паролата)
-            else sessionStorage.removeItem(ADMIN_TOKEN_KEY); 
-        }
+        function isAuthed(){ return sessionStorage.getItem(STORAGE_KEY) === '1'; }
+        function setAuthed(v){ if (v) sessionStorage.setItem(STORAGE_KEY,'1'); else sessionStorage.removeItem(STORAGE_KEY); }
 
-        function show(el){ el.style.display=''; }
-        function hide(el){ el.style.display='none'; }
+        function show(el){ if(el) el.style.display=''; }
+        function hide(el){ if(el) el.style.display='none'; }
 
-        // Помощна функция за създаване на хедъри с токена
-        function getAuthHeaders(extraHeaders = {}) {
-            var headers = extraHeaders;
-            if (isAuthed()) {
-                headers[AUTH_HEADER_KEY] = getAdminToken();
-            }
-            return headers;
-        }
-
-        // НОВА ФУНКЦИЯ: Качване на файл към сървъра (вече с токен в хедъра)
-        function uploadFile(file) {
-            if (!/^image\//.test(file.type)) {
-                alert('Please select an image file.');
-                return Promise.reject(new Error('Invalid file type'));
-            }
-
-            var formData = new FormData();
-            formData.append('file', file); 
-
-            console.log('Uploading file:', file.name);
-            return fetch(apiBase + '/api/upload-image', {
-                method: 'POST',
-                body: formData,
-                headers: getAuthHeaders() // ДОБАВЯНЕ НА ТОКЕНА
-            })
-            .then(function(res) {
-                if (!res.ok) throw new Error('Upload failed: ' + res.statusText);
-                return res.json();
-            })
-            .then(function(data) {
-                return data.url; 
-            })
-            .catch(function(err) {
-                console.error('File upload error:', err);
-                alert('File upload failed! Check server logs. (Auth error?)');
-                return Promise.reject(err);
-            });
-        }
-        // ----------------------------------------------------
-
-        // Fetch all homes from API (сега с токен в хедъра)
+        // Fetch all homes from API (без токен)
         function loadHomes(){
-            fetch(API_URL + '?all=true', { headers: getAuthHeaders() }) // ДОБАВЯНЕ НА ТОКЕНА
-                .then(function(res){ 
-                    if (res.status === 401) { // Ако токенът е невалиден
-                        setAuthed(false); 
-                        hide(document.getElementById('panel'));
-                        show(document.getElementById('login'));
-                        alert('Your session expired. Please log in again.');
-                        return;
-                    }
-                    return res.json(); 
-                })
+            fetch(API_URL + '?all=true')
+                .then(function(res){ return res.json(); })
                 .then(function(data){
-                    state.people = data.homes || [];
-                    // state.meta = data.meta; // Засега не използваме мета
+                    state.people = Array.isArray(data) ? data : (data.homes || []); // Гъвкавост
                     renderList();
                 })
                 .catch(function(err){
@@ -83,37 +32,31 @@
                 });
         }
 
-        // ... (rest of renderList, openModal, closeModal is unchanged)
         function renderList(){
-            var listEl = document.getElementById('peopleList');
-            var search = document.getElementById('search').value.toLowerCase();
-            listEl.innerHTML = '';
-
-            var count = 0;
-            state.people.forEach(function(p, idx){
-                if (search && !(p.name && p.name.toLowerCase().includes(search)) && !(p.address && p.address.toLowerCase().includes(search))) {
-                    return;
-                }
-                
-                var li = document.createElement('li');
-                li.className = p.published ? 'published' : 'draft';
-                li.innerHTML = `
-                    <div class="name">
-                        <span class="status-indicator"></span>
-                        <strong>${p.name}</strong> 
-                        <span class="slug">(${p.slug})</span>
-                        <span class="address-small">${p.address || ''}</span>
-                    </div>
-                    <div class="actions">
-                        <button type="button" data-act="edit" data-id="${p.id||p.slug}">Edit</button>
-                        <button type="button" data-act="toggle" data-id="${p.id||p.slug}">${p.published ? 'Unpublish' : 'Publish'}</button>
-                        <button type="button" data-act="delete" data-id="${p.id||p.slug}" class="delete">Delete</button>
-                    </div>
-                `;
-                listEl.appendChild(li);
-                count++;
+            var q = (document.getElementById('search').value||'').toLowerCase();
+            var list = document.getElementById('list'); // 💡 ИЗПОЛЗВАМЕ ID 'list' от Вашия HTML
+            list.innerHTML = '';
+            
+            // Ако търсенето е твърде бавно, може да се филтрира по-малко
+            var filteredPeople = state.people.filter(function(p){
+                if (!q) return true;
+                return (p.name||'').toLowerCase().includes(q) || (p.biography||'').toLowerCase().includes(q) || (p.tags||[]).join(' ').toLowerCase().includes(q);
             });
-            document.getElementById('listCount').textContent = `Showing ${count} of ${state.people.length} objects`;
+            
+            filteredPeople.sort(function(a,b){ return (a.name||'').localeCompare(b.name||''); })
+                .forEach(function(p, idx){
+                    var card = document.createElement('div');
+                    card.className = 'thumb' + (p.published ? '' : ' draft-thumb'); // Добавяме стил за draft
+                    var img = (p.images&&p.images[0])? p.images[0].path : '';
+                    card.innerHTML = '<img alt="" loading="lazy" src="'+img+'" onerror="this.style.display=\'none\'">' +
+                        '<div class="meta"><strong>'+(p.name||'(no name)')+'</strong><div class="muted">'+(p.address||'')+'</div>'+
+                        '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">'
+                        + '<button data-act="edit" data-id="'+(p.slug||p.id)+'" class="theme-toggle">Edit</button>'
+                        + '<button data-act="toggle" data-id="'+(p.slug||p.id)+'" class="theme-toggle">'+(p.published? 'Unpublish':'Publish')+'</button>'
+                        + '<button data-act="delete" data-id="'+(p.slug||p.id)+'" class="theme-toggle">Delete</button>'
+                        + '</div></div>';
+                    list.appendChild(card);
+                });
         }
 
         function openModal(title){ document.getElementById('dlgTitle').textContent = title; document.getElementById('modal').style.display='flex'; }
@@ -121,10 +64,14 @@
 
         // ====================== LOGIC FOR IMAGE GALLERY (f_imgs) ======================
         var imageSources = [];
-        function syncImageField(){ document.getElementById('f_imgs').value = imageSources.join('\n'); }
+        function syncImageField(){ 
+            var fImgsEl = document.getElementById('f_imgs');
+            if (fImgsEl) fImgsEl.value = imageSources.join('\n'); 
+        }
         function renderImageList(){
             var wrap = document.getElementById('imgPrevWrap');
             var cont = document.getElementById('imgPreview');
+            if (!wrap || !cont) return; // Защита
             cont.innerHTML = '';
             if (!imageSources.length) { wrap.style.display = 'none'; return; }
             wrap.style.display = '';
@@ -140,21 +87,22 @@
         }
         function resetImages(){ imageSources = []; renderImageList(); syncImageField(); }
 
-
-        // НОВА ЛОГИКА: Load Image File (изпраща към сървъра и добавя URL)
         function loadImageFile(file){
             if (!file) return;
-            uploadFile(file)
-                .then(function(url) {
-                    imageSources.push(url); 
-                    syncImageField();
-                    renderImageList();
-                })
-                .catch(function() {});
+            if (!/^image\//.test(file.type)) { alert('Please select an image file'); return; }
+            var fr = new FileReader();
+            fr.onload = function(){
+                var dataUrl = fr.result;
+                imageSources.push(dataUrl);
+                syncImageField();
+                renderImageList();
+            };
+            fr.readAsDataURL(file);
         }
 
         // ====================== LOGIC FOR PORTRAIT URL (f_portrait) ======================
         function renderPortraitPreview() {
+            if (!portraitPreviewEl || !fPortraitEl) return; // Защита
             portraitPreviewEl.innerHTML = '';
             var url = fPortraitEl.value.trim();
             if (url) {
@@ -181,32 +129,31 @@
             }
         }
         
-        // НОВА ЛОГИКА: Load Portrait File (изпраща към сървъра и записва URL)
         function loadPortraitFile(file) {
             if (!file) return;
-            
-            uploadFile(file)
-                .then(function(url) {
-                    fPortraitEl.value = url; 
-                    renderPortraitPreview();
-                })
-                .catch(function() {});
+            if (!/^image\//.test(file.type)) { alert('Please select an image file for the portrait'); return; }
+            if (file.size > 5 * 1024 * 1024) { alert('Portrait file size exceeds 5MB limit.'); return; }
+
+            var fr = new FileReader();
+            fr.onload = function(){
+                // Use Data URL (Base64) for temporary storage
+                if (fPortraitEl) fPortraitEl.value = fr.result;
+                renderPortraitPreview();
+            };
+            fr.readAsDataURL(file);
         }
 
-        // ====================== FORM HANDLERS (непроменен) ======================
-
+        // ... (fillForm, slugify, readForm, addNew, editAt функциите са непроменени)
+        
         function fillForm(p){
             document.getElementById('f_name').value = p.name||'';
             document.getElementById('f_slug').value = p.slug || p.id || '';
-            
             fPortraitEl.value = p.portrait_url||'';
-            renderPortraitPreview(); 
-
+            renderPortraitPreview();
             document.getElementById('f_bio').value = p.biography||'';
             document.getElementById('f_addr').value = p.address||'';
             document.getElementById('f_lat').value = p.coordinates && p.coordinates.lat || '';
             document.getElementById('f_lng').value = p.coordinates && p.coordinates.lng || '';
-            
             imageSources = (p.images||[]).map(function(i){ return i && i.path; }).filter(Boolean);
             syncImageField();
             document.getElementById('f_date').value = p.photo_date||'';
@@ -269,12 +216,11 @@
             fillForm(home);
             openModal('Edit Object');
         }
-
-        // ====================== EVENT LISTENERS (АКТУАЛИЗИРАНИ) ======================
+        
+        // ====================== EVENT LISTENERS (Възстановени) ======================
 
         document.addEventListener('click', function(e){
             var act = e.target && e.target.getAttribute('data-act');
-            
             if (!act) return;
             var id = e.target.getAttribute('data-id');
             var idx = (id != null) ? state.people.findIndex(function(pp){ return (pp.slug||pp.id) === id; }) : -1;
@@ -289,30 +235,21 @@
                 home.published = !home.published;
                 fetch(API_URL + '/' + (home.id || home.slug), {
                     method: 'PUT',
-                    headers: getAuthHeaders({ 'Content-Type': 'application/json' }), // ДОБАВЕНО: getAuthHeaders
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(home)
                 })
-                .then(function(res){ 
-                    if (res.status === 401) { throw new Error('Authentication Failed'); }
-                    return res.json(); 
-                })
+                .then(function(res){ return res.json(); })
                 .then(function(){ loadHomes(); })
-                .catch(function(err){ console.error('Error updating:', err); alert('Error updating home. (Auth error?)'); });
+                .catch(function(err){ console.error('Error updating:', err); alert('Error updating home'); });
             }
             
             if (act === 'delete') {
                 if (confirm('Delete this object?')) {
                     var home = state.people[idx];
-                    fetch(API_URL + '/' + (home.id || home.slug), { 
-                        method: 'DELETE',
-                        headers: getAuthHeaders() // ДОБАВЕНО: getAuthHeaders
-                    })
-                    .then(function(res){ 
-                        if (res.status === 401) { throw new Error('Authentication Failed'); }
-                        return res.json(); 
-                    })
-                    .then(function(){ loadHomes(); })
-                    .catch(function(err){ console.error('Error deleting:', err); alert('Error deleting home. (Auth error?)'); });
+                    fetch(API_URL + '/' + (home.id || home.slug), { method: 'DELETE' })
+                        .then(function(res){ return res.json(); })
+                        .then(function(){ loadHomes(); })
+                        .catch(function(err){ console.error('Error deleting:', err); alert('Error deleting home'); });
                 }
             }
         });
@@ -320,32 +257,17 @@
         document.getElementById('addBtn').addEventListener('click', addNew);
         document.getElementById('search').addEventListener('input', renderList);
 
-        // ====================== НОВА ЛОГИКА ЗА ВХОД ======================
-
+        // --- Login Logic (Възстановена проста парола) ---
         document.getElementById('loginBtn').addEventListener('click', function(){
             var pw = document.getElementById('pw').value;
-            
-            fetch(apiBase + '/api/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ password: pw })
-            })
-            .then(function(res){ 
-                if (!res.ok) throw new Error('Login failed. Status: ' + res.status);
-                return res.json(); 
-            })
-            .then(function(data){
-                // data.token е SERVER_SECRET_PASSWORD от бекенда
-                setAuthed(data.token);
-                document.getElementById('pw').value = ''; 
+            if (pw === DEFAULT_PASSWORD) {
+                setAuthed(true);
                 hide(document.getElementById('login'));
                 show(document.getElementById('panel'));
                 loadHomes();
-            })
-            .catch(function(err){
-                console.error('Login error:', err);
-                alert('Incorrect password or server error: ' + err.message);
-            });
+            } else {
+                alert('Incorrect password');
+            }
         });
 
         document.getElementById('logout').addEventListener('click', function(){ setAuthed(false); location.reload(); });
@@ -354,20 +276,28 @@
         document.getElementById('cancelDlg').addEventListener('click', closeModal);
         document.getElementById('closeDlg').addEventListener('click', closeModal);
 
-        // --- IMAGE GALLERY (f_imgs) Drag/Drop Logic (използва новата uploadFile) ---
-        document.getElementById('imgDrop').addEventListener('dragover', function(e){ e.preventDefault(); });
-        document.getElementById('imgDrop').addEventListener('drop', function(e){
+        // --- IMAGE GALLERY (f_imgs) Drag/Drop Logic (Възстановена Base64 логика) ---
+        // Защита: Проверяваме за елементите преди да добавим слушател
+        var imgDropEl = document.getElementById('imgDrop');
+        var imgPickEl = document.getElementById('imgPick');
+        var imgFileEl = document.getElementById('imgFile');
+        var imgPreviewEl = document.getElementById('imgPreview');
+        var fImgsEl = document.getElementById('f_imgs');
+
+        if(imgDropEl) imgDropEl.addEventListener('dragover', function(e){ e.preventDefault(); });
+        if(imgDropEl) imgDropEl.addEventListener('drop', function(e){
             e.preventDefault();
             var files = (e.dataTransfer.files && Array.from(e.dataTransfer.files)) || [];
             files.forEach(loadImageFile);
         });
-        document.getElementById('imgPick').addEventListener('click', function(){ document.getElementById('imgFile').click(); });
-        document.getElementById('imgFile').addEventListener('change', function(e){ 
+        if(imgPickEl) imgPickEl.addEventListener('click', function(){ if(imgFileEl) imgFileEl.click(); });
+        if(imgFileEl) imgFileEl.addEventListener('change', function(e){ 
             var files = (e.target.files && Array.from(e.target.files)) || []; 
             files.forEach(loadImageFile); 
-            e.target.value = ''; 
-        });
-        document.getElementById('imgPreview').addEventListener('click', function(e){
+            // 💡 КОРЕКЦИЯ: Добавяне на изчистване на input-а, за да може да се качи същия файл
+            e.target.value = '';
+        }); 
+        if(imgPreviewEl) imgPreviewEl.addEventListener('click', function(e){
             var btn = e.target.closest && e.target.closest('button[data-remove]');
             if (!btn) return;
             var idx = parseInt(btn.getAttribute('data-remove'), 10);
@@ -375,29 +305,34 @@
             syncImageField();
             renderImageList();
         });
-        document.getElementById('f_imgs').addEventListener('input', function(){
+        if(fImgsEl) fImgsEl.addEventListener('input', function(){
             imageSources = this.value.split(/\r?\n/).map(function(s){ return s.trim(); }).filter(Boolean);
             renderImageList();
         });
 
-        // --- PORTRAIT (f_portrait) Drag/Drop Logic (използва новата uploadFile) ---
-        document.getElementById('portraitDrop').addEventListener('dragover', function(e){ e.preventDefault(); });
-        document.getElementById('portraitDrop').addEventListener('drop', function(e){
+        // --- PORTRAIT (f_portrait) Drag/Drop Logic (Възстановена Base64 логика) ---
+        var portraitDropEl = document.getElementById('portraitDrop');
+        var portraitPickEl = document.getElementById('portraitPick');
+        var portraitFileEl = document.getElementById('portraitFile');
+        // fPortraitEl е дефиниран горе
+
+        if(portraitDropEl) portraitDropEl.addEventListener('dragover', function(e){ e.preventDefault(); });
+        if(portraitDropEl) portraitDropEl.addEventListener('drop', function(e){
             e.preventDefault();
             var file = (e.dataTransfer.files && e.dataTransfer.files[0]) || null;
             if (file) {
                 loadPortraitFile(file);
             }
         });
-        document.getElementById('portraitPick').addEventListener('click', function(){ document.getElementById('portraitFile').click(); });
-        document.getElementById('portraitFile').addEventListener('change', function(e){ 
+        if(portraitPickEl) portraitPickEl.addEventListener('click', function(){ if(portraitFileEl) portraitFileEl.click(); });
+        if(portraitFileEl) portraitFileEl.addEventListener('change', function(e){ 
             var file = (e.target.files && e.target.files[0]) || null;
             if (file) {
                 loadPortraitFile(file);
             }
             e.target.value = '';
         });
-        fPortraitEl.addEventListener('input', renderPortraitPreview);
+        if(fPortraitEl) fPortraitEl.addEventListener('input', renderPortraitPreview);
 
         document.getElementById('objForm').addEventListener('submit', function(e){
             e.preventDefault();
@@ -410,22 +345,19 @@
 
             fetch(url, {
                 method: method,
-                headers: getAuthHeaders({ 'Content-Type': 'application/json' }), // ДОБАВЕНО: getAuthHeaders
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(pData)
             })
-            .then(function(res){ 
-                if (res.status === 401) { throw new Error('Authentication Failed'); }
-                return res.json(); 
-            })
+            .then(function(res){ return res.json(); })
             .then(function(){
                 closeModal();
                 loadHomes();
                 alert('Home ' + (method === 'POST' ? 'created' : 'updated') + ' successfully!');
             })
-            .catch(function(err){ console.error('Error submitting form:', err); alert('Error saving home. (Auth error?)'); });
+            .catch(function(err){ console.error('Error submitting form:', err); alert('Error saving home'); });
         });
 
         if (isAuthed()) { hide(document.getElementById('login')); show(document.getElementById('panel')); loadHomes(); }
         document.getElementById('year').textContent = new Date().getFullYear();
     })();
-</script>
+    </script>
