@@ -1,29 +1,134 @@
-<script>
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Historic Addresses — Admin</title>
+    <link rel="icon" href="/assets/img/HistAdrLogoOrig.ico">
+    <script>
+        // Apply theme immediately to prevent flash
+        (function() {
+            try {
+                var stored = localStorage.getItem('theme-preference');
+                if (stored === 'system') stored = 'dark';
+                var theme = (stored === 'dark' || stored === 'light') ? stored : 'dark';
+                document.documentElement.setAttribute('data-theme', theme);
+            } catch(e) {}
+        })();
+    </script>
+    <link rel="stylesheet" href="assets/css/styles.css">
+    <script defer src="assets/js/theme.js"></script>
+    <script defer src="assets/js/transitions.js"></script>
+</head>
+<body>
+    <header class="site-header">
+        <a class="logo" href="index.html">Historic Addresses</a>
+        <nav class="nav">
+            <a href="index.html">Home</a>
+            <a href="map.html">Map</a>
+            <a href="addresses.html">Homes</a>
+            <a href="about.html">About</a>
+            <a href="admin.html">Admin</a>
+        </nav>
+        <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode"></button>
+    </header>
+
+    <main class="container" id="app">
+        <h1 class="page-title">Admin</h1>
+        <div id="login">
+            <p>Enter admin password:</p>
+            <input id="pw" class="input" type="password" placeholder="Password">
+            <button id="loginBtn" class="theme-toggle">Login</button>
+        </div>
+
+        <section id="panel" style="display:none">
+            <div class="toolbar">
+                <button id="logout" class="theme-toggle">Logout</button>
+                <button id="exportBtn" class="theme-toggle">Export JSON</button>
+                <label class="theme-toggle" for="importFile" style="display:inline-flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;">Import JSON<input id="importFile" type="file" accept="application/json" style="display:none"></label>
+            </div>
+
+            <div class="toolbar">
+                <button id="addBtn" class="theme-toggle">Add New</button>
+                <input id="search" class="input" placeholder="Search...">
+            </div>
+
+            <div id="list" class="grid"></div>
+        </section>
+    </main>
+
+    <div id="modal" class="backdrop">
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="dlgTitle">
+            <header>
+                <h2 id="dlgTitle">Edit Object</h2>
+                <button id="closeDlg" class="theme-toggle" aria-label="Close" title="Close">×</button>
+            </header>
+            <form id="objForm">
+                <div class="content">
+                    <input type="hidden" id="idx">
+                    <input type="hidden" id="f_id">
+                    <div class="form-grid">
+                        <label class="full"><span class="label">Full name</span><input id="f_name" class="field" required></label>
+                        <label><span class="label">Slug (id)</span><input id="f_slug" class="field" placeholder="address-name" aria-describedby="slugHelp"></label>
+                        <div id="slugHelp" class="full" style="margin-top:-8px;color:var(--muted);font-size:.85rem;">Lowercase, URL-friendly identifier (e.g. historic-mansion-downtown). If left blank, it will be generated from the name.</div>
+                        <label><span class="label">Published</span><span class="row"><input id="f_published" type="checkbox"><span>Visible</span></span></label>
+                        
+                        <label class="full" id="portraitFieldLabel">
+                            <span class="label">Portrait URL</span>
+                            <input id="f_portrait" class="field" placeholder="/assets/portraits/person.jpg" value="">
+                            <div class="full drop" id="portraitDrop">
+                                Drop one image here or 
+                                <button type="button" id="portraitPick" class="theme-toggle">Choose file</button>
+                                <input id="portraitFile" type="file" accept="image/*" style="display:none">
+                            </div>
+                            <div id="portraitPreview" style="margin-top: 10px; text-align: center;"></div>
+                        </label>
+                        <label class="full"><span class="label">Biography</span><textarea id="f_bio" class="field textarea" placeholder="5–6 sentences"></textarea></label>
+                        <label class="full"><span class="label">Address</span><input id="f_addr" class="field"></label>
+                        <label><span class="label">Latitude</span><input id="f_lat" class="field" inputmode="decimal"></label>
+                        <label><span class="label">Longitude</span><input id="f_lng" class="field" inputmode="decimal"></label>
+                    <label class="full"><span class="label">Image URLs (one per line) or drop/select files below</span><textarea id="f_imgs" class="field textarea" placeholder="/uploads/house1.jpg\nhttps://.../house2.jpg"></textarea></label>
+                    <div class="full drop" id="imgDrop">Drop images here or <button type="button" id="imgPick" class="theme-toggle">Choose files</button><input id="imgFile" type="file" accept="image/*" multiple style="display:none"></div>
+                    <div class="full" id="imgPrevWrap" style="display:none"><span class="label">Previews</span><div id="imgPreview" class="gallery"></div></div>
+                        <label><span class="label">Photo date</span><input id="f_date" class="field" placeholder="YYYY-MM-DD"></label>
+                        <label class="full"><span class="label">Sources (semicolon ; separated)</span><textarea id="f_sources" class="field textarea"></textarea></label>
+                        <label class="full"><span class="label">Tags (comma , separated)</span><input id="f_tags" class="field" placeholder="poet, 19th-century"></label>
+                    </div>
+                </div>
+                <div class="actions">
+                    <button type="button" id="cancelDlg" class="theme-toggle">Cancel</button>
+                    <button type="submit" class="theme-toggle">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <footer class="site-footer">
+        <p>© <span id="year"></span> Historic Addresses</p>
+    </footer>
+
+    <script>
     (function(){
-        // ⚠️ ВАЖНО: Този код използва автентикация с локална парола и Base64 за файлове,
-        // а не по-сигурния метод с токени и Multer upload към сървъра.
         var DEFAULT_PASSWORD = '_endjvJ6!d'; // Change this to your secure password
         var STORAGE_KEY = 'admin-session';
         var apiBase = window.location.protocol === 'file:' ? 'http://localhost:3000' : window.location.origin;
         var API_URL = apiBase + '/api/homes';
         var state = { people: [] };
-        
-        // Променливи, които могат да бъдат null, ако HTML е непълен (но във Вашия случай трябва да са ОК)
         var portraitPreviewEl = document.getElementById('portraitPreview');
         var fPortraitEl = document.getElementById('f_portrait');
 
         function isAuthed(){ return sessionStorage.getItem(STORAGE_KEY) === '1'; }
         function setAuthed(v){ if (v) sessionStorage.setItem(STORAGE_KEY,'1'); else sessionStorage.removeItem(STORAGE_KEY); }
 
-        function show(el){ if(el) el.style.display=''; }
-        function hide(el){ if(el) el.style.display='none'; }
+        function show(el){ el.style.display=''; }
+        function hide(el){ el.style.display='none'; }
 
-        // Fetch all homes from API (без токен)
+        // Fetch all homes from API
         function loadHomes(){
             fetch(API_URL + '?all=true')
                 .then(function(res){ return res.json(); })
                 .then(function(data){
-                    state.people = Array.isArray(data) ? data : (data.homes || []); // Гъвкавост
+                    state.people = data;
                     renderList();
                 })
                 .catch(function(err){
@@ -34,19 +139,17 @@
 
         function renderList(){
             var q = (document.getElementById('search').value||'').toLowerCase();
-            var list = document.getElementById('list'); // 💡 ИЗПОЛЗВАМЕ ID 'list' от Вашия HTML
+            var list = document.getElementById('list');
             list.innerHTML = '';
-            
-            // Ако търсенето е твърде бавно, може да се филтрира по-малко
-            var filteredPeople = state.people.filter(function(p){
-                if (!q) return true;
-                return (p.name||'').toLowerCase().includes(q) || (p.biography||'').toLowerCase().includes(q) || (p.tags||[]).join(' ').toLowerCase().includes(q);
-            });
-            
-            filteredPeople.sort(function(a,b){ return (a.name||'').localeCompare(b.name||''); })
+            state.people
+                .filter(function(p){
+                    if (!q) return true;
+                    return (p.name||'').toLowerCase().includes(q) || (p.biography||'').toLowerCase().includes(q) || (p.tags||[]).join(' ').toLowerCase().includes(q);
+                })
+                .sort(function(a,b){ return (a.name||'').localeCompare(b.name||''); })
                 .forEach(function(p, idx){
                     var card = document.createElement('div');
-                    card.className = 'thumb' + (p.published ? '' : ' draft-thumb'); // Добавяме стил за draft
+                    card.className = 'thumb';
                     var img = (p.images&&p.images[0])? p.images[0].path : '';
                     card.innerHTML = '<img alt="" loading="lazy" src="'+img+'" onerror="this.style.display=\'none\'">' +
                         '<div class="meta"><strong>'+(p.name||'(no name)')+'</strong><div class="muted">'+(p.address||'')+'</div>'+
@@ -64,14 +167,10 @@
 
         // ====================== LOGIC FOR IMAGE GALLERY (f_imgs) ======================
         var imageSources = [];
-        function syncImageField(){ 
-            var fImgsEl = document.getElementById('f_imgs');
-            if (fImgsEl) fImgsEl.value = imageSources.join('\n'); 
-        }
+        function syncImageField(){ document.getElementById('f_imgs').value = imageSources.join('\n'); }
         function renderImageList(){
             var wrap = document.getElementById('imgPrevWrap');
             var cont = document.getElementById('imgPreview');
-            if (!wrap || !cont) return; // Защита
             cont.innerHTML = '';
             if (!imageSources.length) { wrap.style.display = 'none'; return; }
             wrap.style.display = '';
@@ -87,22 +186,8 @@
         }
         function resetImages(){ imageSources = []; renderImageList(); syncImageField(); }
 
-        function loadImageFile(file){
-            if (!file) return;
-            if (!/^image\//.test(file.type)) { alert('Please select an image file'); return; }
-            var fr = new FileReader();
-            fr.onload = function(){
-                var dataUrl = fr.result;
-                imageSources.push(dataUrl);
-                syncImageField();
-                renderImageList();
-            };
-            fr.readAsDataURL(file);
-        }
-
         // ====================== LOGIC FOR PORTRAIT URL (f_portrait) ======================
         function renderPortraitPreview() {
-            if (!portraitPreviewEl || !fPortraitEl) return; // Защита
             portraitPreviewEl.innerHTML = '';
             var url = fPortraitEl.value.trim();
             if (url) {
@@ -137,19 +222,22 @@
             var fr = new FileReader();
             fr.onload = function(){
                 // Use Data URL (Base64) for temporary storage
-                if (fPortraitEl) fPortraitEl.value = fr.result;
+                fPortraitEl.value = fr.result;
                 renderPortraitPreview();
             };
             fr.readAsDataURL(file);
         }
 
-        // ... (fillForm, slugify, readForm, addNew, editAt функциите са непроменени)
-        
+        // ====================== FORM HANDLERS ======================
+
         function fillForm(p){
             document.getElementById('f_name').value = p.name||'';
             document.getElementById('f_slug').value = p.slug || p.id || '';
+            
+            // Попълване на Portrait URL и визуализация
             fPortraitEl.value = p.portrait_url||'';
-            renderPortraitPreview();
+            renderPortraitPreview(); // RENDER PREVIEW
+
             document.getElementById('f_bio').value = p.biography||'';
             document.getElementById('f_addr').value = p.address||'';
             document.getElementById('f_lat').value = p.coordinates && p.coordinates.lat || '';
@@ -174,6 +262,7 @@
             if (!slugInput) slugInput = slugify(p.name);
             p.slug = slugInput || p.slug || p.id || '';
             
+            // Четене на Portrait URL
             p.portrait_url = fPortraitEl.value.trim() || null;
             
             p.biography = document.getElementById('f_bio').value.trim();
@@ -181,7 +270,7 @@
             var lat = document.getElementById('f_lat').value.trim();
             var lng = document.getElementById('f_lng').value.trim();
             if (lat && lng) p.coordinates = { lat: parseFloat(lat), lng: parseFloat(lng) };
-            
+            // sync from textarea in case user typed manually
             var txtSources = document.getElementById('f_imgs').value.split(/\r?\n/).map(function(s){ return s.trim(); }).filter(Boolean);
             imageSources = txtSources.slice();
             if (imageSources.length) {
@@ -216,11 +305,12 @@
             fillForm(home);
             openModal('Edit Object');
         }
-        
-        // ====================== EVENT LISTENERS (Възстановени) ======================
+
+        // ====================== EVENT LISTENERS ======================
 
         document.addEventListener('click', function(e){
             var act = e.target && e.target.getAttribute('data-act');
+            // ... (rest of the edit/toggle/delete logic is unchanged)
             if (!act) return;
             var id = e.target.getAttribute('data-id');
             var idx = (id != null) ? state.people.findIndex(function(pp){ return (pp.slug||pp.id) === id; }) : -1;
@@ -257,7 +347,8 @@
         document.getElementById('addBtn').addEventListener('click', addNew);
         document.getElementById('search').addEventListener('input', renderList);
 
-        // --- Login Logic (Възстановена проста парола) ---
+        // ... (login, logout, export/import logic is unchanged)
+
         document.getElementById('loginBtn').addEventListener('click', function(){
             var pw = document.getElementById('pw').value;
             if (pw === DEFAULT_PASSWORD) {
@@ -276,28 +367,29 @@
         document.getElementById('cancelDlg').addEventListener('click', closeModal);
         document.getElementById('closeDlg').addEventListener('click', closeModal);
 
-        // --- IMAGE GALLERY (f_imgs) Drag/Drop Logic (Възстановена Base64 логика) ---
-        // Защита: Проверяваме за елементите преди да добавим слушател
-        var imgDropEl = document.getElementById('imgDrop');
-        var imgPickEl = document.getElementById('imgPick');
-        var imgFileEl = document.getElementById('imgFile');
-        var imgPreviewEl = document.getElementById('imgPreview');
-        var fImgsEl = document.getElementById('f_imgs');
+        // --- IMAGE GALLERY (f_imgs) Drag/Drop Logic ---
+        function loadImageFile(file){
+            if (!file) return;
+            if (!/^image\//.test(file.type)) { alert('Please select an image file'); return; }
+            var fr = new FileReader();
+            fr.onload = function(){
+                var dataUrl = fr.result;
+                imageSources.push(dataUrl);
+                syncImageField();
+                renderImageList();
+            };
+            fr.readAsDataURL(file);
+        }
 
-        if(imgDropEl) imgDropEl.addEventListener('dragover', function(e){ e.preventDefault(); });
-        if(imgDropEl) imgDropEl.addEventListener('drop', function(e){
+        document.getElementById('imgDrop').addEventListener('dragover', function(e){ e.preventDefault(); });
+        document.getElementById('imgDrop').addEventListener('drop', function(e){
             e.preventDefault();
             var files = (e.dataTransfer.files && Array.from(e.dataTransfer.files)) || [];
             files.forEach(loadImageFile);
         });
-        if(imgPickEl) imgPickEl.addEventListener('click', function(){ if(imgFileEl) imgFileEl.click(); });
-        if(imgFileEl) imgFileEl.addEventListener('change', function(e){ 
-            var files = (e.target.files && Array.from(e.target.files)) || []; 
-            files.forEach(loadImageFile); 
-            // 💡 КОРЕКЦИЯ: Добавяне на изчистване на input-а, за да може да се качи същия файл
-            e.target.value = '';
-        }); 
-        if(imgPreviewEl) imgPreviewEl.addEventListener('click', function(e){
+        document.getElementById('imgPick').addEventListener('click', function(){ document.getElementById('imgFile').click(); });
+        document.getElementById('imgFile').addEventListener('change', function(e){ var files = (e.target.files && Array.from(e.target.files)) || []; files.forEach(loadImageFile); });
+        document.getElementById('imgPreview').addEventListener('click', function(e){
             var btn = e.target.closest && e.target.closest('button[data-remove]');
             if (!btn) return;
             var idx = parseInt(btn.getAttribute('data-remove'), 10);
@@ -305,59 +397,74 @@
             syncImageField();
             renderImageList();
         });
-        if(fImgsEl) fImgsEl.addEventListener('input', function(){
+        document.getElementById('f_imgs').addEventListener('input', function(){
             imageSources = this.value.split(/\r?\n/).map(function(s){ return s.trim(); }).filter(Boolean);
             renderImageList();
         });
 
-        // --- PORTRAIT (f_portrait) Drag/Drop Logic (Възстановена Base64 логика) ---
-        var portraitDropEl = document.getElementById('portraitDrop');
-        var portraitPickEl = document.getElementById('portraitPick');
-        var portraitFileEl = document.getElementById('portraitFile');
-        // fPortraitEl е дефиниран горе
-
-        if(portraitDropEl) portraitDropEl.addEventListener('dragover', function(e){ e.preventDefault(); });
-        if(portraitDropEl) portraitDropEl.addEventListener('drop', function(e){
+        // --- PORTRAIT (f_portrait) Drag/Drop Logic ---
+        document.getElementById('portraitDrop').addEventListener('dragover', function(e){ e.preventDefault(); });
+        document.getElementById('portraitDrop').addEventListener('drop', function(e){
             e.preventDefault();
             var file = (e.dataTransfer.files && e.dataTransfer.files[0]) || null;
             if (file) {
                 loadPortraitFile(file);
             }
         });
-        if(portraitPickEl) portraitPickEl.addEventListener('click', function(){ if(portraitFileEl) portraitFileEl.click(); });
-        if(portraitFileEl) portraitFileEl.addEventListener('change', function(e){ 
+        document.getElementById('portraitPick').addEventListener('click', function(){ document.getElementById('portraitFile').click(); });
+        document.getElementById('portraitFile').addEventListener('change', function(e){ 
             var file = (e.target.files && e.target.files[0]) || null;
             if (file) {
                 loadPortraitFile(file);
             }
+            // Clear the file input so the 'change' event fires again if the same file is selected
             e.target.value = '';
         });
-        if(fPortraitEl) fPortraitEl.addEventListener('input', renderPortraitPreview);
+        fPortraitEl.addEventListener('input', renderPortraitPreview);
 
         document.getElementById('objForm').addEventListener('submit', function(e){
             e.preventDefault();
             var idxVal = document.getElementById('idx').value;
             var homeId = document.getElementById('f_id').value;
             
-            var method = idxVal === '' ? 'POST' : 'PUT';
-            var url = idxVal === '' ? API_URL : API_URL + '/' + homeId;
-            var pData = readForm(idxVal === '' ? {} : state.people[parseInt(idxVal, 10)]);
-
-            fetch(url, {
-                method: method,
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(pData)
-            })
-            .then(function(res){ return res.json(); })
-            .then(function(){
-                closeModal();
-                loadHomes();
-                alert('Home ' + (method === 'POST' ? 'created' : 'updated') + ' successfully!');
-            })
-            .catch(function(err){ console.error('Error submitting form:', err); alert('Error saving home'); });
+            // ... (rest of the submit logic is unchanged)
+            if (idxVal === '') {
+                // Create new
+                var pNew = readForm({});
+                fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(pNew)
+                })
+                .then(function(res){ return res.json(); })
+                .then(function(){
+                    closeModal();
+                    loadHomes();
+                    alert('Home created successfully!');
+                })
+                .catch(function(err){ console.error('Error creating:', err); alert('Error creating home'); });
+            } else {
+                // Update existing
+                var i = parseInt(idxVal, 10);
+                var pUpdated = readForm(state.people[i]);
+                fetch(API_URL + '/' + homeId, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(pUpdated)
+                })
+                .then(function(res){ return res.json(); })
+                .then(function(){
+                    closeModal();
+                    loadHomes();
+                    alert('Home updated successfully!');
+                })
+                .catch(function(err){ console.error('Error updating:', err); alert('Error updating home'); });
+            }
         });
 
         if (isAuthed()) { hide(document.getElementById('login')); show(document.getElementById('panel')); loadHomes(); }
         document.getElementById('year').textContent = new Date().getFullYear();
     })();
     </script>
+</body>
+</html>
