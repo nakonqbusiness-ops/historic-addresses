@@ -3,20 +3,13 @@ const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
-// const multer = require('multer'); // ❌ Multer вече не се използва, тъй като работим с Base64
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// 🚨 АВТЕНТИКАЦИЯ: СЕКРЕТНАТА ПАРОЛА Е ТУК!
-const SERVER_SECRET_PASSWORD = '_endjvJ6!d'; // ⚠️ ЗАМЕНИ СИГУРНО, АКО Е НУЖНО
-const AUTH_HEADER_KEY = 'x-admin-token';
-
 // Middleware
 app.use(cors());
-// ✅ КРИТИЧНА ПРОМЯНА: Лимитът е увеличен до 50MB, за да побере Base64 изображенията!
 app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(express.static(path.join(__dirname)));
 
 const DB_DIR = process.env.RENDER ? '/data' : '.';
@@ -33,21 +26,6 @@ if (process.env.RENDER && !fs.existsSync(DB_DIR)) {
 }
 console.log("📦 Using persistent database at:", DB_FILE);
 
-// --- АВТЕНТИКАЦИОНЕН MIDDLEWARE ---
-
-// Междинно приложение за проверка на автентикацията
-function checkAuth(req, res, next) {
-    const providedToken = req.headers[AUTH_HEADER_KEY];
-
-    // Проверка дали предоставеният токен съвпада с нашата секретна парола
-    if (providedToken === SERVER_SECRET_PASSWORD) {
-        next(); // Успешна автентикация
-    } else {
-        res.status(401).json({ error: 'Authentication required. Please log in.' });
-    }
-}
-// -------------------------------------
-
 
 // Initialize SQLite database
 const db = new sqlite3.Database(DB_FILE, (err) => {
@@ -59,6 +37,7 @@ const db = new sqlite3.Database(DB_FILE, (err) => {
     }
 });
 
+// Create tables if they don't exist and run necessary migrations
 function initializeDatabase() {
     db.run(`
         CREATE TABLE IF NOT EXISTS homes (
@@ -88,6 +67,7 @@ function initializeDatabase() {
     });
 }
 
+// Function to check and add missing columns (migration)
 function checkAndMigrateSchema() {
     db.all("PRAGMA table_info(homes)", (err, columns) => {
         if (err) {
@@ -116,6 +96,7 @@ function checkAndMigrateSchema() {
     });
 }
 
+// Import initial data from people.js if database is empty
 function importInitialData() {
     db.get('SELECT COUNT(*) as count FROM homes', (err, row) => {
         if (err) {
@@ -202,84 +183,24 @@ function rowToHome(row) {
 
 // ============ API ROUTES ============
 
-// ЕНДПОЙНТ: Вход в административния панел
-app.post('/api/login', (req, res) => {
-    const { password } = req.body;
-    if (password === SERVER_SECRET_PASSWORD) {
-        // Връщаме секретната парола като "токен"
-        res.json({ message: 'Login successful', token: SERVER_SECRET_PASSWORD });
-    } else {
-        res.status(401).json({ error: 'Incorrect password' });
-    }
-});
-
-// ЕНДПОЙНТ: Качване на снимка (ПРЕМАХНАТ/КОМЕНТИРАН - използваме Base64)
-/*
-app.post('/api/upload-image', upload.single('file'), checkAuth, (req, res) => {
-    if (!req.file) {
-        return res.status(400).json({ error: 'No file uploaded' });
-    }
-    const publicUrl = `/assets/${req.file.filename}`;
-    res.json({
-        message: 'File uploaded successfully',
-        url: publicUrl
-    });
-});
-*/
-
-
-// GET all homes (С ПАГИНАЦИЯ)
+// GET all homes
 app.get('/api/homes', (req, res) => {
     const showAll = req.query.all === 'true';
-
-    // Ако заявката е за всички записи (т.е. за административния панел), проверяваме за токен
-    if (showAll && req.headers[AUTH_HEADER_KEY] !== SERVER_SECRET_PASSWORD) {
-        return res.status(401).json({ error: 'Admin access required for "all" data.' });
-    }
+    const query = showAll
+        ? 'SELECT * FROM homes ORDER BY name'
+        : 'SELECT * FROM homes WHERE published = 1 ORDER BY name';
     
-    // Добавяме параметри за пагинация
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 50;
-    const offset = (page - 1) * limit;
-    
-    const whereClause = showAll ? '' : 'WHERE published = 1';
-    
-    // Заявка за броя на всички записи
-    const countQuery = `SELECT COUNT(*) AS count FROM homes ${whereClause}`;
-
-    db.get(countQuery, [], (err, countRow) => {
+    db.all(query, [], (err, rows) => {
         if (err) {
-            return res.status(500).json({ error: err.message });
+            res.status(500).json({ error: err.message });
+            return;
         }
-        const totalCount = countRow.count;
-
-        // Основна заявка с LIMIT и OFFSET
-        const dataQuery = `
-            SELECT * FROM homes ${whereClause}
-            ORDER BY name
-            LIMIT ? OFFSET ?
-        `;
-        
-        db.all(dataQuery, [limit, offset], (err, rows) => {
-            if (err) {
-                return res.status(500).json({ error: err.message });
-            }
-            const homes = rows.map(rowToHome);
-            
-            res.json({
-                homes,
-                meta: {
-                    total: totalCount,
-                    page: page,
-                    limit: limit,
-                    totalPages: Math.ceil(totalCount / limit)
-                }
-            });
-        });
+        const homes = rows.map(rowToHome);
+        res.json(homes);
     });
 });
 
-// GET single home by slug (ПУБЛИЧЕН)
+// GET single home by slug
 app.get('/api/homes/:slug', (req, res) => {
     db.get('SELECT * FROM homes WHERE slug = ? OR id = ?', [req.params.slug, req.params.slug], (err, row) => {
         if (err) {
@@ -294,8 +215,8 @@ app.get('/api/homes/:slug', (req, res) => {
     });
 });
 
-// POST create new home (ЗАЩИТЕН с checkAuth)
-app.post('/api/homes', checkAuth, (req, res) => {
+// POST create new home
+app.post('/api/homes', (req, res) => {
     const home = req.body;
     
     if (!home.name) {
@@ -316,8 +237,8 @@ app.post('/api/homes', checkAuth, (req, res) => {
     res.status(201).json({ message: 'Home created successfully', id: home.id });
 });
 
-// PUT update existing home (ЗАЩИТЕН с checkAuth)
-app.put('/api/homes/:id', checkAuth, (req, res) => {
+// PUT update existing home
+app.put('/api/homes/:id', (req, res) => {
     const home = req.body;
     home.updated_at = new Date().toISOString();
     
@@ -356,8 +277,8 @@ app.put('/api/homes/:id', checkAuth, (req, res) => {
     stmt.finalize();
 });
 
-// DELETE home (ЗАЩИТЕН с checkAuth)
-app.delete('/api/homes/:id', checkAuth, (req, res) => {
+// DELETE home
+app.delete('/api/homes/:id', (req, res) => {
     db.run('DELETE FROM homes WHERE id = ?', [req.params.id], function(err) {
         if (err) {
             res.status(500).json({ error: err.message });
@@ -387,7 +308,7 @@ app.get('/:page.html', (req, res) => {
     }
 });
 
-// Start server
+// Start server on all network interfaces
 app.listen(PORT, '0.0.0.0', () => {
     const os = require('os');
     const interfaces = os.networkInterfaces();
