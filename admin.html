@@ -157,7 +157,7 @@ https://.../house2.jpg"></textarea></label>
 
         function loadHomes(){
             // Request all homes without server-side pagination
-            fetch(API_URL + '?all=true&limit=1000')
+            fetch(API_URL + '?all=true&limit=100')
                 .then(function(res){ 
                     if (!res.ok) throw new Error('Server responded with ' + res.status);
                     return res.json(); 
