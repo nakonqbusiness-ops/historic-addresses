@@ -1,4 +1,3 @@
-
 <!doctype html>
 <html lang="en" data-theme="dark">
 <head>
@@ -7,7 +6,6 @@
     <title>Historic Addresses — Admin</title>
     <link rel="icon" href="/assets/img/HistAdrLogoOrig.ico">
     <script>
-        // Apply theme immediately to prevent flash
         (function() {
             try {
                 var stored = localStorage.getItem('theme-preference');
@@ -62,8 +60,6 @@
         <section id="panel" style="display:none">
             <div class="toolbar">
                 <button id="logout" class="theme-toggle">Logout</button>
-                <button id="exportBtn" class="theme-toggle">Export JSON</button>
-                <label class="theme-toggle" for="importFile" style="display:inline-flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;">Import JSON<input id="importFile" type="file" accept="application/json" style="display:none"></label>
             </div>
 
             <div class="toolbar">
@@ -91,12 +87,11 @@
             </header>
             <form id="objForm">
                 <div class="content">
-                    <input type="hidden" id="idx">
                     <input type="hidden" id="f_id">
                     <div class="form-grid">
                         <label class="full"><span class="label">Full name</span><input id="f_name" class="field" required></label>
                         <label><span class="label">Slug (id)</span><input id="f_slug" class="field" placeholder="address-name" aria-describedby="slugHelp"></label>
-                        <div id="slugHelp" class="full" style="margin-top:-8px;color:var(--muted);font-size:.85rem;">Lowercase, URL-friendly identifier (e.g. historic-mansion-downtown). If left blank, it will be generated from the name.</div>
+                        <div id="slugHelp" class="full" style="margin-top:-8px;color:var(--muted);font-size:.85rem;">Lowercase, URL-friendly identifier. If left blank, it will be generated from the name.</div>
                         <label><span class="label">Published</span><span class="row"><input id="f_published" type="checkbox"><span>Visible</span></span></label>
                         
                         <label class="full" id="portraitFieldLabel">
@@ -141,13 +136,15 @@ https://.../house2.jpg"></textarea></label>
         var apiBase = window.location.protocol === 'file:' ? 'http://localhost:3000' : window.location.origin;
         var API_URL = apiBase + '/api/homes';
         var state = { 
-            people: [],
             currentPage: 1,
-            itemsPerPage: 6,
-            filteredPeople: []
+            totalPages: 1,
+            totalHomes: 0,
+            currentHomes: [],
+            searchQuery: ''
         };
         var portraitPreviewEl = document.getElementById('portraitPreview');
         var fPortraitEl = document.getElementById('f_portrait');
+        var searchTimeout;
 
         function isAuthed(){ return sessionStorage.getItem(STORAGE_KEY) === '1'; }
         function setAuthed(v){ if (v) sessionStorage.setItem(STORAGE_KEY,'1'); else sessionStorage.removeItem(STORAGE_KEY); }
@@ -155,73 +152,52 @@ https://.../house2.jpg"></textarea></label>
         function show(el){ el.style.display=''; }
         function hide(el){ el.style.display='none'; }
 
-        function loadHomes(){
-            // Request all homes without server-side pagination
-            fetch(API_URL + '?all=true&limit=100')
+        function loadHomes(page){
+            page = page || state.currentPage;
+            var url = API_URL + '?all=true&page=' + page + '&limit=6';
+            if (state.searchQuery) {
+                url += '&search=' + encodeURIComponent(state.searchQuery);
+            }
+            
+            fetch(url)
                 .then(function(res){ 
                     if (!res.ok) throw new Error('Server responded with ' + res.status);
                     return res.json(); 
                 })
                 .then(function(response){
-                    // Handle different response formats
-                    if (Array.isArray(response)) {
-                        state.people = response;
-                    } else if (response && Array.isArray(response.data)) {
-                        // API returns {data: [...], pagination: {...}}
-                        state.people = response.data;
-                    } else if (response && Array.isArray(response.homes)) {
-                        state.people = response.homes;
-                    } else if (response && typeof response === 'object') {
-                        // If it's an object with homes as properties
-                        state.people = Object.values(response);
-                    } else {
-                        console.error('Unexpected data format:', response);
-                        state.people = [];
-                    }
-                    console.log('Loaded homes:', state.people.length);
-                    applyFilters();
+                    var homes = response.data || response;
+                    var pagination = response.pagination || { 
+                        page: 1, 
+                        totalPages: Math.max(1, Math.ceil(homes.length / 6)), 
+                        total: homes.length 
+                    };
+                    
+                    state.currentHomes = homes;
+                    state.currentPage = pagination.page;
+                    state.totalPages = pagination.totalPages;
+                    state.totalHomes = pagination.total;
+                    
+                    renderList();
+                    updatePagination();
                 })
                 .catch(function(err){
                     console.error('Error loading homes:', err);
                     alert('Error loading data from server: ' + err.message);
-                    state.people = [];
-                    applyFilters();
+                    state.currentHomes = [];
+                    renderList();
                 });
-        }
-
-        function applyFilters(){
-            var q = (document.getElementById('search').value||'').toLowerCase();
-            
-            // Ensure state.people is an array
-            if (!Array.isArray(state.people)) {
-                console.error('state.people is not an array:', state.people);
-                state.people = [];
-            }
-            
-            state.filteredPeople = state.people.filter(function(p){
-                if (!q) return true;
-                return (p.name||'').toLowerCase().includes(q) || 
-                       (p.biography||'').toLowerCase().includes(q) || 
-                       (p.tags||[]).join(' ').toLowerCase().includes(q);
-            }).sort(function(a,b){ return (a.name||'').localeCompare(b.name||''); });
-            
-            state.currentPage = 1;
-            renderList();
         }
 
         function renderList(){
             var list = document.getElementById('list');
             list.innerHTML = '';
             
-            var totalPages = Math.ceil(state.filteredPeople.length / state.itemsPerPage);
-            if (totalPages === 0) totalPages = 1;
+            if (state.currentHomes.length === 0) {
+                list.innerHTML = '<p style="text-align:center;padding:2rem;color:#999;">No homes found.</p>';
+                return;
+            }
             
-            var startIdx = (state.currentPage - 1) * state.itemsPerPage;
-            var endIdx = Math.min(startIdx + state.itemsPerPage, state.filteredPeople.length);
-            
-            var pagePeople = state.filteredPeople.slice(startIdx, endIdx);
-            
-            pagePeople.forEach(function(p){
+            state.currentHomes.forEach(function(p){
                 var card = document.createElement('div');
                 card.className = 'thumb';
                 var img = (p.images&&p.images[0])? p.images[0].path : '';
@@ -234,40 +210,49 @@ https://.../house2.jpg"></textarea></label>
                     + '</div></div>';
                 list.appendChild(card);
             });
-            
-            updatePagination(totalPages);
         }
 
-        function updatePagination(totalPages){
-            document.getElementById('pageInfo').textContent = 'Page ' + state.currentPage + ' of ' + totalPages;
+        function updatePagination(){
+            var info = 'Page ' + state.currentPage + ' of ' + state.totalPages;
+            if (state.totalHomes > 0) {
+                info += ' (' + state.totalHomes + ' total)';
+            }
+            document.getElementById('pageInfo').textContent = info;
             document.getElementById('firstPage').disabled = state.currentPage === 1;
             document.getElementById('prevPage').disabled = state.currentPage === 1;
-            document.getElementById('nextPage').disabled = state.currentPage === totalPages;
-            document.getElementById('lastPage').disabled = state.currentPage === totalPages;
+            document.getElementById('nextPage').disabled = state.currentPage >= state.totalPages;
+            document.getElementById('lastPage').disabled = state.currentPage >= state.totalPages;
         }
 
         function goToPage(page){
-            var totalPages = Math.ceil(state.filteredPeople.length / state.itemsPerPage);
-            if (totalPages === 0) totalPages = 1;
-            
             if (page < 1) page = 1;
-            if (page > totalPages) page = totalPages;
-            
+            if (page > state.totalPages) page = state.totalPages;
             state.currentPage = page;
-            renderList();
+            loadHomes(page);
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
         document.getElementById('firstPage').addEventListener('click', function(){ goToPage(1); });
         document.getElementById('prevPage').addEventListener('click', function(){ goToPage(state.currentPage - 1); });
         document.getElementById('nextPage').addEventListener('click', function(){ goToPage(state.currentPage + 1); });
-        document.getElementById('lastPage').addEventListener('click', function(){ 
-            var totalPages = Math.ceil(state.filteredPeople.length / state.itemsPerPage);
-            goToPage(totalPages); 
+        document.getElementById('lastPage').addEventListener('click', function(){ goToPage(state.totalPages); });
+
+        document.getElementById('search').addEventListener('input', function(){
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(function(){
+                state.searchQuery = document.getElementById('search').value;
+                state.currentPage = 1;
+                loadHomes(1);
+            }, 500);
         });
 
-        function openModal(title){ document.getElementById('dlgTitle').textContent = title; document.getElementById('modal').style.display='flex'; }
-        function closeModal(){ document.getElementById('modal').style.display='none'; }
+        function openModal(title){ 
+            document.getElementById('dlgTitle').textContent = title; 
+            document.getElementById('modal').style.display='flex'; 
+        }
+        function closeModal(){ 
+            document.getElementById('modal').style.display='none'; 
+        }
 
         var imageSources = [];
         function syncImageField(){ document.getElementById('f_imgs').value = imageSources.join('\n'); }
@@ -287,7 +272,6 @@ https://.../house2.jpg"></textarea></label>
                 cont.appendChild(item);
             });
         }
-        function resetImages(){ imageSources = []; renderImageList(); syncImageField(); }
 
         function renderPortraitPreview() {
             portraitPreviewEl.innerHTML = '';
@@ -384,57 +368,62 @@ https://.../house2.jpg"></textarea></label>
         }
 
         function addNew(){
-            document.getElementById('idx').value = '';
             document.getElementById('f_id').value = '';
             fillForm({ published: true });
             openModal('Add Object');
         }
 
-        function editAt(idx){
-            document.getElementById('idx').value = String(idx);
-            var home = state.people[idx];
-            document.getElementById('f_id').value = home.id || home.slug;
-            fillForm(home);
-            openModal('Edit Object');
+        function editHome(id){
+            fetch(API_URL + '/' + id)
+                .then(function(res){ return res.json(); })
+                .then(function(home){
+                    document.getElementById('f_id').value = home.id || home.slug;
+                    fillForm(home);
+                    openModal('Edit Object');
+                })
+                .catch(function(err){
+                    console.error('Error loading home:', err);
+                    alert('Error loading home details');
+                });
         }
 
         document.addEventListener('click', function(e){
             var act = e.target && e.target.getAttribute('data-act');
             if (!act) return;
             var id = e.target.getAttribute('data-id');
-            var idx = (id != null) ? state.people.findIndex(function(pp){ return (pp.slug||pp.id) === id; }) : -1;
-            if (idx === -1 && id != null) return;
+            if (!id) return;
             
             if (act === 'edit') {
-                editAt(idx);
+                editHome(id);
             }
             
             if (act === 'toggle') {
-                var home = state.people[idx];
-                home.published = !home.published;
-                fetch(API_URL + '/' + (home.id || home.slug), {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(home)
-                })
-                .then(function(res){ return res.json(); })
-                .then(function(){ loadHomes(); })
-                .catch(function(err){ console.error('Error updating:', err); alert('Error updating home'); });
+                fetch(API_URL + '/' + id)
+                    .then(function(res){ return res.json(); })
+                    .then(function(home){
+                        home.published = !home.published;
+                        return fetch(API_URL + '/' + id, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(home)
+                        });
+                    })
+                    .then(function(res){ return res.json(); })
+                    .then(function(){ loadHomes(state.currentPage); })
+                    .catch(function(err){ console.error('Error updating:', err); alert('Error updating home'); });
             }
             
             if (act === 'delete') {
-                if (confirm('Delete this object?')) {
-                    var home = state.people[idx];
-                    fetch(API_URL + '/' + (home.id || home.slug), { method: 'DELETE' })
+                if (confirm('Delete this home?')) {
+                    fetch(API_URL + '/' + id, { method: 'DELETE' })
                         .then(function(res){ return res.json(); })
-                        .then(function(){ loadHomes(); })
+                        .then(function(){ loadHomes(state.currentPage); })
                         .catch(function(err){ console.error('Error deleting:', err); alert('Error deleting home'); });
                 }
             }
         });
 
         document.getElementById('addBtn').addEventListener('click', addNew);
-        document.getElementById('search').addEventListener('input', applyFilters);
 
         document.getElementById('loginBtn').addEventListener('click', function(){
             var pw = document.getElementById('pw').value;
@@ -442,7 +431,7 @@ https://.../house2.jpg"></textarea></label>
                 setAuthed(true);
                 hide(document.getElementById('login'));
                 show(document.getElementById('panel'));
-                loadHomes();
+                loadHomes(1);
             } else {
                 alert('Incorrect password');
             }
@@ -456,6 +445,7 @@ https://.../house2.jpg"></textarea></label>
         function loadImageFile(file){
             if (!file) return;
             if (!/^image\//.test(file.type)) { alert('Please select an image file'); return; }
+            if (file.size > 10 * 1024 * 1024) { alert('Image file size exceeds 10MB limit.'); return; }
             var fr = new FileReader();
             fr.onload = function(){
                 var dataUrl = fr.result;
@@ -507,42 +497,44 @@ https://.../house2.jpg"></textarea></label>
 
         document.getElementById('objForm').addEventListener('submit', function(e){
             e.preventDefault();
-            var idxVal = document.getElementById('idx').value;
             var homeId = document.getElementById('f_id').value;
+            var homeData = readForm({});
             
-            if (idxVal === '') {
-                var pNew = readForm({});
+            if (!homeId) {
                 fetch(API_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(pNew)
+                    body: JSON.stringify(homeData)
                 })
                 .then(function(res){ return res.json(); })
                 .then(function(){
                     closeModal();
-                    loadHomes();
+                    loadHomes(1);
                     alert('Home created successfully!');
                 })
                 .catch(function(err){ console.error('Error creating:', err); alert('Error creating home'); });
             } else {
-                var i = parseInt(idxVal, 10);
-                var pUpdated = readForm(state.people[i]);
-                fetch(API_URL + '/' + homeId, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(pUpdated)
-                })
-                .then(function(res){ return res.json(); })
-                .then(function(){
-                    closeModal();
-                    loadHomes();
-                    alert('Home updated successfully!');
-                })
-                .catch(function(err){ console.error('Error updating:', err); alert('Error updating home'); });
+                fetch(API_URL + '/' + homeId)
+                    .then(function(res){ return res.json(); })
+                    .then(function(existing){
+                        var updated = readForm(existing);
+                        return fetch(API_URL + '/' + homeId, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(updated)
+                        });
+                    })
+                    .then(function(res){ return res.json(); })
+                    .then(function(){
+                        closeModal();
+                        loadHomes(state.currentPage);
+                        alert('Home updated successfully!');
+                    })
+                    .catch(function(err){ console.error('Error updating:', err); alert('Error updating home'); });
             }
         });
 
-        if (isAuthed()) { hide(document.getElementById('login')); show(document.getElementById('panel')); loadHomes(); }
+        if (isAuthed()) { hide(document.getElementById('login')); show(document.getElementById('panel')); loadHomes(1); }
         document.getElementById('year').textContent = new Date().getFullYear();
     })();
     </script>
