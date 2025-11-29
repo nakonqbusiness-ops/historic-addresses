@@ -3,6 +3,7 @@ const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const sharp = require('sharp'); // You'll need to install this: npm install sharp
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -25,7 +26,6 @@ if (process.env.RENDER && !fs.existsSync(DB_DIR)) {
     }
 }
 console.log("📦 Using persistent database at:", DB_FILE);
-
 
 // Initialize SQLite database
 const db = new sqlite3.Database(DB_FILE, (err) => {
@@ -55,7 +55,8 @@ function initializeDatabase() {
            published INTEGER DEFAULT 1,
            created_at TEXT,
            updated_at TEXT,
-           portrait_url TEXT
+           portrait_url TEXT,
+           portrait_thumbnail TEXT
         )
     `, (err) => {
         if (err) {
@@ -65,6 +66,62 @@ function initializeDatabase() {
             checkAndMigrateSchema();
         }
     });
+}
+
+// Function to generate thumbnail from base64 image
+async function generateThumbnail(base64Image, maxWidth = 300) {
+    try {
+        // Check if it's a base64 data URL
+        if (!base64Image || !base64Image.startsWith('data:image')) {
+            return null;
+        }
+        
+        // Extract the base64 data
+        const base64Data = base64Image.split(',')[1];
+        const buffer = Buffer.from(base64Data, 'base64');
+        
+        // Generate thumbnail using sharp
+        const thumbnailBuffer = await sharp(buffer)
+            .resize(maxWidth, null, {
+                fit: 'inside',
+                withoutEnlargement: true
+            })
+            .jpeg({ quality: 80 })
+            .toBuffer();
+        
+        // Convert back to base64 data URL
+        const thumbnailBase64 = `data:image/jpeg;base64,${thumbnailBuffer.toString('base64')}`;
+        return thumbnailBase64;
+    } catch (error) {
+        console.error('Error generating thumbnail:', error);
+        return null;
+    }
+}
+
+// Function to process images and add thumbnails
+async function processImagesWithThumbnails(images) {
+    if (!Array.isArray(images)) return [];
+    
+    const processedImages = await Promise.all(images.map(async (img) => {
+        if (!img || !img.path) return img;
+        
+        // Only generate thumbnail for base64 images
+        if (img.path.startsWith('data:image')) {
+            const thumbnail = await generateThumbnail(img.path);
+            return {
+                ...img,
+                thumbnail: thumbnail || img.path
+            };
+        }
+        
+        // For URL paths, just use the same path as thumbnail
+        return {
+            ...img,
+            thumbnail: img.path
+        };
+    }));
+    
+    return processedImages;
 }
 
 // Function to check and add missing columns (migration)
@@ -77,17 +134,33 @@ function checkAndMigrateSchema() {
         }
 
         const columnNames = columns.map(col => col.name);
+        const migrationsNeeded = [];
         
         if (!columnNames.includes('portrait_url')) {
-            console.log('Column portrait_url missing. Running migration...');
+            migrationsNeeded.push('ALTER TABLE homes ADD COLUMN portrait_url TEXT');
+        }
+        
+        if (!columnNames.includes('portrait_thumbnail')) {
+            migrationsNeeded.push('ALTER TABLE homes ADD COLUMN portrait_thumbnail TEXT');
+        }
+        
+        if (migrationsNeeded.length > 0) {
+            console.log(`Running ${migrationsNeeded.length} migration(s)...`);
             
-            db.run('ALTER TABLE homes ADD COLUMN portrait_url TEXT', (err) => {
-                if (err) {
-                    console.error('Migration failed (ALTER TABLE):', err);
-                } else {
-                    console.log('✅ Migration successful: Added portrait_url column.');
-                }
-                importInitialData();
+            let completedMigrations = 0;
+            migrationsNeeded.forEach((migration, index) => {
+                db.run(migration, (err) => {
+                    if (err) {
+                        console.error(`Migration ${index + 1} failed:`, err);
+                    } else {
+                        console.log(`✅ Migration ${index + 1} successful.`);
+                    }
+                    
+                    completedMigrations++;
+                    if (completedMigrations === migrationsNeeded.length) {
+                        importInitialData();
+                    }
+                });
             });
         } else {
             console.log('Database schema is up-to-date. Skipping migration.');
@@ -133,36 +206,60 @@ function importInitialData() {
 }
 
 // Helper function to insert a home
-function insertHome(home) {
-    const stmt = db.prepare(`
-        INSERT OR REPLACE INTO homes
-        (id, slug, name, biography, address, lat, lng, images, photo_date, sources, tags, published, created_at, updated_at, portrait_url)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-    
-    const coordinates = home.coordinates || {};
-    stmt.run(
-        home.id || home.slug,
-        home.slug,
-        home.name,
-        home.biography,
-        home.address,
-        coordinates.lat,
-        coordinates.lng,
-        JSON.stringify(home.images || []),
-        home.photo_date,
-        JSON.stringify(home.sources || []),
-        JSON.stringify(home.tags || []),
-        home.published !== false ? 1 : 0,
-        home.created_at || new Date().toISOString(),
-        home.updated_at || new Date().toISOString(),
-        home.portrait_url || null
-    );
-    stmt.finalize();
+async function insertHome(home) {
+    try {
+        // Process images to add thumbnails
+        const processedImages = await processImagesWithThumbnails(home.images || []);
+        
+        // Generate portrait thumbnail if portrait_url exists
+        let portraitThumbnail = null;
+        if (home.portrait_url && home.portrait_url.startsWith('data:image')) {
+            portraitThumbnail = await generateThumbnail(home.portrait_url, 150);
+        }
+        
+        const stmt = db.prepare(`
+            INSERT OR REPLACE INTO homes
+            (id, slug, name, biography, address, lat, lng, images, photo_date, sources, tags, published, created_at, updated_at, portrait_url, portrait_thumbnail)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+        
+        const coordinates = home.coordinates || {};
+        stmt.run(
+            home.id || home.slug,
+            home.slug,
+            home.name,
+            home.biography,
+            home.address,
+            coordinates.lat,
+            coordinates.lng,
+            JSON.stringify(processedImages),
+            home.photo_date,
+            JSON.stringify(home.sources || []),
+            JSON.stringify(home.tags || []),
+            home.published !== false ? 1 : 0,
+            home.created_at || new Date().toISOString(),
+            home.updated_at || new Date().toISOString(),
+            home.portrait_url || null,
+            portraitThumbnail || home.portrait_url || null
+        );
+        stmt.finalize();
+    } catch (error) {
+        console.error('Error inserting home:', error);
+    }
 }
 
 // Helper function to convert DB row to home object
-function rowToHome(row) {
+function rowToHome(row, includeThumbnailsOnly = false) {
+    const images = JSON.parse(row.images || '[]');
+    
+    // If thumbnailsOnly, replace full images with thumbnails for list views
+    const outputImages = includeThumbnailsOnly 
+        ? images.map(img => ({
+            ...img,
+            path: img.thumbnail || img.path
+        }))
+        : images;
+    
     return {
         id: row.id,
         slug: row.slug,
@@ -170,14 +267,14 @@ function rowToHome(row) {
         biography: row.biography,
         address: row.address,
         coordinates: row.lat && row.lng ? { lat: row.lat, lng: row.lng } : null,
-        images: JSON.parse(row.images || '[]'),
+        images: outputImages,
         photo_date: row.photo_date,
         sources: JSON.parse(row.sources || '[]'),
         tags: JSON.parse(row.tags || '[]'),
         published: row.published === 1,
         created_at: row.created_at,
         updated_at: row.updated_at,
-        portrait_url: row.portrait_url
+        portrait_url: includeThumbnailsOnly ? (row.portrait_thumbnail || row.portrait_url) : row.portrait_url
     };
 }
 
@@ -190,6 +287,7 @@ app.get('/api/homes', (req, res) => {
     const limit = parseInt(req.query.limit) || 6;
     const search = req.query.search || '';
     const tag = req.query.tag || '';
+    const thumbnailsOnly = req.query.thumbnails === 'true'; // New parameter
     
     const offset = (page - 1) * limit;
     
@@ -249,7 +347,7 @@ app.get('/api/homes', (req, res) => {
                 return;
             }
             
-            const homes = rows.map(rowToHome);
+            const homes = rows.map(row => rowToHome(row, thumbnailsOnly));
             
             res.json({
                 data: homes,
@@ -291,7 +389,7 @@ app.get('/api/tags', (req, res) => {
     });
 });
 
-// GET single home by slug
+// GET single home by slug (always return full images)
 app.get('/api/homes/:slug', (req, res) => {
     db.get('SELECT * FROM homes WHERE slug = ? OR id = ?', [req.params.slug, req.params.slug], (err, row) => {
         if (err) {
@@ -302,12 +400,12 @@ app.get('/api/homes/:slug', (req, res) => {
             res.status(404).json({ error: 'Home not found' });
             return;
         }
-        res.json(rowToHome(row));
+        res.json(rowToHome(row, false)); // false = return full images
     });
 });
 
 // POST create new home
-app.post('/api/homes', (req, res) => {
+app.post('/api/homes', async (req, res) => {
     const home = req.body;
     
     if (!home.name) {
@@ -323,49 +421,63 @@ app.post('/api/homes', (req, res) => {
     home.created_at = new Date().toISOString();
     home.updated_at = new Date().toISOString();
     
-    insertHome(home);
+    await insertHome(home);
     
     res.status(201).json({ message: 'Home created successfully', id: home.id });
 });
 
 // PUT update existing home
-app.put('/api/homes/:id', (req, res) => {
-    const home = req.body;
-    home.updated_at = new Date().toISOString();
-    
-    const coordinates = home.coordinates || {};
-    const stmt = db.prepare(`
-        UPDATE homes SET
-            slug = ?, name = ?, biography = ?, address = ?,
-            lat = ?, lng = ?, images = ?, photo_date = ?,
-            sources = ?, tags = ?, published = ?, updated_at = ?,
-            portrait_url = ?
-        WHERE id = ?
-    `);
-    
-    stmt.run(
-        home.slug, home.name, home.biography, home.address,
-        coordinates.lat, coordinates.lng,
-        JSON.stringify(home.images || []), home.photo_date,
-        JSON.stringify(home.sources || []),
-        JSON.stringify(home.tags || []),
-        home.published !== false ? 1 : 0,
-        home.updated_at,
-        home.portrait_url || null,
-        req.params.id,
-        function(err) {
-            if (err) {
-                res.status(500).json({ error: err.message });
-                return;
-            }
-            if (this.changes === 0) {
-                res.status(404).json({ error: 'Home not found' });
-                return;
-            }
-            res.json({ message: 'Home updated successfully' });
+app.put('/api/homes/:id', async (req, res) => {
+    try {
+        const home = req.body;
+        home.updated_at = new Date().toISOString();
+        
+        // Process images to add thumbnails
+        const processedImages = await processImagesWithThumbnails(home.images || []);
+        
+        // Generate portrait thumbnail if portrait_url exists
+        let portraitThumbnail = null;
+        if (home.portrait_url && home.portrait_url.startsWith('data:image')) {
+            portraitThumbnail = await generateThumbnail(home.portrait_url, 150);
         }
-    );
-    stmt.finalize();
+        
+        const coordinates = home.coordinates || {};
+        const stmt = db.prepare(`
+            UPDATE homes SET
+                slug = ?, name = ?, biography = ?, address = ?,
+                lat = ?, lng = ?, images = ?, photo_date = ?,
+                sources = ?, tags = ?, published = ?, updated_at = ?,
+                portrait_url = ?, portrait_thumbnail = ?
+            WHERE id = ?
+        `);
+        
+        stmt.run(
+            home.slug, home.name, home.biography, home.address,
+            coordinates.lat, coordinates.lng,
+            JSON.stringify(processedImages), home.photo_date,
+            JSON.stringify(home.sources || []),
+            JSON.stringify(home.tags || []),
+            home.published !== false ? 1 : 0,
+            home.updated_at,
+            home.portrait_url || null,
+            portraitThumbnail || home.portrait_url || null,
+            req.params.id,
+            function(err) {
+                if (err) {
+                    res.status(500).json({ error: err.message });
+                    return;
+                }
+                if (this.changes === 0) {
+                    res.status(404).json({ error: 'Home not found' });
+                    return;
+                }
+                res.json({ message: 'Home updated successfully' });
+            }
+        );
+        stmt.finalize();
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
 });
 
 // DELETE home
