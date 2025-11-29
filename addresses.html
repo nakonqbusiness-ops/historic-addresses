@@ -142,7 +142,7 @@
 				});
 		}
 		
-		// Fetch homes with pagination
+		// Fetch homes with pagination and thumbnails
 		function loadHomes(page) {
 			if (isLoading) return;
 			isLoading = true;
@@ -150,7 +150,8 @@
 			var searchQuery = document.getElementById('q').value;
 			var tagFilter = document.getElementById('tag').value;
 			
-			var url = apiBase + '/api/homes?page=' + page + '&limit=6';
+			// Add thumbnails=true to get thumbnail versions only
+			var url = apiBase + '/api/homes?page=' + page + '&limit=6&thumbnails=true';
 			if (searchQuery) url += '&search=' + encodeURIComponent(searchQuery);
 			if (tagFilter) url += '&tag=' + encodeURIComponent(tagFilter);
 			
