@@ -67,15 +67,18 @@
 			var bounds = [];
 			var placeholder = 'assets/img/placeholder.svg';
 			var focused = null;
+			
 			people.forEach(function(p){
-				var ll = [Number(p.coordinates.lat), Number(p.coordinates.lng)];
+				// Skip if no valid coordinates
+				if (!p.lat || !p.lng || !isFinite(p.lat) || !isFinite(p.lng)) {
+					return;
+				}
+				
+				var ll = [Number(p.lat), Number(p.lng)];
 				bounds.push(ll);
 				
-				// Use thumbnail if available for faster loading
-				var img = placeholder;
-				if (p.images && p.images[0]) {
-					img = p.images[0].thumb || p.images[0].path || placeholder;
-				}
+				// Use thumbnail for faster loading
+				var img = p.thumbnail || placeholder;
 				
 				var icon = L.divIcon({
 					className: '',
@@ -84,12 +87,27 @@
 					iconAnchor: [22,22]
 				});
 				var marker = L.marker(ll, { icon: icon }).addTo(markersLayer);
-				marker.on('click', function(){ location.href = 'address.html?slug=' + encodeURIComponent(p.slug||p.id); });
+				marker.on('click', function(){ 
+					location.href = 'address.html?slug=' + encodeURIComponent(p.slug || p.id); 
+				});
 				marker.bindTooltip(p.name, { direction: 'top', offset: [0,-24] });
-				if (targetSlug && (p.slug === targetSlug || p.id === targetSlug)) { focused = { ll: ll, marker: marker }; }
+				
+				if (targetSlug && (p.slug === targetSlug || p.id === targetSlug)) { 
+					focused = { ll: ll, marker: marker }; 
+				}
 			});
-			if (bounds.length) { m.fitBounds(bounds, { padding: [20,20] }); }
-			if (focused) { m.setView(focused.ll, Math.max(m.getZoom(), 15)); focused.marker.openTooltip(); }
+			
+			if (bounds.length) { 
+				m.fitBounds(bounds, { padding: [20,20] }); 
+			} else {
+				// Default to Bulgaria center if no markers
+				m.setView([42.7, 25.5], 7);
+			}
+			
+			if (focused) { 
+				m.setView(focused.ll, Math.max(m.getZoom(), 15)); 
+				focused.marker.openTooltip(); 
+			}
 		}
 		
 		function setDynamicMinZoom(){
@@ -100,54 +118,21 @@
 		setDynamicMinZoom();
 		window.addEventListener('resize', function(){ setDynamicMinZoom(); });
 		
-		// Fetch ALL homes from API (no pagination for map)
+		// Fetch homes using the lightweight map endpoint
 		function loadHomes() {
 			var apiBase = window.location.protocol === 'file:' ? 'http://localhost:3000' : window.location.origin;
 			
-			// Request all homes with a very high limit to get everything at once
-			fetch(apiBase + '/api/homes?limit=1000')
+			// Use the new lightweight /api/homes/map endpoint
+			fetch(apiBase + '/api/homes/map')
 				.then(function(res){ 
 					if (!res.ok) {
 						throw new Error('Network response was not ok');
 					}
 					return res.json(); 
 				})
-				.then(function(response){
-					// Handle new paginated response format
-					var allHomes = response.data || response;
-					
-					// If there are more pages, fetch them too
-					if (response.pagination && response.pagination.totalPages > 1) {
-						console.log('Fetching all', response.pagination.total, 'homes for map...');
-						var promises = [];
-						for (var page = 2; page <= response.pagination.totalPages; page++) {
-							promises.push(
-								fetch(apiBase + '/api/homes?limit=1000&page=' + page)
-									.then(function(res){ return res.json(); })
-									.then(function(resp){ return resp.data || resp; })
-							);
-						}
-						return Promise.all(promises).then(function(results){
-							results.forEach(function(homes){
-								allHomes = allHomes.concat(homes);
-							});
-							return allHomes;
-						});
-					}
-					return allHomes;
-				})
-				.then(function(allHomes){
-					// Filter only published homes with valid coordinates
-					var people = allHomes.filter(function(p){
-						return p && p.published && p.coordinates && isFinite(p.coordinates.lat) && isFinite(p.coordinates.lng);
-					});
-					
-					console.log('Loaded', people.length, 'homes with coordinates');
-					renderMarkers(people);
-					
-					if (!people.length) { 
-						m.setView([42.7, 25.5], 7); // Center on Bulgaria
-					}
+				.then(function(homes){
+					console.log('Loaded', homes.length, 'homes for map');
+					renderMarkers(homes);
 				})
 				.catch(function(err){
 					console.error('Error loading homes:', err);
@@ -157,7 +142,9 @@
 		
 		loadHomes();
 		// Refresh map when tab becomes visible
-		document.addEventListener('visibilitychange', function(){ if (!document.hidden) loadHomes(); });
+		document.addEventListener('visibilitychange', function(){ 
+			if (!document.hidden) loadHomes(); 
+		});
 		document.getElementById('year').textContent = new Date().getFullYear();
 	});
 	</script>
