@@ -330,28 +330,49 @@ app.get('/api/homes', (req, res) => {
     });
 });
 
-// GET all tags (for the filter dropdown)
-app.get('/api/tags', (req, res) => {
-    db.all('SELECT DISTINCT tags FROM homes WHERE published = 1', [], (err, rows) => {
+// GET homes for map (lightweight - only coordinates and basic info)
+app.get('/api/homes/map', (req, res) => {
+    // Only select the fields needed for map markers
+    const query = `
+        SELECT id, slug, name, lat, lng, images
+        FROM homes 
+        WHERE published = 1 
+        AND lat IS NOT NULL 
+        AND lng IS NOT NULL
+        ORDER BY name
+    `;
+    
+    db.all(query, [], (err, rows) => {
         if (err) {
             res.status(500).json({ error: err.message });
             return;
         }
         
-        const tagSet = new Set();
-        rows.forEach(row => {
+        // Return minimal data - just what's needed for map markers
+        const mapData = rows.map(row => {
+            let thumbnail = null;
+            
+            // Extract only the first image thumbnail (not all images)
             try {
-                const tags = JSON.parse(row.tags || '[]');
-                tags.forEach(tag => {
-                    if (tag) tagSet.add(String(tag));
-                });
+                const images = JSON.parse(row.images || '[]');
+                if (images && images[0]) {
+                    thumbnail = images[0].thumb || images[0].path || null;
+                }
             } catch (e) {
-                console.error('Error parsing tags:', e);
+                // Ignore parse errors
             }
+            
+            return {
+                id: row.id,
+                slug: row.slug,
+                name: row.name,
+                lat: row.lat,
+                lng: row.lng,
+                thumbnail: thumbnail
+            };
         });
         
-        const tagArray = Array.from(tagSet).sort((a, b) => a.localeCompare(b));
-        res.json(tagArray);
+        res.json(mapData);
     });
 });
 
