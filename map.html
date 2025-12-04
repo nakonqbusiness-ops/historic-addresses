@@ -70,7 +70,13 @@
 			people.forEach(function(p){
 				var ll = [Number(p.coordinates.lat), Number(p.coordinates.lng)];
 				bounds.push(ll);
-				var img = (p.images && p.images[0] && p.images[0].path) ? p.images[0].path : placeholder;
+				
+				// Use thumbnail if available for faster loading
+				var img = placeholder;
+				if (p.images && p.images[0]) {
+					img = p.images[0].thumb || p.images[0].path || placeholder;
+				}
+				
 				var icon = L.divIcon({
 					className: '',
 					html: '<div class="pin" style="background-image:url(\'' + img.replace(/"/g,'&quot;') + '\')"></div>',
@@ -85,6 +91,7 @@
 			if (bounds.length) { m.fitBounds(bounds, { padding: [20,20] }); }
 			if (focused) { m.setView(focused.ll, Math.max(m.getZoom(), 15)); focused.marker.openTooltip(); }
 		}
+		
 		function setDynamicMinZoom(){
 			var w = m.getSize().x;
 			var target = Math.ceil(Math.log2(Math.max(1, w / 256)));
@@ -93,21 +100,58 @@
 		setDynamicMinZoom();
 		window.addEventListener('resize', function(){ setDynamicMinZoom(); });
 		
-		// Fetch homes from API
+		// Fetch ALL homes from API (no pagination for map)
 		function loadHomes() {
 			var apiBase = window.location.protocol === 'file:' ? 'http://localhost:3000' : window.location.origin;
-			fetch(apiBase + '/api/homes')
-				.then(function(res){ return res.json(); })
-				.then(function(data){
-					var people = data.filter(function(p){
+			
+			// Request all homes with a very high limit to get everything at once
+			fetch(apiBase + '/api/homes?limit=1000')
+				.then(function(res){ 
+					if (!res.ok) {
+						throw new Error('Network response was not ok');
+					}
+					return res.json(); 
+				})
+				.then(function(response){
+					// Handle new paginated response format
+					var allHomes = response.data || response;
+					
+					// If there are more pages, fetch them too
+					if (response.pagination && response.pagination.totalPages > 1) {
+						console.log('Fetching all', response.pagination.total, 'homes for map...');
+						var promises = [];
+						for (var page = 2; page <= response.pagination.totalPages; page++) {
+							promises.push(
+								fetch(apiBase + '/api/homes?limit=1000&page=' + page)
+									.then(function(res){ return res.json(); })
+									.then(function(resp){ return resp.data || resp; })
+							);
+						}
+						return Promise.all(promises).then(function(results){
+							results.forEach(function(homes){
+								allHomes = allHomes.concat(homes);
+							});
+							return allHomes;
+						});
+					}
+					return allHomes;
+				})
+				.then(function(allHomes){
+					// Filter only published homes with valid coordinates
+					var people = allHomes.filter(function(p){
 						return p && p.published && p.coordinates && isFinite(p.coordinates.lat) && isFinite(p.coordinates.lng);
 					});
+					
+					console.log('Loaded', people.length, 'homes with coordinates');
 					renderMarkers(people);
-					if (!people.length) { m.setView([20,0], m.getMinZoom()); }
+					
+					if (!people.length) { 
+						m.setView([42.7, 25.5], 7); // Center on Bulgaria
+					}
 				})
 				.catch(function(err){
 					console.error('Error loading homes:', err);
-					m.setView([20,0], m.getMinZoom());
+					m.setView([42.7, 25.5], 7); // Center on Bulgaria
 				});
 		}
 		
@@ -119,4 +163,3 @@
 	</script>
 </body>
 </html>
-
