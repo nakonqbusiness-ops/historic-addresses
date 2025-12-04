@@ -6,6 +6,7 @@ const fs = require('fs');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const DOMAIN = 'https://historyaddress.bg';
 
 // Middleware
 app.use(cors());
@@ -180,6 +181,69 @@ function rowToHome(row) {
         portrait_url: row.portrait_url
     };
 }
+
+// ============ SEO ROUTES ============
+
+// Serve robots.txt dynamically
+app.get('/robots.txt', (req, res) => {
+    const robotsTxt = `User-agent: *
+Allow: /
+Disallow: /admin.html
+Disallow: /assets/
+
+Sitemap: ${DOMAIN}/sitemap.xml`;
+    
+    res.type('text/plain');
+    res.send(robotsTxt);
+});
+
+// Generate dynamic sitemap.xml
+app.get('/sitemap.xml', (req, res) => {
+    db.all('SELECT slug, updated_at FROM homes WHERE published = 1 ORDER BY updated_at DESC', [], (err, rows) => {
+        if (err) {
+            console.error('Error generating sitemap:', err);
+            res.status(500).send('Error generating sitemap');
+            return;
+        }
+        
+        const staticPages = [
+            { url: '', priority: '1.0', changefreq: 'weekly' },
+            { url: 'addresses.html', priority: '0.9', changefreq: 'daily' },
+            { url: 'map.html', priority: '0.8', changefreq: 'weekly' },
+            { url: 'about.html', priority: '0.7', changefreq: 'monthly' }
+        ];
+        
+        let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
+        xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
+        
+        // Add static pages
+        staticPages.forEach(page => {
+            xml += '  <url>\n';
+            xml += `    <loc>${DOMAIN}/${page.url}</loc>\n`;
+            xml += `    <changefreq>${page.changefreq}</changefreq>\n`;
+            xml += `    <priority>${page.priority}</priority>\n`;
+            xml += '  </url>\n';
+        });
+        
+        // Add all published addresses
+        rows.forEach(home => {
+            const lastmod = home.updated_at ? new Date(home.updated_at).toISOString().split('T')[0] : '';
+            xml += '  <url>\n';
+            xml += `    <loc>${DOMAIN}/address.html?slug=${encodeURIComponent(home.slug)}</loc>\n`;
+            if (lastmod) {
+                xml += `    <lastmod>${lastmod}</lastmod>\n`;
+            }
+            xml += '    <changefreq>monthly</changefreq>\n';
+            xml += '    <priority>0.6</priority>\n';
+            xml += '  </url>\n';
+        });
+        
+        xml += '</urlset>';
+        
+        res.type('application/xml');
+        res.send(xml);
+    });
+});
 
 // ============ API ROUTES ============
 
@@ -416,6 +480,8 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`\n🏛️ Historic Addresses Server`);
     console.log(`✅ Server running on port ${PORT}`);
     console.log(`📊 Database: SQLite (Persistent at ${DB_FILE})`);
+    console.log(`🌍 Domain: ${DOMAIN}`);
+    console.log(`🔍 SEO: robots.txt and sitemap.xml enabled`);
     
     console.log(`\n📍 Access from this computer:`);
     console.log(`  http://localhost:${PORT}`);
@@ -426,7 +492,8 @@ app.listen(PORT, '0.0.0.0', () => {
             console.log(`  http://${addr}:${PORT}`);
         });
     }
-    console.log(`\n🔌 API Endpoint: /api/homes\n`);
+    console.log(`\n🔌 API Endpoint: /api/homes`);
+    console.log(`🔍 SEO Files: /robots.txt | /sitemap.xml\n`);
 });
 
 // Graceful shutdown
