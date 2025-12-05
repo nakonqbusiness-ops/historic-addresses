@@ -10,7 +10,7 @@ const DOMAIN = 'https://historyaddress.bg';
 
 // Middleware
 app.use(cors());
-app.use(express.json({ limit: '50mb' }));
+app.use(express.json({ limit: '50mb' })); // Consider reducing this to 10mb if possible
 app.use(express.static(path.join(__dirname)));
 
 const DB_DIR = process.env.RENDER ? '/data' : '.';
@@ -38,6 +38,13 @@ const db = new sqlite3.Database(DB_FILE, (err) => {
     }
 });
 
+// Optimize SQLite for memory
+db.configure('busyTimeout', 5000);
+db.run('PRAGMA journal_mode = WAL'); // Write-Ahead Logging for better performance
+db.run('PRAGMA synchronous = NORMAL'); // Faster writes
+db.run('PRAGMA cache_size = 1000'); // Limit cache size (about 4MB)
+db.run('PRAGMA temp_store = MEMORY'); // Use memory for temp tables
+
 // Create tables if they don't exist and run necessary migrations
 function initializeDatabase() {
     db.run(`
@@ -63,6 +70,12 @@ function initializeDatabase() {
             console.error('Error creating table:', err);
         } else {
             console.log('Database table ready');
+            
+            // Create indexes for faster queries
+            db.run('CREATE INDEX IF NOT EXISTS idx_homes_published ON homes(published)');
+            db.run('CREATE INDEX IF NOT EXISTS idx_homes_slug ON homes(slug)');
+            db.run('CREATE INDEX IF NOT EXISTS idx_homes_name ON homes(name)');
+            
             checkAndMigrateSchema();
         }
     });
@@ -330,8 +343,61 @@ app.get('/api/homes', (req, res) => {
     });
 });
 
-// GET homes for map (lightweight - only coordinates and basic info)
+// GET all tags (for the filter dropdown) - CACHED
+let tagsCache = null;
+let tagsCacheTime = 0;
+const TAGS_CACHE_TTL = 300000; // 5 minutes
+
+app.get('/api/tags', (req, res) => {
+    const now = Date.now();
+    
+    // Return cached tags if still valid
+    if (tagsCache && (now - tagsCacheTime) < TAGS_CACHE_TTL) {
+        return res.json(tagsCache);
+    }
+    
+    db.all('SELECT DISTINCT tags FROM homes WHERE published = 1', [], (err, rows) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        
+        const tagSet = new Set();
+        rows.forEach(row => {
+            try {
+                const tags = JSON.parse(row.tags || '[]');
+                tags.forEach(tag => {
+                    if (tag) tagSet.add(String(tag));
+                });
+            } catch (e) {
+                console.error('Error parsing tags:', e);
+            }
+        });
+        
+        const tagArray = Array.from(tagSet).sort((a, b) => a.localeCompare(b));
+        
+        // Cache the result
+        tagsCache = tagArray;
+        tagsCacheTime = now;
+        
+        res.json(tagArray);
+    });
+});
+
+// GET homes for map (lightweight - only coordinates and basic info) - CACHED
+let mapCache = null;
+let mapCacheTime = 0;
+const MAP_CACHE_TTL = 600000; // 10 minutes
+
 app.get('/api/homes/map', (req, res) => {
+    const now = Date.now();
+    
+    // Return cached map data if still valid
+    if (mapCache && (now - mapCacheTime) < MAP_CACHE_TTL) {
+        console.log('✅ Serving map data from cache');
+        return res.json(mapCache);
+    }
+    
     // Only select the fields needed for map markers
     const query = `
         SELECT id, slug, name, lat, lng, images
@@ -372,9 +438,21 @@ app.get('/api/homes/map', (req, res) => {
             };
         });
         
+        // Cache the result
+        mapCache = mapData;
+        mapCacheTime = now;
+        
+        console.log(`📍 Generated map data: ${mapData.length} locations (cached for 10 min)`);
         res.json(mapData);
     });
 });
+
+// Invalidate caches when data changes
+function invalidateCaches() {
+    tagsCache = null;
+    mapCache = null;
+    console.log('♻️ Caches invalidated');
+}
 
 // GET single home by slug
 app.get('/api/homes/:slug', (req, res) => {
@@ -409,6 +487,7 @@ app.post('/api/homes', (req, res) => {
     home.updated_at = new Date().toISOString();
     
     insertHome(home);
+    invalidateCaches(); // Clear cache when data changes
     
     res.status(201).json({ message: 'Home created successfully', id: home.id });
 });
@@ -447,6 +526,7 @@ app.put('/api/homes/:id', (req, res) => {
                 res.status(404).json({ error: 'Home not found' });
                 return;
             }
+            invalidateCaches(); // Clear cache when data changes
             res.json({ message: 'Home updated successfully' });
         }
     );
@@ -464,6 +544,7 @@ app.delete('/api/homes/:id', (req, res) => {
             res.status(404).json({ error: 'Home not found' });
             return;
         }
+        invalidateCaches(); // Clear cache when data changes
         res.json({ message: 'Home deleted successfully' });
     });
 });
@@ -503,6 +584,7 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`📊 Database: SQLite (Persistent at ${DB_FILE})`);
     console.log(`🌍 Domain: ${DOMAIN}`);
     console.log(`🔍 SEO: robots.txt and sitemap.xml enabled`);
+    console.log(`⚡ Optimizations: Database indexes, Query caching`);
     
     console.log(`\n📍 Access from this computer:`);
     console.log(`  http://localhost:${PORT}`);
@@ -513,8 +595,11 @@ app.listen(PORT, '0.0.0.0', () => {
             console.log(`  http://${addr}:${PORT}`);
         });
     }
-    console.log(`\n🔌 API Endpoint: /api/homes`);
-    console.log(`🔍 SEO Files: /robots.txt | /sitemap.xml\n`);
+    console.log(`\n🔌 API Endpoints:`);
+    console.log(`  /api/homes - Paginated homes`);
+    console.log(`  /api/homes/map - Lightweight map data (cached 10 min)`);
+    console.log(`  /api/tags - Tags list (cached 5 min)`);
+    console.log(`🔍 SEO: /robots.txt | /sitemap.xml\n`);
 });
 
 // Graceful shutdown
