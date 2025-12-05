@@ -111,7 +111,7 @@
 	<script>
 	(function() {
 		var params = new URLSearchParams(location.search);
-		var initialTag = (params.get('tag')||'').toLowerCase();
+		var initialTag = params.get('tag') || '';
 		var currentPage = 1;
 		var totalPages = 1;
 		var isLoading = false;
@@ -130,11 +130,15 @@
 						tagSel.appendChild(o);
 					});
 					
+					// Set initial tag from URL parameter (case-insensitive match)
 					if (initialTag) {
 						var match = Array.from(tagSel.options).find(function(o){ 
-							return o.value.toLowerCase() === initialTag; 
+							return o.value.toLowerCase() === initialTag.toLowerCase(); 
 						});
-						if (match) tagSel.value = match.value;
+						if (match) {
+							tagSel.value = match.value;
+							console.log('Set tag filter to:', match.value);
+						}
 					}
 				})
 				.catch(function(err){
@@ -142,7 +146,7 @@
 				});
 		}
 		
-		// Fetch homes with pagination
+		// Fetch homes with pagination and thumbnails
 		function loadHomes(page) {
 			if (isLoading) return;
 			isLoading = true;
@@ -150,7 +154,8 @@
 			var searchQuery = document.getElementById('q').value;
 			var tagFilter = document.getElementById('tag').value;
 			
-			var url = apiBase + '/api/homes?page=' + page + '&limit=6';
+			// Add thumbnails=true to get thumbnail versions only
+			var url = apiBase + '/api/homes?page=' + page + '&limit=6&thumbnails=true';
 			if (searchQuery) url += '&search=' + encodeURIComponent(searchQuery);
 			if (tagFilter) url += '&tag=' + encodeURIComponent(tagFilter);
 			
