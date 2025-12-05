@@ -259,7 +259,7 @@ app.get('/sitemap.xml', (req, res) => {
 
 // ============ API ROUTES ============
 
-// GET all homes with pagination
+// GET all homes with pagination - FIXED SEARCH AND TAG FILTERING
 app.get('/api/homes', (req, res) => {
     const showAll = req.query.all === 'true';
     const page = parseInt(req.query.page) || 1;
@@ -277,22 +277,23 @@ app.get('/api/homes', (req, res) => {
         whereConditions.push('published = 1');
     }
     
-    // Search filter (name, biography, sources)
+    // Search filter - FIXED: Case insensitive and includes address
     if (search) {
         whereConditions.push(`(
-            name LIKE ? OR 
-            biography LIKE ? OR 
-            sources LIKE ? OR
-            tags LIKE ?
+            LOWER(name) LIKE LOWER(?) OR 
+            LOWER(biography) LIKE LOWER(?) OR 
+            LOWER(address) LIKE LOWER(?) OR
+            LOWER(sources) LIKE LOWER(?) OR
+            LOWER(tags) LIKE LOWER(?)
         )`);
         const searchPattern = `%${search}%`;
-        params.push(searchPattern, searchPattern, searchPattern, searchPattern);
+        params.push(searchPattern, searchPattern, searchPattern, searchPattern, searchPattern);
     }
     
-    // Tag filter
+    // Tag filter - FIXED: Case insensitive, works without exact JSON quotes
     if (tag) {
-        whereConditions.push('tags LIKE ?');
-        params.push(`%"${tag}"%`);
+        whereConditions.push('LOWER(tags) LIKE LOWER(?)');
+        params.push(`%${tag}%`);
     }
     
     const whereClause = whereConditions.length > 0 
