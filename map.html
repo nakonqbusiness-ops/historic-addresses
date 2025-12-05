@@ -19,9 +19,52 @@
 	</script>
 	<link rel="stylesheet" href="assets/css/styles.css">
 	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+	<!-- Marker Clustering for performance -->
+	<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+	<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
 	<script defer src="assets/js/theme.js"></script>
 	<script defer src="assets/js/transitions.js"></script>
 	<script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+	<script defer src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+	<style>
+		/* Cluster styling */
+		.marker-cluster-small, .marker-cluster-medium, .marker-cluster-large {
+			background-color: rgba(0, 123, 255, 0.6);
+		}
+		.marker-cluster-small div, .marker-cluster-medium div, .marker-cluster-large div {
+			background-color: rgba(0, 123, 255, 0.8);
+			color: white;
+			font-weight: bold;
+		}
+		/* Loading overlay */
+		.map-loading {
+			position: absolute;
+			top: 50%;
+			left: 50%;
+			transform: translate(-50%, -50%);
+			background: rgba(0, 0, 0, 0.85);
+			color: white;
+			padding: 1.5rem 2.5rem;
+			border-radius: 8px;
+			z-index: 1000;
+			font-size: 1.1rem;
+			box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+		}
+		.map-loading::after {
+			content: '';
+			display: inline-block;
+			width: 16px;
+			height: 16px;
+			margin-left: 10px;
+			border: 3px solid rgba(255,255,255,0.3);
+			border-top-color: white;
+			border-radius: 50%;
+			animation: spin 0.8s linear infinite;
+		}
+		@keyframes spin {
+			to { transform: rotate(360deg); }
+		}
+	</style>
 </head>
 <body>
 	<header class="site-header">
@@ -38,7 +81,9 @@
 		<button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode"></button>
 	</header>
 
-	<div id="map" class="map-wrap" role="region" aria-label="Map of locations"></div>
+	<div id="map" class="map-wrap" role="region" aria-label="Map of locations">
+		<div id="loading" class="map-loading">Зареждане на картата</div>
+	</div>
 
 	<footer class="site-footer">
 		<p>© <span id="year"></span> Адресът на историята</p>
@@ -48,66 +93,132 @@
 	window.addEventListener('DOMContentLoaded', function() {
 		var params = new URLSearchParams(location.search);
 		var targetSlug = params.get('slug');
+		var loadingEl = document.getElementById('loading');
+		var loadedData = false; // Only load once
 
+		// Initialize map
 		var m = L.map('map', {
 			zoomControl: true,
 			worldCopyJump: true,
-			maxBounds: [[-85, -180], [85, 180]]
+			maxBounds: [[-85, -180], [85, 180]],
+			preferCanvas: true // Canvas rendering for better performance
 		});
+		
 		var tiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 			maxZoom: 19,
 			attribution: '&copy; OpenStreetMap contributors'
 		});
 		tiles.addTo(m);
 
-		var markersLayer = L.layerGroup().addTo(m);
+		// Create marker cluster group
+		var markers = L.markerClusterGroup({
+			maxClusterRadius: 50,
+			spiderfyOnMaxZoom: true,
+			showCoverageOnHover: false,
+			zoomToBoundsOnClick: true,
+			chunkedLoading: true, // Load in chunks for smooth UI
+			chunkInterval: 50,
+			chunkDelay: 50
+		});
 		
-		function renderMarkers(people){
-			markersLayer.clearLayers();
-			var bounds = [];
+		function createMarker(p) {
 			var placeholder = 'assets/img/placeholder.svg';
-			var focused = null;
+			var img = p.thumbnail || placeholder;
 			
-			people.forEach(function(p){
-				// Skip if no valid coordinates
+			var icon = L.divIcon({
+				className: '',
+				html: '<div class="pin" style="background-image:url(\'' + img.replace(/"/g,'&quot;') + '\')"></div>',
+				iconSize: [44,44],
+				iconAnchor: [22,22]
+			});
+			
+			var marker = L.marker([Number(p.lat), Number(p.lng)], { icon: icon });
+			marker.on('click', function(){ 
+				location.href = 'address.html?slug=' + encodeURIComponent(p.slug || p.id); 
+			});
+			marker.bindTooltip(p.name, { direction: 'top', offset: [0,-24] });
+			
+			return marker;
+		}
+		
+		function renderMarkers(homes){
+			// Clear existing markers
+			markers.clearLayers();
+			
+			var bounds = [];
+			var focused = null;
+			var validHomes = [];
+			
+			// Filter valid homes
+			homes.forEach(function(p){
 				if (!p.lat || !p.lng || !isFinite(p.lat) || !isFinite(p.lng)) {
 					return;
 				}
-				
-				var ll = [Number(p.lat), Number(p.lng)];
-				bounds.push(ll);
-				
-				// Use thumbnail for faster loading
-				var img = p.thumbnail || placeholder;
-				
-				var icon = L.divIcon({
-					className: '',
-					html: '<div class="pin" style="background-image:url(\'' + img.replace(/"/g,'&quot;') + '\')"></div>',
-					iconSize: [44,44],
-					iconAnchor: [22,22]
-				});
-				var marker = L.marker(ll, { icon: icon }).addTo(markersLayer);
-				marker.on('click', function(){ 
-					location.href = 'address.html?slug=' + encodeURIComponent(p.slug || p.id); 
-				});
-				marker.bindTooltip(p.name, { direction: 'top', offset: [0,-24] });
-				
-				if (targetSlug && (p.slug === targetSlug || p.id === targetSlug)) { 
-					focused = { ll: ll, marker: marker }; 
-				}
+				validHomes.push(p);
+				bounds.push([Number(p.lat), Number(p.lng)]);
 			});
 			
-			if (bounds.length) { 
-				m.fitBounds(bounds, { padding: [20,20] }); 
-			} else {
-				// Default to Bulgaria center if no markers
-				m.setView([42.7, 25.5], 7);
+			console.log('Rendering', validHomes.length, 'markers with clustering');
+			
+			// Add markers in batches to avoid blocking UI
+			var batchSize = 25;
+			var currentBatch = 0;
+			
+			function addBatch() {
+				var start = currentBatch * batchSize;
+				var end = Math.min(start + batchSize, validHomes.length);
+				
+				for (var i = start; i < end; i++) {
+					var p = validHomes[i];
+					var marker = createMarker(p);
+					markers.addLayer(marker);
+					
+					if (targetSlug && (p.slug === targetSlug || p.id === targetSlug)) {
+						focused = { lat: p.lat, lng: p.lng, marker: marker };
+					}
+				}
+				
+				currentBatch++;
+				
+				// Update loading message
+				if (loadingEl && end < validHomes.length) {
+					var percent = Math.round((end / validHomes.length) * 100);
+					loadingEl.textContent = 'Зареждане ' + percent + '%';
+				}
+				
+				if (end < validHomes.length) {
+					// Schedule next batch
+					setTimeout(addBatch, 10);
+				} else {
+					// All markers added
+					m.addLayer(markers);
+					
+					if (bounds.length) {
+						m.fitBounds(bounds, { padding: [20,20] });
+					} else {
+						m.setView([42.7, 25.5], 7); // Center on Bulgaria
+					}
+					
+					if (focused) {
+						setTimeout(function() {
+							m.setView([focused.lat, focused.lng], Math.max(m.getZoom(), 15));
+							focused.marker.openTooltip();
+						}, 300);
+					}
+					
+					// Hide loading indicator
+					if (loadingEl) {
+						setTimeout(function() {
+							loadingEl.style.display = 'none';
+						}, 300);
+					}
+					
+					console.log('✅ Map loaded successfully');
+				}
 			}
 			
-			if (focused) { 
-				m.setView(focused.ll, Math.max(m.getZoom(), 15)); 
-				focused.marker.openTooltip(); 
-			}
+			// Start adding markers
+			addBatch();
 		}
 		
 		function setDynamicMinZoom(){
@@ -118,11 +229,17 @@
 		setDynamicMinZoom();
 		window.addEventListener('resize', function(){ setDynamicMinZoom(); });
 		
-		// Fetch homes using the lightweight map endpoint
+		// Load homes data (only once)
 		function loadHomes() {
+			if (loadedData) return; // Prevent duplicate loads
+			loadedData = true;
+			
 			var apiBase = window.location.protocol === 'file:' ? 'http://localhost:3000' : window.location.origin;
 			
-			// Use the new lightweight /api/homes/map endpoint
+			// Show loading indicator
+			if (loadingEl) loadingEl.style.display = 'block';
+			
+			// Use the lightweight /api/homes/map endpoint
 			fetch(apiBase + '/api/homes/map')
 				.then(function(res){ 
 					if (!res.ok) {
@@ -131,20 +248,25 @@
 					return res.json(); 
 				})
 				.then(function(homes){
-					console.log('Loaded', homes.length, 'homes for map');
+					console.log('📍 Loaded', homes.length, 'homes from API');
 					renderMarkers(homes);
 				})
 				.catch(function(err){
-					console.error('Error loading homes:', err);
+					console.error('❌ Error loading homes:', err);
 					m.setView([42.7, 25.5], 7); // Center on Bulgaria
+					if (loadingEl) {
+						loadingEl.textContent = 'Грешка при зареждане на картата';
+						loadingEl.style.backgroundColor = 'rgba(220, 38, 38, 0.9)';
+						setTimeout(function() {
+							loadingEl.style.display = 'none';
+						}, 3000);
+					}
 				});
 		}
 		
+		// Load data when map is ready
 		loadHomes();
-		// Refresh map when tab becomes visible
-		document.addEventListener('visibilitychange', function(){ 
-			if (!document.hidden) loadHomes(); 
-		});
+		
 		document.getElementById('year').textContent = new Date().getFullYear();
 	});
 	</script>
