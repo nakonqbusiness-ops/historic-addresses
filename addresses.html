@@ -71,69 +71,6 @@
 			padding: 2rem;
 			color: #ff6b6b;
 		}
-		
-		.name-only-box {
-			display: flex;
-			align-items: center;
-			gap: 0.5rem;
-			padding: 0.6rem 1rem;
-			background: linear-gradient(135deg, rgba(205, 133, 63, 0.15), rgba(218, 165, 32, 0.1));
-			border: 2px solid rgba(205, 133, 63, 0.4);
-			border-radius: 8px;
-			cursor: pointer;
-			transition: all 0.3s;
-			white-space: nowrap;
-			user-select: none;
-		}
-		
-		.name-only-box:hover {
-			background: linear-gradient(135deg, rgba(205, 133, 63, 0.25), rgba(218, 165, 32, 0.2));
-			border-color: rgba(205, 133, 63, 0.6);
-			transform: translateY(-1px);
-			box-shadow: 0 4px 12px rgba(205, 133, 63, 0.3);
-		}
-		
-		.name-only-box input[type="checkbox"] {
-			width: 18px;
-			height: 18px;
-			cursor: pointer;
-			accent-color: #cd853f;
-		}
-		
-		.name-only-box span {
-			font-weight: 500;
-			color: var(--fg);
-		}
-		
-		.pagination button {
-			padding: 0.5rem 1rem;
-			border: 1px solid rgba(205, 133, 63, 0.4);
-			background: linear-gradient(135deg, rgba(205, 133, 63, 0.12), rgba(218, 165, 32, 0.08));
-			color: var(--fg);
-			cursor: pointer;
-			border-radius: 4px;
-			transition: all 0.2s;
-			font-weight: 500;
-		}
-		
-		.pagination button:hover:not(:disabled) {
-			background: linear-gradient(135deg, rgba(205, 133, 63, 0.3), rgba(218, 165, 32, 0.25));
-			border-color: rgba(205, 133, 63, 0.6);
-			transform: translateY(-2px);
-			box-shadow: 0 4px 12px rgba(205, 133, 63, 0.3);
-		}
-		
-		.pagination button:disabled {
-			opacity: 0.5;
-			cursor: not-allowed;
-		}
-		
-		.pagination button.active {
-			background: var(--accent-gradient);
-			border-color: var(--accent-strong);
-			font-weight: bold;
-			color: #fff;
-		}
 	</style>
 	<script src="assets/js/theme.js"></script>
 	<script src="assets/js/transitions.js"></script>
@@ -156,18 +93,13 @@
 	<main class="container">
 		<h1 class="page-title gradient-text">🏡 Списък на адресите</h1>
 		<div class="toolbar">
-			<input id="q" class="input" type="search" placeholder="Търсене..." aria-label="Search">
+			<input id="q" class="input" type="search" placeholder="Търсене по име..." aria-label="Search">
 			<select id="tag" class="select" aria-label="Filter by tag">
 				<option value="">Всички тагове</option>
 			</select>
-			<label class="name-only-box">
-				<input type="checkbox" id="nameOnly" checked>
-				<span>Търси Поименно</span>
-			</label>
 		</div>
 		
 		<div class="pagination-info" id="pagination-info"></div>
-		<div id="search-info" style="text-align:center;color:#999;font-size:0.9rem;margin-bottom:1rem;"></div>
 		<div id="grid" class="grid" aria-live="polite"></div>
 		<div class="pagination" id="pagination"></div>
 	</main>
@@ -214,33 +146,18 @@
 				});
 		}
 		
-		// Fetch homes with pagination and thumbnails
+		// Fetch homes with pagination
 		function loadHomes(page) {
 			if (isLoading) return;
 			isLoading = true;
 			
-			var searchQuery = document.getElementById('q').value.trim();
+			var searchQuery = document.getElementById('q').value;
 			var tagFilter = document.getElementById('tag').value;
-			var nameOnly = document.getElementById('nameOnly').checked;
 			
-			// Show what we're searching for
-			var searchInfo = document.getElementById('search-info');
-			if (searchQuery || tagFilter) {
-				var infoText = 'Търсене за: ';
-				if (searchQuery) infoText += '"' + searchQuery + '"' + (nameOnly ? ' (само имена)' : '');
-				if (searchQuery && tagFilter) infoText += ' + ';
-				if (tagFilter) infoText += 'таг "' + tagFilter + '"';
-				searchInfo.textContent = infoText;
-				searchInfo.style.display = 'block';
-			} else {
-				searchInfo.style.display = 'none';
-			}
-			
-			// Add thumbnails=true and nameOnly parameter
 			var url = apiBase + '/api/homes?page=' + page + '&limit=6';
 			if (searchQuery) {
 				url += '&search=' + encodeURIComponent(searchQuery);
-				if (nameOnly) url += '&nameOnly=true';
+				url += '&searchMode=name'; // Always search by name only
 			}
 			if (tagFilter) url += '&tag=' + encodeURIComponent(tagFilter);
 			
@@ -317,13 +234,20 @@
 				}
 
 				var placeholder = 'assets/img/placeholder.svg';
-				var img = (p.images && p.images[0] && p.images[0].path) ? p.images[0].path : placeholder;
+				
+				// Use thumbnail if available, otherwise use full image
+				var img = placeholder;
+				if (p.images && p.images[0]) {
+					img = p.images[0].thumb || p.images[0].path || placeholder;
+				}
+				
 				var el = document.createElement('a');
 				el.className = 'thumb';
 				el.href = 'address.html?slug=' + encodeURIComponent(finalSlug); 
 				
-				el.innerHTML = '<img alt="'+(p.images && p.images[0] && p.images[0].alt || ('Facade of '+p.name))+'" loading="lazy" src="'+img+'" onerror="this.onerror=null;this.src=\''+placeholder+'\';">' +
-					'<div class="meta"><strong>'+p.name+'</strong><div class="muted">'+(p.address||'')+'</div></div>';
+				var imgAlt = (p.images && p.images[0] && p.images[0].alt) || ('Facade of ' + p.name);
+				el.innerHTML = '<img alt="' + imgAlt + '" loading="lazy" src="' + img + '" onerror="this.onerror=null;this.src=\'' + placeholder + '\';">' +
+					'<div class="meta"><strong>' + p.name + '</strong><div class="muted">' + (p.address || '') + '</div></div>';
 				grid.appendChild(el);
 			});
 		}
@@ -433,14 +357,6 @@
 			currentPage = 1;
 			loadHomes(1);
 		}, 500));
-		
-		document.getElementById('nameOnly').addEventListener('change', function() {
-			var query = document.getElementById('q').value.trim();
-			if (query) {
-				currentPage = 1;
-				loadHomes(1);
-			}
-		});
 		
 		document.getElementById('tag').addEventListener('change', function() {
 			currentPage = 1;
