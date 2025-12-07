@@ -93,13 +93,18 @@
 	<main class="container">
 		<h1 class="page-title gradient-text">🏡 Списък на адресите</h1>
 		<div class="toolbar">
-			<input id="q" class="input" type="search" placeholder="Търсене на адреси по име, таг, източник..." aria-label="Search">
+			<input id="q" class="input" type="search" placeholder="Търсене..." aria-label="Search">
+			<label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;white-space:nowrap;">
+				<input type="checkbox" id="nameOnly" checked>
+				<span>Само имена</span>
+			</label>
 			<select id="tag" class="select" aria-label="Filter by tag">
 				<option value="">Всички тагове</option>
 			</select>
 		</div>
 		
 		<div class="pagination-info" id="pagination-info"></div>
+		<div id="search-info" style="text-align:center;color:#999;font-size:0.9rem;margin-bottom:1rem;"></div>
 		<div id="grid" class="grid" aria-live="polite"></div>
 		<div class="pagination" id="pagination"></div>
 	</main>
@@ -151,12 +156,29 @@
 			if (isLoading) return;
 			isLoading = true;
 			
-			var searchQuery = document.getElementById('q').value;
+			var searchQuery = document.getElementById('q').value.trim();
 			var tagFilter = document.getElementById('tag').value;
+			var nameOnly = document.getElementById('nameOnly').checked;
 			
-			// Add thumbnails=true to get thumbnail versions only
-			var url = apiBase + '/api/homes?page=' + page + '&limit=6&thumbnails=true';
-			if (searchQuery) url += '&search=' + encodeURIComponent(searchQuery);
+			// Show what we're searching for
+			var searchInfo = document.getElementById('search-info');
+			if (searchQuery || tagFilter) {
+				var infoText = 'Търсене за: ';
+				if (searchQuery) infoText += '"' + searchQuery + '"' + (nameOnly ? ' (само имена)' : '');
+				if (searchQuery && tagFilter) infoText += ' + ';
+				if (tagFilter) infoText += 'таг "' + tagFilter + '"';
+				searchInfo.textContent = infoText;
+				searchInfo.style.display = 'block';
+			} else {
+				searchInfo.style.display = 'none';
+			}
+			
+			// Add thumbnails=true and nameOnly parameter
+			var url = apiBase + '/api/homes?page=' + page + '&limit=6';
+			if (searchQuery) {
+				url += '&search=' + encodeURIComponent(searchQuery);
+				if (nameOnly) url += '&nameOnly=true';
+			}
 			if (tagFilter) url += '&tag=' + encodeURIComponent(tagFilter);
 			
 			var grid = document.getElementById('grid');
@@ -348,6 +370,14 @@
 			currentPage = 1;
 			loadHomes(1);
 		}, 500));
+		
+		document.getElementById('nameOnly').addEventListener('change', function() {
+			var query = document.getElementById('q').value.trim();
+			if (query) {
+				currentPage = 1;
+				loadHomes(1);
+			}
+		});
 		
 		document.getElementById('tag').addEventListener('change', function() {
 			currentPage = 1;
