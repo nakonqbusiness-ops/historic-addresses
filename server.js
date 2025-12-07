@@ -266,7 +266,6 @@ app.get('/api/homes', (req, res) => {
     const limit = Math.min(parseInt(req.query.limit) || 6, 50); // Max 50 per page
     const search = req.query.search || '';
     const tag = req.query.tag || '';
-    const nameOnly = req.query.nameOnly === 'true';
     
     const offset = (page - 1) * limit;
     
@@ -278,24 +277,17 @@ app.get('/api/homes', (req, res) => {
         whereConditions.push('published = 1');
     }
     
-    // Search filter - OPTIMIZED with nameOnly option
+    // Search filter - FIXED: Case insensitive and includes address
     if (search) {
-        if (nameOnly) {
-            // Search only in name field - FASTER
-            whereConditions.push('LOWER(name) LIKE LOWER(?)');
-            params.push(`%${search}%`);
-        } else {
-            // Search across all fields
-            whereConditions.push(`(
-                LOWER(name) LIKE LOWER(?) OR 
-                LOWER(biography) LIKE LOWER(?) OR 
-                LOWER(address) LIKE LOWER(?) OR
-                LOWER(sources) LIKE LOWER(?) OR
-                LOWER(tags) LIKE LOWER(?)
-            )`);
-            const searchPattern = `%${search}%`;
-            params.push(searchPattern, searchPattern, searchPattern, searchPattern, searchPattern);
-        }
+        whereConditions.push(`(
+            LOWER(name) LIKE LOWER(?) OR 
+            LOWER(biography) LIKE LOWER(?) OR 
+            LOWER(address) LIKE LOWER(?) OR
+            LOWER(sources) LIKE LOWER(?) OR
+            LOWER(tags) LIKE LOWER(?)
+        )`);
+        const searchPattern = `%${search}%`;
+        params.push(searchPattern, searchPattern, searchPattern, searchPattern, searchPattern);
     }
     
     // Tag filter - FIXED: Case insensitive, works without exact JSON quotes
