@@ -71,6 +71,69 @@
 			padding: 2rem;
 			color: #ff6b6b;
 		}
+		
+		.name-only-box {
+			display: flex;
+			align-items: center;
+			gap: 0.5rem;
+			padding: 0.6rem 1rem;
+			background: linear-gradient(135deg, rgba(205, 133, 63, 0.15), rgba(218, 165, 32, 0.1));
+			border: 2px solid rgba(205, 133, 63, 0.4);
+			border-radius: 8px;
+			cursor: pointer;
+			transition: all 0.3s;
+			white-space: nowrap;
+			user-select: none;
+		}
+		
+		.name-only-box:hover {
+			background: linear-gradient(135deg, rgba(205, 133, 63, 0.25), rgba(218, 165, 32, 0.2));
+			border-color: rgba(205, 133, 63, 0.6);
+			transform: translateY(-1px);
+			box-shadow: 0 4px 12px rgba(205, 133, 63, 0.3);
+		}
+		
+		.name-only-box input[type="checkbox"] {
+			width: 18px;
+			height: 18px;
+			cursor: pointer;
+			accent-color: #cd853f;
+		}
+		
+		.name-only-box span {
+			font-weight: 500;
+			color: var(--fg);
+		}
+		
+		.pagination button {
+			padding: 0.5rem 1rem;
+			border: 1px solid rgba(205, 133, 63, 0.4);
+			background: linear-gradient(135deg, rgba(205, 133, 63, 0.12), rgba(218, 165, 32, 0.08));
+			color: var(--fg);
+			cursor: pointer;
+			border-radius: 4px;
+			transition: all 0.2s;
+			font-weight: 500;
+		}
+		
+		.pagination button:hover:not(:disabled) {
+			background: linear-gradient(135deg, rgba(205, 133, 63, 0.3), rgba(218, 165, 32, 0.25));
+			border-color: rgba(205, 133, 63, 0.6);
+			transform: translateY(-2px);
+			box-shadow: 0 4px 12px rgba(205, 133, 63, 0.3);
+		}
+		
+		.pagination button:disabled {
+			opacity: 0.5;
+			cursor: not-allowed;
+		}
+		
+		.pagination button.active {
+			background: var(--accent-gradient);
+			border-color: var(--accent-strong);
+			font-weight: bold;
+			color: #fff;
+		}
 	</style>
 	<script src="assets/js/theme.js"></script>
 	<script src="assets/js/transitions.js"></script>
@@ -94,13 +157,13 @@
 		<h1 class="page-title gradient-text">🏡 Списък на адресите</h1>
 		<div class="toolbar">
 			<input id="q" class="input" type="search" placeholder="Търсене..." aria-label="Search">
-			<label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;white-space:nowrap;">
-				<input type="checkbox" id="nameOnly" checked>
-				<span>Търси Поименно</span>
-			</label>
 			<select id="tag" class="select" aria-label="Filter by tag">
 				<option value="">Всички тагове</option>
 			</select>
+			<label class="name-only-box">
+				<input type="checkbox" id="nameOnly" checked>
+				<span>Търси Поименно</span>
+			</label>
 		</div>
 		
 		<div class="pagination-info" id="pagination-info"></div>
