@@ -259,13 +259,14 @@ app.get('/sitemap.xml', (req, res) => {
 
 // ============ API ROUTES ============
 
-// GET all homes with pagination - FIXED SEARCH AND TAG FILTERING
+// GET all homes with pagination - FIXED: Search by name only
 app.get('/api/homes', (req, res) => {
     const showAll = req.query.all === 'true';
     const page = parseInt(req.query.page) || 1;
     const limit = Math.min(parseInt(req.query.limit) || 6, 50); // Max 50 per page
     const search = req.query.search || '';
     const tag = req.query.tag || '';
+    const searchMode = req.query.searchMode || 'all'; // 'name' or 'all'
     
     const offset = (page - 1) * limit;
     
@@ -277,20 +278,28 @@ app.get('/api/homes', (req, res) => {
         whereConditions.push('published = 1');
     }
     
-    // Search filter - FIXED: Case insensitive and includes address
+    // Search filter - Now supports name-only search
     if (search) {
-        whereConditions.push(`(
-            LOWER(name) LIKE LOWER(?) OR 
-            LOWER(biography) LIKE LOWER(?) OR 
-            LOWER(address) LIKE LOWER(?) OR
-            LOWER(sources) LIKE LOWER(?) OR
-            LOWER(tags) LIKE LOWER(?)
-        )`);
-        const searchPattern = `%${search}%`;
-        params.push(searchPattern, searchPattern, searchPattern, searchPattern, searchPattern);
+        if (searchMode === 'name') {
+            // Search by name only (for addresses.html)
+            whereConditions.push('LOWER(name) LIKE LOWER(?)');
+            const searchPattern = `%${search}%`;
+            params.push(searchPattern);
+        } else {
+            // Search everywhere (for admin panel)
+            whereConditions.push(`(
+                LOWER(name) LIKE LOWER(?) OR 
+                LOWER(biography) LIKE LOWER(?) OR 
+                LOWER(address) LIKE LOWER(?) OR
+                LOWER(sources) LIKE LOWER(?) OR
+                LOWER(tags) LIKE LOWER(?)
+            )`);
+            const searchPattern = `%${search}%`;
+            params.push(searchPattern, searchPattern, searchPattern, searchPattern, searchPattern);
+        }
     }
     
-    // Tag filter - FIXED: Case insensitive, works without exact JSON quotes
+    // Tag filter - Case insensitive
     if (tag) {
         whereConditions.push('LOWER(tags) LIKE LOWER(?)');
         params.push(`%${tag}%`);
@@ -635,7 +644,7 @@ app.listen(PORT, '0.0.0.0', () => {
         });
     }
     console.log(`\n🔌 API Endpoints:`);
-    console.log(`  /api/homes - Paginated homes`);
+    console.log(`  /api/homes - Paginated homes (supports searchMode=name)`);
     console.log(`  /api/homes/map - Lightweight map data (auto-cleanup)`);
     console.log(`  /api/tags - Tags list (cached 5 min)`);
     console.log(`🔍 SEO: /robots.txt | /sitemap.xml\n`);
