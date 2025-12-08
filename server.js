@@ -174,18 +174,20 @@ function insertHome(home) {
     stmt.finalize();
 }
 
-// Helper function to convert DB row to home object
-function rowToHome(row) {
+// FIXED: Helper function to convert DB row to home object with lightweight mode
+function rowToHome(row, lightweight = false) {
+    const images = JSON.parse(row.images || '[]');
+    
     return {
         id: row.id,
         slug: row.slug,
         name: row.name,
-        biography: row.biography,
+        biography: lightweight ? null : row.biography, // Don't send bio in list view
         address: row.address,
         coordinates: row.lat && row.lng ? { lat: row.lat, lng: row.lng } : null,
-        images: JSON.parse(row.images || '[]'),
+        images: lightweight && images.length > 0 ? [images[0]] : images, // Only first image for lists
         photo_date: row.photo_date,
-        sources: JSON.parse(row.sources || '[]'),
+        sources: lightweight ? [] : JSON.parse(row.sources || '[]'),
         tags: JSON.parse(row.tags || '[]'),
         published: row.published === 1,
         created_at: row.created_at,
@@ -259,14 +261,14 @@ app.get('/sitemap.xml', (req, res) => {
 
 // ============ API ROUTES ============
 
-// GET all homes with pagination - FIXED: Search by name only
+// FIXED: GET all homes with pagination and lightweight mode
 app.get('/api/homes', (req, res) => {
     const showAll = req.query.all === 'true';
     const page = parseInt(req.query.page) || 1;
-    const limit = Math.min(parseInt(req.query.limit) || 6, 50); // Max 50 per page
+    const limit = Math.min(parseInt(req.query.limit) || 6, 20); // Reduced max to 20
     const search = req.query.search || '';
     const tag = req.query.tag || '';
-    const searchMode = req.query.searchMode || 'all'; // 'name' or 'all'
+    const searchMode = req.query.searchMode || 'all';
     
     const offset = (page - 1) * limit;
     
@@ -278,15 +280,12 @@ app.get('/api/homes', (req, res) => {
         whereConditions.push('published = 1');
     }
     
-    // Search filter - Now supports name-only search
+    // FIXED: Case-insensitive search
     if (search) {
         if (searchMode === 'name') {
-            // Search by name only (for addresses.html)
             whereConditions.push('LOWER(name) LIKE LOWER(?)');
-            const searchPattern = `%${search}%`;
-            params.push(searchPattern);
+            params.push(`%${search}%`);
         } else {
-            // Search everywhere (for admin panel)
             whereConditions.push(`(
                 LOWER(name) LIKE LOWER(?) OR 
                 LOWER(biography) LIKE LOWER(?) OR 
@@ -299,7 +298,7 @@ app.get('/api/homes', (req, res) => {
         }
     }
     
-    // Tag filter - Case insensitive
+    // FIXED: Case-insensitive tag filter
     if (tag) {
         whereConditions.push('LOWER(tags) LIKE LOWER(?)');
         params.push(`%${tag}%`);
@@ -335,7 +334,8 @@ app.get('/api/homes', (req, res) => {
                 return;
             }
             
-            const homes = rows.map(rowToHome);
+            // FIXED: Use lightweight mode for list views
+            const homes = rows.map(row => rowToHome(row, true));
             
             res.json({
                 data: homes,
@@ -449,11 +449,11 @@ app.get('/api/homes/map', (req, res) => {
         const mapData = rows.map(row => {
             let thumbnail = null;
             
-            // Extract only the first image thumbnail (not all images)
+            // Extract only the first image (not all images)
             try {
                 const images = JSON.parse(row.images || '[]');
                 if (images && images[0]) {
-                    thumbnail = images[0].thumb || images[0].path || null;
+                    thumbnail = images[0].path || null;
                 }
             } catch (e) {
                 // Ignore parse errors
@@ -502,7 +502,7 @@ function invalidateCaches() {
     console.log('♻️ Caches invalidated');
 }
 
-// GET single home by slug
+// FIXED: GET single home by slug (full data, not lightweight)
 app.get('/api/homes/:slug', (req, res) => {
     db.get('SELECT * FROM homes WHERE slug = ? OR id = ?', [req.params.slug, req.params.slug], (err, row) => {
         if (err) {
@@ -513,7 +513,8 @@ app.get('/api/homes/:slug', (req, res) => {
             res.status(404).json({ error: 'Home not found' });
             return;
         }
-        res.json(rowToHome(row));
+        // Return full data for detail page
+        res.json(rowToHome(row, false));
     });
 });
 
@@ -632,7 +633,7 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`📊 Database: SQLite (Persistent at ${DB_FILE})`);
     console.log(`🌍 Domain: ${DOMAIN}`);
     console.log(`🔍 SEO: robots.txt and sitemap.xml enabled`);
-    console.log(`⚡ Memory: Auto-cleanup enabled`);
+    console.log(`⚡ Memory: Lightweight mode + Auto-cleanup enabled`);
     
     console.log(`\n📍 Access from this computer:`);
     console.log(`  http://localhost:${PORT}`);
@@ -644,8 +645,9 @@ app.listen(PORT, '0.0.0.0', () => {
         });
     }
     console.log(`\n🔌 API Endpoints:`);
-    console.log(`  /api/homes - Paginated homes (supports searchMode=name)`);
-    console.log(`  /api/homes/map - Lightweight map data (auto-cleanup)`);
+    console.log(`  /api/homes - Paginated homes (LIGHTWEIGHT MODE)`);
+    console.log(`  /api/homes/:slug - Full home details`);
+    console.log(`  /api/homes/map - Map data (auto-cleanup)`);
     console.log(`  /api/tags - Tags list (cached 5 min)`);
     console.log(`🔍 SEO: /robots.txt | /sitemap.xml\n`);
 });
