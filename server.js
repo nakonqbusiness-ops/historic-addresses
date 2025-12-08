@@ -174,7 +174,7 @@ function insertHome(home) {
     stmt.finalize();
 }
 
-// FIXED: Helper function to convert DB row to home object with lightweight mode
+// Helper function to convert DB row to home object with lightweight mode
 function rowToHome(row, lightweight = false) {
     const images = JSON.parse(row.images || '[]');
     
@@ -182,10 +182,10 @@ function rowToHome(row, lightweight = false) {
         id: row.id,
         slug: row.slug,
         name: row.name,
-        biography: lightweight ? null : row.biography, // Don't send bio in list view
+        biography: lightweight ? null : row.biography,
         address: row.address,
         coordinates: row.lat && row.lng ? { lat: row.lat, lng: row.lng } : null,
-        images: lightweight && images.length > 0 ? [images[0]] : images, // Only first image for lists
+        images: lightweight && images.length > 0 ? [images[0]] : images,
         photo_date: row.photo_date,
         sources: lightweight ? [] : JSON.parse(row.sources || '[]'),
         tags: JSON.parse(row.tags || '[]'),
@@ -261,11 +261,11 @@ app.get('/sitemap.xml', (req, res) => {
 
 // ============ API ROUTES ============
 
-// FIXED: GET all homes with pagination and lightweight mode
+// GET all homes with pagination and lightweight mode
 app.get('/api/homes', (req, res) => {
     const showAll = req.query.all === 'true';
     const page = parseInt(req.query.page) || 1;
-    const limit = Math.min(parseInt(req.query.limit) || 6, 20); // Reduced max to 20
+    const limit = Math.min(parseInt(req.query.limit) || 6, 20);
     const search = req.query.search || '';
     const tag = req.query.tag || '';
     const searchMode = req.query.searchMode || 'all';
@@ -280,7 +280,7 @@ app.get('/api/homes', (req, res) => {
         whereConditions.push('published = 1');
     }
     
-    // FIXED: Case-insensitive search
+    // Case-insensitive search
     if (search) {
         if (searchMode === 'name') {
             whereConditions.push('LOWER(name) LIKE LOWER(?)');
@@ -298,7 +298,7 @@ app.get('/api/homes', (req, res) => {
         }
     }
     
-    // FIXED: Case-insensitive tag filter
+    // Case-insensitive tag filter
     if (tag) {
         whereConditions.push('LOWER(tags) LIKE LOWER(?)');
         params.push(`%${tag}%`);
@@ -334,7 +334,7 @@ app.get('/api/homes', (req, res) => {
                 return;
             }
             
-            // FIXED: Use lightweight mode for list views
+            // Use lightweight mode for list views
             const homes = rows.map(row => rowToHome(row, true));
             
             res.json({
@@ -397,10 +397,12 @@ app.get('/api/tags', (req, res) => {
 let mapCache = null;
 let mapCacheTime = 0;
 let mapCacheTimeout = null;
+let lastMapRequestTime = Date.now(); // Track last map request
 const MAP_CACHE_TTL = 180000; // 3 minutes
 const MAP_CACHE_CLEANUP = 300000; // Clear after 5 minutes of no requests
 
 app.get('/api/homes/map', (req, res) => {
+    lastMapRequestTime = Date.now(); // Track this request
     const now = Date.now();
     
     // Clear existing cleanup timer
@@ -449,7 +451,7 @@ app.get('/api/homes/map', (req, res) => {
         const mapData = rows.map(row => {
             let thumbnail = null;
             
-            // Extract only the first image (not all images)
+            // Extract only the first image
             try {
                 const images = JSON.parse(row.images || '[]');
                 if (images && images[0]) {
@@ -502,7 +504,7 @@ function invalidateCaches() {
     console.log('♻️ Caches invalidated');
 }
 
-// FIXED: GET single home by slug (full data, not lightweight)
+// GET single home by slug (full data, not lightweight)
 app.get('/api/homes/:slug', (req, res) => {
     db.get('SELECT * FROM homes WHERE slug = ? OR id = ?', [req.params.slug, req.params.slug], (err, row) => {
         if (err) {
@@ -633,7 +635,7 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`📊 Database: SQLite (Persistent at ${DB_FILE})`);
     console.log(`🌍 Domain: ${DOMAIN}`);
     console.log(`🔍 SEO: robots.txt and sitemap.xml enabled`);
-    console.log(`⚡ Memory: Lightweight mode + Auto-cleanup enabled`);
+    console.log(`⚡ Memory: Lightweight mode + Aggressive auto-cleanup enabled`);
     
     console.log(`\n📍 Access from this computer:`);
     console.log(`  http://localhost:${PORT}`);
@@ -652,47 +654,64 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`🔍 SEO: /robots.txt | /sitemap.xml\n`);
 });
 
-// ============ MEMORY MANAGEMENT ============
+// ============ AGGRESSIVE MEMORY MANAGEMENT ============
 
-// Aggressive memory cleanup every 5 minutes
+// Aggressive cleanup every 2 minutes (instead of 5)
 setInterval(() => {
     const now = Date.now();
+    const idleTime = now - lastMapRequestTime;
     
-    // Clear map cache if idle for 5+ minutes
-    if (mapCache && (now - mapCacheTime) > 300000) {
-        mapCache = null;
-        mapCacheTime = 0;
-        if (mapCacheTimeout) {
-            clearTimeout(mapCacheTimeout);
-            mapCacheTimeout = null;
+    // If map hasn't been accessed for 2 minutes, clear everything aggressively
+    if (idleTime > 120000) { // 2 minutes
+        let clearedSomething = false;
+        
+        if (mapCache) {
+            mapCache = null;
+            mapCacheTime = 0;
+            if (mapCacheTimeout) {
+                clearTimeout(mapCacheTimeout);
+                mapCacheTimeout = null;
+            }
+            clearedSomething = true;
+            console.log('🧹 Cleared map cache (idle for ' + Math.round(idleTime/1000) + 's)');
         }
-        console.log('🧹 Cleared idle map cache');
+        
+        if (tagsCache && (now - tagsCacheTime) > 300000) {
+            tagsCache = null;
+            tagsCacheTime = 0;
+            clearedSomething = true;
+            console.log('🧹 Cleared tags cache');
+        }
+        
+        // Run garbage collection 3 times for thorough cleanup
+        if (clearedSomething && global.gc) {
+            const before = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
+            
+            // First GC
+            global.gc();
+            // Second GC after 50ms
+            setTimeout(() => {
+                global.gc();
+                // Third GC after another 50ms
+                setTimeout(() => {
+                    global.gc();
+                    const after = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
+                    const freed = before - after;
+                    console.log('♻️ Triple GC: ' + before + 'MB → ' + after + 'MB (freed ' + freed + 'MB)');
+                }, 50);
+            }, 50);
+        }
     }
-    
-    // Clear tags cache if idle for 5+ minutes
-    if (tagsCache && (now - tagsCacheTime) > 300000) {
-        tagsCache = null;
-        tagsCacheTime = 0;
-        console.log('🧹 Cleared idle tags cache');
-    }
-    
-    // Force garbage collection if available
-    if (global.gc) {
-        const before = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
-        global.gc();
-        const after = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
-        const freed = before - after;
-        console.log(`♻️ Garbage collection: ${before}MB → ${after}MB (freed ${freed}MB)`);
-    }
-}, 300000); // 5 minutes
+}, 120000); // Every 2 minutes
 
-// Log memory usage every 10 minutes
+// Log memory usage every 5 minutes
 setInterval(() => {
     const used = process.memoryUsage();
     const heapUsedMB = Math.round(used.heapUsed / 1024 / 1024);
     const rssMB = Math.round(used.rss / 1024 / 1024);
-    console.log(`📊 Memory: Heap=${heapUsedMB}MB, RSS=${rssMB}MB`);
-}, 600000); // 10 minutes
+    const cacheStatus = mapCache ? 'LOADED' : 'EMPTY';
+    console.log('📊 Memory: Heap=' + heapUsedMB + 'MB, RSS=' + rssMB + 'MB, MapCache=' + cacheStatus);
+}, 300000); // Every 5 minutes
 
 // Graceful shutdown
 process.on('SIGINT', () => {
