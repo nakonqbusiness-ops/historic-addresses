@@ -8,11 +8,9 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const DOMAIN = 'https://historyaddress.bg';
 
-// Middleware
+// REDUCED: Lower JSON limit to prevent memory bloat
 app.use(cors());
-// NOTE: If you are uploading Base64 images, this 10mb limit will cause high RAM usage.
-// It is better to store image URLs, not the image data itself in the DB.
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '5mb' })); // Reduced from 10mb
 app.use(express.static(path.join(__dirname)));
 
 const DB_DIR = process.env.RENDER ? '/data' : '.';
@@ -23,13 +21,11 @@ if (process.env.RENDER && !fs.existsSync(DB_DIR)) {
         fs.mkdirSync(DB_DIR, { recursive: true });
         console.log(`✅ Created persistent data directory: ${DB_DIR}`);
     } catch (e) {
-        console.error('CRITICAL ERROR: Failed to create persistent directory. Check Render Disk configuration!', e);
+        console.error('CRITICAL ERROR:', e);
         process.exit(1);
     }
 }
-console.log("📦 Using persistent database at:", DB_FILE);
 
-// Initialize SQLite database
 const db = new sqlite3.Database(DB_FILE, (err) => {
     if (err) {
         console.error('Error opening database:', err);
@@ -39,15 +35,14 @@ const db = new sqlite3.Database(DB_FILE, (err) => {
     }
 });
 
-// Optimize SQLite for memory
+// CRITICAL: Reduce SQLite memory usage
 db.configure('busyTimeout', 5000);
-db.run('PRAGMA journal_mode = WAL');
+db.run('PRAGMA journal_mode = DELETE'); // Changed from WAL - uses less memory
 db.run('PRAGMA synchronous = NORMAL');
-// Increased cache slightly to prevent constant disk thrashing
-db.run('PRAGMA cache_size = 2000'); 
+db.run('PRAGMA cache_size = 500'); // Reduced from 1000
 db.run('PRAGMA temp_store = MEMORY');
+db.run('PRAGMA mmap_size = 0'); // Disable memory mapping
 
-// Create tables if they don't exist and run necessary migrations
 function initializeDatabase() {
     db.run(`
         CREATE TABLE IF NOT EXISTS homes (
@@ -72,103 +67,66 @@ function initializeDatabase() {
             console.error('Error creating table:', err);
         } else {
             console.log('Database table ready');
-            
-            // Create indexes for faster queries
             db.run('CREATE INDEX IF NOT EXISTS idx_homes_published ON homes(published)');
             db.run('CREATE INDEX IF NOT EXISTS idx_homes_slug ON homes(slug)');
             db.run('CREATE INDEX IF NOT EXISTS idx_homes_name ON homes(name)');
-            
             checkAndMigrateSchema();
         }
     });
 }
 
-// Function to check and add missing columns (migration)
 function checkAndMigrateSchema() {
     db.all("PRAGMA table_info(homes)", (err, columns) => {
         if (err) {
-            console.error('Error checking columns for migration:', err);
+            console.error('Error checking columns:', err);
             importInitialData();
             return;
         }
-
         const columnNames = columns.map(col => col.name);
-        
         if (!columnNames.includes('portrait_url')) {
-            console.log('Column portrait_url missing. Running migration...');
-            
             db.run('ALTER TABLE homes ADD COLUMN portrait_url TEXT', (err) => {
-                if (err) {
-                    console.error('Migration failed (ALTER TABLE):', err);
-                } else {
-                    console.log('✅ Migration successful: Added portrait_url column.');
-                }
+                if (err) console.error('Migration failed:', err);
+                else console.log('✅ Added portrait_url column');
                 importInitialData();
             });
         } else {
-            console.log('Database schema is up-to-date. Skipping migration.');
             importInitialData();
         }
     });
 }
 
-// Import initial data from people.js if database is empty
 function importInitialData() {
     db.get('SELECT COUNT(*) as count FROM homes', (err, row) => {
-        if (err) {
-            console.error('Error checking data:', err);
-            return;
-        }
-        
-        if (row.count === 0) {
-            console.log('Importing initial data from people.js...');
-            try {
-                const dataPath = path.join(__dirname, 'data', 'people.js');
-                if (fs.existsSync(dataPath)) {
-                    const fileContent = fs.readFileSync(dataPath, 'utf8');
-                    const match = fileContent.match(/var\s+PEOPLE\s*=\s*(\[[\s\S]*?\]);/);
-                    if (match) {
-                        const people = JSON.parse(match[1]);
-                        people.forEach(person => {
-                            insertHome(person);
-                        });
-                        console.log(`✅ Imported ${people.length} homes from people.js`);
-                    } else {
-                        console.error('Could not parse PEOPLE array from people.js');
-                    }
-                } else {
-                    console.error('people.js file not found at:', dataPath);
+        if (err || !row || row.count > 0) return;
+        try {
+            const dataPath = path.join(__dirname, 'data', 'people.js');
+            if (fs.existsSync(dataPath)) {
+                const fileContent = fs.readFileSync(dataPath, 'utf8');
+                const match = fileContent.match(/var\s+PEOPLE\s*=\s*(\[[\s\S]*?\]);/);
+                if (match) {
+                    const people = JSON.parse(match[1]);
+                    people.forEach(person => insertHome(person));
+                    console.log(`✅ Imported ${people.length} homes`);
                 }
-            } catch (error) {
-                console.error('Error importing initial data:', error);
             }
-        } else {
-            console.log(`Database already contains ${row.count} records. Skipping initial data import.`);
+        } catch (error) {
+            console.error('Error importing data:', error);
         }
     });
 }
 
-// Helper function to insert a home
 function insertHome(home) {
     const stmt = db.prepare(`
         INSERT OR REPLACE INTO homes
         (id, slug, name, biography, address, lat, lng, images, photo_date, sources, tags, published, created_at, updated_at, portrait_url)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
-    
     const coordinates = home.coordinates || {};
     stmt.run(
-        home.id || home.slug,
-        home.slug,
-        home.name,
-        home.biography,
-        home.address,
-        coordinates.lat,
-        coordinates.lng,
-        JSON.stringify(home.images || []),
-        home.photo_date,
-        JSON.stringify(home.sources || []),
-        JSON.stringify(home.tags || []),
+        home.id || home.slug, home.slug, home.name, home.biography, home.address,
+        coordinates.lat, coordinates.lng,
+        JSON.stringify(home.images || []), home.photo_date,
+        JSON.stringify(home.sources || []), JSON.stringify(home.tags || []),
         home.published !== false ? 1 : 0,
         home.created_at || new Date().toISOString(),
         home.updated_at || new Date().toISOString(),
@@ -177,26 +135,32 @@ function insertHome(home) {
     stmt.finalize();
 }
 
-// Helper function to convert DB row to home object with lightweight mode
-function rowToHome(row, lightweight = false) {
-    // Try catch block prevents server crash on bad JSON
-    let images = [];
-    try {
-        images = JSON.parse(row.images || '[]');
-    } catch (e) {
-        images = [];
+// ULTRA LEAN: No biography/sources for lists, only 1 image
+function rowToHome(row, ultraLean = false) {
+    if (ultraLean) {
+        const images = JSON.parse(row.images || '[]');
+        return {
+            id: row.id,
+            slug: row.slug,
+            name: row.name,
+            address: row.address,
+            coordinates: row.lat && row.lng ? { lat: row.lat, lng: row.lng } : null,
+            images: images.length > 0 ? [images[0]] : [],
+            tags: JSON.parse(row.tags || '[]'),
+            published: row.published === 1
+        };
     }
-    
+    // Full data for detail pages
     return {
         id: row.id,
         slug: row.slug,
         name: row.name,
-        biography: lightweight ? null : row.biography,
+        biography: row.biography,
         address: row.address,
         coordinates: row.lat && row.lng ? { lat: row.lat, lng: row.lng } : null,
-        images: lightweight && images.length > 0 ? [images[0]] : images,
+        images: JSON.parse(row.images || '[]'),
         photo_date: row.photo_date,
-        sources: lightweight ? [] : JSON.parse(row.sources || '[]'),
+        sources: JSON.parse(row.sources || '[]'),
         tags: JSON.parse(row.tags || '[]'),
         published: row.published === 1,
         created_at: row.created_at,
@@ -205,423 +169,230 @@ function rowToHome(row, lightweight = false) {
     };
 }
 
-// ============ SEO ROUTES ============
-
-// Serve robots.txt dynamically
+// SEO ROUTES
 app.get('/robots.txt', (req, res) => {
-    const robotsTxt = `User-agent: *
+    res.type('text/plain').send(`User-agent: *
 Allow: /
 Disallow: /admin.html
 Disallow: /assets/
-
-Sitemap: ${DOMAIN}/sitemap.xml`;
-    
-    res.type('text/plain');
-    res.send(robotsTxt);
+Sitemap: ${DOMAIN}/sitemap.xml`);
 });
 
-// Generate dynamic sitemap.xml
 app.get('/sitemap.xml', (req, res) => {
-    db.all('SELECT slug, updated_at FROM homes WHERE published = 1 ORDER BY updated_at DESC', [], (err, rows) => {
-        if (err) {
-            console.error('Error generating sitemap:', err);
-            res.status(500).send('Error generating sitemap');
-            return;
-        }
-        
-        const staticPages = [
+    db.all('SELECT slug, updated_at FROM homes WHERE published = 1', [], (err, rows) => {
+        if (err) return res.status(500).send('Error');
+        let xml = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
+        [
             { url: '', priority: '1.0', changefreq: 'weekly' },
             { url: 'addresses.html', priority: '0.9', changefreq: 'daily' },
             { url: 'map.html', priority: '0.8', changefreq: 'weekly' },
             { url: 'about.html', priority: '0.7', changefreq: 'monthly' }
-        ];
-        
-        let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
-        xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
-        
-        // Add static pages
-        staticPages.forEach(page => {
-            xml += '  <url>\n';
-            xml += `    <loc>${DOMAIN}/${page.url}</loc>\n`;
-            xml += `    <changefreq>${page.changefreq}</changefreq>\n`;
-            xml += `    <priority>${page.priority}</priority>\n`;
-            xml += '  </url>\n';
+        ].forEach(page => {
+            xml += `  <url>\n    <loc>${DOMAIN}/${page.url}</loc>\n    <changefreq>${page.changefreq}</changefreq>\n    <priority>${page.priority}</priority>\n  </url>\n`;
         });
-        
-        // Add all published addresses
         rows.forEach(home => {
             const lastmod = home.updated_at ? new Date(home.updated_at).toISOString().split('T')[0] : '';
-            xml += '  <url>\n';
-            xml += `    <loc>${DOMAIN}/address.html?slug=${encodeURIComponent(home.slug)}</loc>\n`;
-            if (lastmod) {
-                xml += `    <lastmod>${lastmod}</lastmod>\n`;
-            }
-            xml += '    <changefreq>monthly</changefreq>\n';
-            xml += '    <priority>0.6</priority>\n';
-            xml += '  </url>\n';
+            xml += `  <url>\n    <loc>${DOMAIN}/address.html?slug=${encodeURIComponent(home.slug)}</loc>\n`;
+            if (lastmod) xml += `    <lastmod>${lastmod}</lastmod>\n`;
+            xml += `    <changefreq>monthly</changefreq>\n    <priority>0.6</priority>\n  </url>\n`;
         });
-        
         xml += '</urlset>';
-        
-        res.type('application/xml');
-        res.send(xml);
+        res.type('application/xml').send(xml);
     });
 });
 
-// ============ API ROUTES ============
-
-// GET all homes with pagination and lightweight mode
+// API ROUTES - ULTRA LEAN
 app.get('/api/homes', (req, res) => {
     const showAll = req.query.all === 'true';
     const page = parseInt(req.query.page) || 1;
-    const limit = Math.min(parseInt(req.query.limit) || 6, 20);
+    const limit = Math.min(parseInt(req.query.limit) || 6, 10); // Max 10 instead of 20
     const search = req.query.search || '';
     const tag = req.query.tag || '';
     const searchMode = req.query.searchMode || 'all';
-    
     const offset = (page - 1) * limit;
     
-    // Build the WHERE clause based on filters
     let whereConditions = [];
     let params = [];
     
-    if (!showAll) {
-        whereConditions.push('published = 1');
-    }
+    if (!showAll) whereConditions.push('published = 1');
     
-    // Case-insensitive search
     if (search) {
         if (searchMode === 'name') {
             whereConditions.push('LOWER(name) LIKE LOWER(?)');
             params.push(`%${search}%`);
         } else {
-            whereConditions.push(`(
-                LOWER(name) LIKE LOWER(?) OR 
-                LOWER(biography) LIKE LOWER(?) OR 
-                LOWER(address) LIKE LOWER(?) OR
-                LOWER(sources) LIKE LOWER(?) OR
-                LOWER(tags) LIKE LOWER(?)
-            )`);
-            const searchPattern = `%${search}%`;
-            params.push(searchPattern, searchPattern, searchPattern, searchPattern, searchPattern);
+            whereConditions.push('(LOWER(name) LIKE LOWER(?) OR LOWER(biography) LIKE LOWER(?) OR LOWER(address) LIKE LOWER(?) OR LOWER(sources) LIKE LOWER(?) OR LOWER(tags) LIKE LOWER(?))');
+            const sp = `%${search}%`;
+            params.push(sp, sp, sp, sp, sp);
         }
     }
     
-    // Case-insensitive tag filter
     if (tag) {
         whereConditions.push('LOWER(tags) LIKE LOWER(?)');
         params.push(`%${tag}%`);
     }
     
-    const whereClause = whereConditions.length > 0 
-        ? 'WHERE ' + whereConditions.join(' AND ')
-        : '';
+    const whereClause = whereConditions.length > 0 ? 'WHERE ' + whereConditions.join(' AND ') : '';
     
-    // Get total count
-    const countQuery = `SELECT COUNT(*) as total FROM homes ${whereClause}`;
-    
-    db.get(countQuery, params, (err, countRow) => {
-        if (err) {
-            res.status(500).json({ error: err.message });
-            return;
-        }
+    db.get(`SELECT COUNT(*) as total FROM homes ${whereClause}`, params, (err, countRow) => {
+        if (err) return res.status(500).json({ error: err.message });
         
         const total = countRow.total;
         const totalPages = Math.ceil(total / limit);
         
-        // Get paginated results
-        const dataQuery = `
-            SELECT * FROM homes 
-            ${whereClause}
-            ORDER BY name
-            LIMIT ? OFFSET ?
-        `;
-        
-        db.all(dataQuery, [...params, limit, offset], (err, rows) => {
-            if (err) {
-                res.status(500).json({ error: err.message });
-                return;
-            }
+        db.all(`SELECT * FROM homes ${whereClause} ORDER BY name LIMIT ? OFFSET ?`, [...params, limit, offset], (err, rows) => {
+            if (err) return res.status(500).json({ error: err.message });
             
-            // Use lightweight mode for list views
-            const homes = rows.map(row => rowToHome(row, true));
+            const homes = rows.map(row => rowToHome(row, true)); // ULTRA LEAN
             
             res.json({
                 data: homes,
-                pagination: {
-                    page: page,
-                    limit: limit,
-                    total: total,
-                    totalPages: totalPages,
-                    hasNext: page < totalPages,
-                    hasPrev: page > 1
-                }
+                pagination: { page, limit, total, totalPages, hasNext: page < totalPages, hasPrev: page > 1 }
+            });
+            
+            // FORCE GC after response
+            setImmediate(() => {
+                if (global.gc) global.gc();
             });
         });
     });
 });
 
-// GET all tags (for the filter dropdown) - CACHED
+// NO CACHE - Map loads fresh every time (prevents memory accumulation)
+app.get('/api/homes/map', (req, res) => {
+    db.all('SELECT id, slug, name, lat, lng FROM homes WHERE published = 1 AND lat IS NOT NULL AND lng IS NOT NULL ORDER BY name', [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        
+        // NO IMAGES - just coordinates
+        const mapData = rows.map(row => ({
+            id: row.id,
+            slug: row.slug,
+            name: row.name,
+            lat: row.lat,
+            lng: row.lng
+        }));
+        
+        res.json(mapData);
+        
+        // FORCE GC immediately after sending
+        setImmediate(() => {
+            if (global.gc) global.gc();
+        });
+    });
+});
+
+// Tags - Simple cache with 5min TTL
 let tagsCache = null;
 let tagsCacheTime = 0;
-const TAGS_CACHE_TTL = 300000; // 5 minutes
 
 app.get('/api/tags', (req, res) => {
     const now = Date.now();
-    
-    // Return cached tags if still valid
-    if (tagsCache && (now - tagsCacheTime) < TAGS_CACHE_TTL) {
+    if (tagsCache && (now - tagsCacheTime) < 300000) {
         return res.json(tagsCache);
     }
     
     db.all('SELECT DISTINCT tags FROM homes WHERE published = 1', [], (err, rows) => {
-        if (err) {
-            res.status(500).json({ error: err.message });
-            return;
-        }
+        if (err) return res.status(500).json({ error: err.message });
         
         const tagSet = new Set();
         rows.forEach(row => {
             try {
                 const tags = JSON.parse(row.tags || '[]');
-                tags.forEach(tag => {
-                    if (tag) tagSet.add(String(tag));
-                });
-            } catch (e) {
-                // Ignore parsing errors
-            }
+                tags.forEach(tag => { if (tag) tagSet.add(String(tag)); });
+            } catch (e) {}
         });
         
         const tagArray = Array.from(tagSet).sort((a, b) => a.localeCompare(b));
-        
-        // Cache the result
         tagsCache = tagArray;
         tagsCacheTime = now;
-        
         res.json(tagArray);
     });
 });
 
-// GET homes for map - Optimized with standard caching
-let mapCache = null;
-let mapCacheTime = 0;
-const MAP_CACHE_TTL = 300000; // 5 minutes
-
-app.get('/api/homes/map', (req, res) => {
-    const now = Date.now();
-    
-    // Return cached map data if still valid
-    if (mapCache && (now - mapCacheTime) < MAP_CACHE_TTL) {
-        console.log('✅ Serving map data from cache');
-        return res.json(mapCache);
-    }
-    
-    // Only select the fields needed for map markers
-    const query = `
-        SELECT id, slug, name, lat, lng, images
-        FROM homes 
-        WHERE published = 1 
-        AND lat IS NOT NULL 
-        AND lng IS NOT NULL
-        ORDER BY name
-    `;
-    
-    db.all(query, [], (err, rows) => {
-        if (err) {
-            res.status(500).json({ error: err.message });
-            return;
-        }
-        
-        // Return minimal data - just what's needed for map markers
-        const mapData = rows.map(row => {
-            let thumbnail = null;
-            
-            // Extract only the first image
-            try {
-                const images = JSON.parse(row.images || '[]');
-                if (images && images[0]) {
-                    thumbnail = images[0].path || null;
-                }
-            } catch (e) {
-                // Ignore parse errors
-            }
-            
-            return {
-                id: row.id,
-                slug: row.slug,
-                name: row.name,
-                lat: row.lat,
-                lng: row.lng,
-                thumbnail: thumbnail
-            };
-        });
-
-        // Explicitly clear the large rows array from memory
-        rows = null;
-        
-        // Cache the result
-        mapCache = mapData;
-        mapCacheTime = now;
-        
-        console.log(`📍 Generated map data: ${mapData.length} locations`);
-        res.json(mapData);
-    });
-});
-
-// Invalidate caches when data changes
-function invalidateCaches() {
-    tagsCache = null;
-    mapCache = null;
-    console.log('♻️ Caches invalidated');
-}
-
-// GET single home by slug (full data, not lightweight)
+// Single home - Full data
 app.get('/api/homes/:slug', (req, res) => {
     db.get('SELECT * FROM homes WHERE slug = ? OR id = ?', [req.params.slug, req.params.slug], (err, row) => {
-        if (err) {
-            res.status(500).json({ error: err.message });
-            return;
-        }
-        if (!row) {
-            res.status(404).json({ error: 'Home not found' });
-            return;
-        }
-        // Return full data for detail page
+        if (err) return res.status(500).json({ error: err.message });
+        if (!row) return res.status(404).json({ error: 'Home not found' });
         res.json(rowToHome(row, false));
+        setImmediate(() => { if (global.gc) global.gc(); });
     });
 });
 
-// POST create new home
+// CRUD operations
 app.post('/api/homes', (req, res) => {
     const home = req.body;
-    
-    if (!home.name) {
-        res.status(400).json({ error: 'Name is required' });
-        return;
-    }
-    
-    if (!home.slug) {
-        home.slug = home.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-    }
-    
+    if (!home.name) return res.status(400).json({ error: 'Name is required' });
+    if (!home.slug) home.slug = home.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
     home.id = home.id || home.slug;
     home.created_at = new Date().toISOString();
     home.updated_at = new Date().toISOString();
-    
     insertHome(home);
-    invalidateCaches();
-    
-    res.status(201).json({ message: 'Home created successfully', id: home.id });
+    tagsCache = null; // Clear cache
+    res.status(201).json({ message: 'Home created', id: home.id });
 });
 
-// PUT update existing home
 app.put('/api/homes/:id', (req, res) => {
     const home = req.body;
     home.updated_at = new Date().toISOString();
-    
     const coordinates = home.coordinates || {};
-    const stmt = db.prepare(`
-        UPDATE homes SET
-            slug = ?, name = ?, biography = ?, address = ?,
-            lat = ?, lng = ?, images = ?, photo_date = ?,
-            sources = ?, tags = ?, published = ?, updated_at = ?,
-            portrait_url = ?
-        WHERE id = ?
-    `);
-    
+    const stmt = db.prepare(`UPDATE homes SET slug=?, name=?, biography=?, address=?, lat=?, lng=?, images=?, photo_date=?, sources=?, tags=?, published=?, updated_at=?, portrait_url=? WHERE id=?`);
     stmt.run(
-        home.slug, home.name, home.biography, home.address,
-        coordinates.lat, coordinates.lng,
+        home.slug, home.name, home.biography, home.address, coordinates.lat, coordinates.lng,
         JSON.stringify(home.images || []), home.photo_date,
-        JSON.stringify(home.sources || []),
-        JSON.stringify(home.tags || []),
-        home.published !== false ? 1 : 0,
-        home.updated_at,
-        home.portrait_url || null,
-        req.params.id,
+        JSON.stringify(home.sources || []), JSON.stringify(home.tags || []),
+        home.published !== false ? 1 : 0, home.updated_at, home.portrait_url || null, req.params.id,
         function(err) {
-            if (err) {
-                res.status(500).json({ error: err.message });
-                return;
-            }
-            if (this.changes === 0) {
-                res.status(404).json({ error: 'Home not found' });
-                return;
-            }
-            invalidateCaches();
-            res.json({ message: 'Home updated successfully' });
+            if (err) return res.status(500).json({ error: err.message });
+            if (this.changes === 0) return res.status(404).json({ error: 'Home not found' });
+            tagsCache = null;
+            res.json({ message: 'Home updated' });
         }
     );
     stmt.finalize();
 });
 
-// DELETE home
 app.delete('/api/homes/:id', (req, res) => {
     db.run('DELETE FROM homes WHERE id = ?', [req.params.id], function(err) {
-        if (err) {
-            res.status(500).json({ error: err.message });
-            return;
-        }
-        if (this.changes === 0) {
-            res.status(404).json({ error: 'Home not found' });
-            return;
-        }
-        invalidateCaches();
-        res.json({ message: 'Home deleted successfully' });
+        if (err) return res.status(500).json({ error: err.message });
+        if (this.changes === 0) return res.status(404).json({ error: 'Home not found' });
+        tagsCache = null;
+        res.json({ message: 'Home deleted' });
     });
 });
 
-// ============ SERVE HTML PAGES ============
-
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
-});
-
+// Serve HTML
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 app.get('/:page.html', (req, res) => {
-    const page = req.params.page;
-    const filePath = path.join(__dirname, `${page}.html`);
-    if (fs.existsSync(filePath)) {
-        res.sendFile(filePath);
-    } else {
-        res.status(404).send('Page not found');
-    }
+    const filePath = path.join(__dirname, `${req.params.page}.html`);
+    if (fs.existsSync(filePath)) res.sendFile(filePath);
+    else res.status(404).send('Page not found');
 });
 
-// Start server on all network interfaces
 app.listen(PORT, '0.0.0.0', () => {
-    const os = require('os');
-    const interfaces = os.networkInterfaces();
-    const addresses = [];
-    
-    Object.keys(interfaces).forEach(name => {
-        interfaces[name].forEach(iface => {
-            if (iface.family === 'IPv4' && !iface.internal) {
-                addresses.push(iface.address);
-            }
-        });
-    });
-    
-    console.log(`\n🏛️ Historic Addresses Server`);
-    console.log(`✅ Server running on port ${PORT}`);
-    console.log(`📊 Database: SQLite (Persistent at ${DB_FILE})`);
-    console.log(`🌍 Domain: ${DOMAIN}`);
-    
-    console.log(`\n📍 Access from this computer:`);
-    console.log(`  http://localhost:${PORT}`);
-    
-    if (addresses.length > 0) {
-        console.log(`\n🌐 Access from other devices on your network:`);
-        addresses.forEach(addr => {
-            console.log(`  http://${addr}:${PORT}`);
-        });
-    }
+    console.log(`\n🏛️ Historic Addresses Server - NUCLEAR MEMORY MODE`);
+    console.log(`✅ Running on port ${PORT}`);
+    console.log(`⚡ Ultra-lean mode: No caching, aggressive GC, minimal data`);
+    console.log(`📊 DB: ${DB_FILE}\n`);
 });
 
-// Graceful shutdown
+// AGGRESSIVE GC every 1 minute
+setInterval(() => {
+    if (global.gc) {
+        const before = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
+        global.gc();
+        global.gc(); // Run twice
+        const after = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
+        console.log(`♻️ GC: ${before}MB → ${after}MB (freed ${before - after}MB)`);
+    }
+    const rss = Math.round(process.memoryUsage().rss / 1024 / 1024);
+    console.log(`📊 RSS: ${rss}MB`);
+}, 60000);
+
 process.on('SIGINT', () => {
     db.close((err) => {
         if (err) console.error(err.message);
-        console.log('\n✅ Database connection closed.');
+        console.log('\n✅ Closed');
         process.exit(0);
     });
 });
