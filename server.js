@@ -10,6 +10,8 @@ const DOMAIN = 'https://historyaddress.bg';
 
 // Middleware
 app.use(cors());
+// NOTE: If you are uploading Base64 images, this 10mb limit will cause high RAM usage.
+// It is better to store image URLs, not the image data itself in the DB.
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname)));
 
@@ -41,7 +43,8 @@ const db = new sqlite3.Database(DB_FILE, (err) => {
 db.configure('busyTimeout', 5000);
 db.run('PRAGMA journal_mode = WAL');
 db.run('PRAGMA synchronous = NORMAL');
-db.run('PRAGMA cache_size = 1000');
+// Increased cache slightly to prevent constant disk thrashing
+db.run('PRAGMA cache_size = 2000'); 
 db.run('PRAGMA temp_store = MEMORY');
 
 // Create tables if they don't exist and run necessary migrations
@@ -176,7 +179,13 @@ function insertHome(home) {
 
 // Helper function to convert DB row to home object with lightweight mode
 function rowToHome(row, lightweight = false) {
-    const images = JSON.parse(row.images || '[]');
+    // Try catch block prevents server crash on bad JSON
+    let images = [];
+    try {
+        images = JSON.parse(row.images || '[]');
+    } catch (e) {
+        images = [];
+    }
     
     return {
         id: row.id,
@@ -379,7 +388,7 @@ app.get('/api/tags', (req, res) => {
                     if (tag) tagSet.add(String(tag));
                 });
             } catch (e) {
-                console.error('Error parsing tags:', e);
+                // Ignore parsing errors
             }
         });
         
@@ -393,41 +402,17 @@ app.get('/api/tags', (req, res) => {
     });
 });
 
-// GET homes for map (lightweight with smart caching and auto-cleanup)
+// GET homes for map - Optimized with standard caching
 let mapCache = null;
 let mapCacheTime = 0;
-let mapCacheTimeout = null;
-let lastMapRequestTime = Date.now(); // Track last map request
-const MAP_CACHE_TTL = 180000; // 3 minutes
-const MAP_CACHE_CLEANUP = 300000; // Clear after 5 minutes of no requests
+const MAP_CACHE_TTL = 300000; // 5 minutes
 
 app.get('/api/homes/map', (req, res) => {
-    lastMapRequestTime = Date.now(); // Track this request
     const now = Date.now();
-    
-    // Clear existing cleanup timer
-    if (mapCacheTimeout) {
-        clearTimeout(mapCacheTimeout);
-        mapCacheTimeout = null;
-    }
     
     // Return cached map data if still valid
     if (mapCache && (now - mapCacheTime) < MAP_CACHE_TTL) {
         console.log('✅ Serving map data from cache');
-        
-        // Schedule cache cleanup if no more requests come in
-        mapCacheTimeout = setTimeout(() => {
-            mapCache = null;
-            mapCacheTime = 0;
-            mapCacheTimeout = null;
-            if (global.gc) {
-                global.gc();
-                console.log('♻️ Map cache cleared and garbage collected');
-            } else {
-                console.log('♻️ Map cache cleared');
-            }
-        }, MAP_CACHE_CLEANUP);
-        
         return res.json(mapCache);
     }
     
@@ -470,25 +455,15 @@ app.get('/api/homes/map', (req, res) => {
                 thumbnail: thumbnail
             };
         });
+
+        // Explicitly clear the large rows array from memory
+        rows = null;
         
         // Cache the result
         mapCache = mapData;
         mapCacheTime = now;
         
-        // Schedule cache cleanup
-        mapCacheTimeout = setTimeout(() => {
-            mapCache = null;
-            mapCacheTime = 0;
-            mapCacheTimeout = null;
-            if (global.gc) {
-                global.gc();
-                console.log('♻️ Map cache auto-cleared and garbage collected');
-            } else {
-                console.log('♻️ Map cache auto-cleared');
-            }
-        }, MAP_CACHE_CLEANUP);
-        
-        console.log(`📍 Generated map data: ${mapData.length} locations (will auto-clear in 5 min)`);
+        console.log(`📍 Generated map data: ${mapData.length} locations`);
         res.json(mapData);
     });
 });
@@ -497,10 +472,6 @@ app.get('/api/homes/map', (req, res) => {
 function invalidateCaches() {
     tagsCache = null;
     mapCache = null;
-    if (mapCacheTimeout) {
-        clearTimeout(mapCacheTimeout);
-        mapCacheTimeout = null;
-    }
     console.log('♻️ Caches invalidated');
 }
 
@@ -634,8 +605,6 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`✅ Server running on port ${PORT}`);
     console.log(`📊 Database: SQLite (Persistent at ${DB_FILE})`);
     console.log(`🌍 Domain: ${DOMAIN}`);
-    console.log(`🔍 SEO: robots.txt and sitemap.xml enabled`);
-    console.log(`⚡ Memory: Lightweight mode + Aggressive auto-cleanup enabled`);
     
     console.log(`\n📍 Access from this computer:`);
     console.log(`  http://localhost:${PORT}`);
@@ -646,76 +615,10 @@ app.listen(PORT, '0.0.0.0', () => {
             console.log(`  http://${addr}:${PORT}`);
         });
     }
-    console.log(`\n🔌 API Endpoints:`);
-    console.log(`  /api/homes - Paginated homes (LIGHTWEIGHT MODE)`);
-    console.log(`  /api/homes/:slug - Full home details`);
-    console.log(`  /api/homes/map - Map data (auto-cleanup)`);
-    console.log(`  /api/tags - Tags list (cached 5 min)`);
-    console.log(`🔍 SEO: /robots.txt | /sitemap.xml\n`);
 });
-
-// ============ AGGRESSIVE MEMORY MANAGEMENT ============
-
-// Aggressive cleanup every 2 minutes (instead of 5)
-setInterval(() => {
-    const now = Date.now();
-    const idleTime = now - lastMapRequestTime;
-    
-    // If map hasn't been accessed for 2 minutes, clear everything aggressively
-    if (idleTime > 120000) { // 2 minutes
-        let clearedSomething = false;
-        
-        if (mapCache) {
-            mapCache = null;
-            mapCacheTime = 0;
-            if (mapCacheTimeout) {
-                clearTimeout(mapCacheTimeout);
-                mapCacheTimeout = null;
-            }
-            clearedSomething = true;
-            console.log('🧹 Cleared map cache (idle for ' + Math.round(idleTime/1000) + 's)');
-        }
-        
-        if (tagsCache && (now - tagsCacheTime) > 300000) {
-            tagsCache = null;
-            tagsCacheTime = 0;
-            clearedSomething = true;
-            console.log('🧹 Cleared tags cache');
-        }
-        
-        // Run garbage collection 3 times for thorough cleanup
-        if (clearedSomething && global.gc) {
-            const before = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
-            
-            // First GC
-            global.gc();
-            // Second GC after 50ms
-            setTimeout(() => {
-                global.gc();
-                // Third GC after another 50ms
-                setTimeout(() => {
-                    global.gc();
-                    const after = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
-                    const freed = before - after;
-                    console.log('♻️ Triple GC: ' + before + 'MB → ' + after + 'MB (freed ' + freed + 'MB)');
-                }, 50);
-            }, 50);
-        }
-    }
-}, 120000); // Every 2 minutes
-
-// Log memory usage every 5 minutes
-setInterval(() => {
-    const used = process.memoryUsage();
-    const heapUsedMB = Math.round(used.heapUsed / 1024 / 1024);
-    const rssMB = Math.round(used.rss / 1024 / 1024);
-    const cacheStatus = mapCache ? 'LOADED' : 'EMPTY';
-    console.log('📊 Memory: Heap=' + heapUsedMB + 'MB, RSS=' + rssMB + 'MB, MapCache=' + cacheStatus);
-}, 300000); // Every 5 minutes
 
 // Graceful shutdown
 process.on('SIGINT', () => {
-    if (mapCacheTimeout) clearTimeout(mapCacheTimeout);
     db.close((err) => {
         if (err) console.error(err.message);
         console.log('\n✅ Database connection closed.');
