@@ -61,34 +61,21 @@
 			to { transform: rotate(360deg); }
 		}
 		/* Custom logo marker */
-		.logo-marker {
+		.logo-pin {
 			width: 40px;
 			height: 40px;
-			background-image: url('/assets/img/HistAdrLogo.png');
+			background-image: url('assets/img/Historyaddress.bg.jpg');
 			background-size: contain;
-			background-repeat: no-repeat;
 			background-position: center;
+			background-repeat: no-repeat;
 			border-radius: 50%;
-			border: 2px solid #007bff;
-			box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+			border: 3px solid white;
+			box-shadow: 0 2px 8px rgba(0,0,0,0.3);
 			cursor: pointer;
-			transition: transform 0.2s;
 		}
-		.logo-marker:hover {
+		.logo-pin:hover {
 			transform: scale(1.1);
-		}
-		/* Name label - shows when zoomed in */
-		.marker-label {
-			background: rgba(0, 0, 0, 0.75);
-			color: white;
-			padding: 4px 8px;
-			border-radius: 4px;
-			font-size: 11px;
-			white-space: nowrap;
-			pointer-events: none;
-			margin-top: 42px;
-			text-align: center;
-			box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+			box-shadow: 0 4px 12px rgba(0,0,0,0.5);
 		}
 	</style>
 </head>
@@ -121,7 +108,6 @@
 		var targetSlug = params.get('slug');
 		var loadingEl = document.getElementById('loading');
 		var loadedData = false;
-		var currentZoom = 7;
 
 		var m = L.map('map', {
 			zoomControl: true,
@@ -146,62 +132,22 @@
 			chunkDelay: 50
 		});
 		
-		// Track zoom level to show/hide labels
-		m.on('zoomend', function() {
-			currentZoom = m.getZoom();
-			updateMarkerLabels();
-		});
-		
 		function createMarker(p) {
-			// Create logo icon with optional label
-			var iconHtml = '<div class="logo-marker"></div>';
-			
-			// Show name label only when zoomed in (zoom > 12)
-			if (currentZoom > 12) {
-				iconHtml += '<div class="marker-label">' + p.name + '</div>';
-			}
-			
+			// Use logo icon for all markers
 			var icon = L.divIcon({
 				className: '',
-				html: iconHtml,
+				html: '<div class="logo-pin"></div>',
 				iconSize: [40, 40],
 				iconAnchor: [20, 20]
 			});
 			
 			var marker = L.marker([Number(p.lat), Number(p.lng)], { icon: icon });
-			marker.personData = p; // Store data for label updates
-			
 			marker.on('click', function(){ 
 				location.href = 'address.html?slug=' + encodeURIComponent(p.slug || p.id); 
 			});
-			
-			// Tooltip always shows on hover
 			marker.bindTooltip(p.name, { direction: 'top', offset: [0,-24] });
 			
 			return marker;
-		}
-		
-		function updateMarkerLabels() {
-			// Re-render all markers with current zoom level
-			markers.eachLayer(function(layer) {
-				if (layer.personData) {
-					var p = layer.personData;
-					var iconHtml = '<div class="logo-marker"></div>';
-					
-					if (currentZoom > 12) {
-						iconHtml += '<div class="marker-label">' + p.name + '</div>';
-					}
-					
-					var icon = L.divIcon({
-						className: '',
-						html: iconHtml,
-						iconSize: [40, 40],
-						iconAnchor: [20, 20]
-					});
-					
-					layer.setIcon(icon);
-				}
-			});
 		}
 		
 		function renderMarkers(homes){
@@ -212,7 +158,9 @@
 			var validHomes = [];
 			
 			homes.forEach(function(p){
-				if (!p.lat || !p.lng || !isFinite(p.lat) || !isFinite(p.lng)) return;
+				if (!p.lat || !p.lng || !isFinite(p.lat) || !isFinite(p.lng)) {
+					return;
+				}
 				validHomes.push(p);
 				bounds.push([Number(p.lat), Number(p.lng)]);
 			});
@@ -267,10 +215,7 @@
 						}, 300);
 					}
 					
-					console.log('✅ Map loaded');
-					
-					// Update current zoom
-					currentZoom = m.getZoom();
+					console.log('✅ Map loaded with logo markers');
 				}
 			}
 			
@@ -283,7 +228,7 @@
 			m.setMinZoom(target);
 		}
 		setDynamicMinZoom();
-		window.addEventListener('resize', setDynamicMinZoom);
+		window.addEventListener('resize', function(){ setDynamicMinZoom(); });
 		
 		function loadHomes() {
 			if (loadedData) return;
