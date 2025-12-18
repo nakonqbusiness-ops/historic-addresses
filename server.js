@@ -237,6 +237,7 @@ app.get('/robots.txt', (req, res) => {
     res.type('text/plain').send(`User-agent: *
 Allow: /
 Allow: /assets/img/Historyaddress.bg.png
+Allow: /favicon.ico
 Allow: /assets/img/HistAdrLogoOrig.ico
 Allow: /assets/img/Historyaddress.bg2.png
 Disallow: /admin.html
