@@ -1,10 +1,29 @@
 <!doctype html>
-<html lang="en" data-theme="dark">
+<html lang="bg" data-theme="dark">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    
+    <!-- Default meta tags - will be updated by JavaScript -->
     <title>Адресът на историята</title>
-<link rel="icon" href="/assets/img/HistAdrLogoOrig.ico">
+    <meta name="description" content="Исторически адреси и домове в България">
+    <link rel="canonical" href="https://historyaddress.bg/address.html">
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https://historyaddress.bg/address.html">
+    <meta property="og:title" content="Адресът на историята">
+    <meta property="og:description" content="Исторически адреси и домове в България">
+    <meta property="og:image" content="https://historyaddress.bg/assets/img/HistAdrLogo.png">
+    
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://historyaddress.bg/address.html">
+    <meta property="twitter:title" content="Адресът на историята">
+    <meta property="twitter:description" content="Исторически адреси и домове в България">
+    <meta property="twitter:image" content="https://historyaddress.bg/assets/img/HistAdrLogo.png">
+    
+    <link rel="icon" href="/assets/img/HistAdrLogoOrig.ico">
     <script>
         // Apply theme immediately to prevent flash
         (function() {
@@ -26,11 +45,11 @@
         <img src="assets/img/HistAdrLogo.png" alt="Адресът на историята" class="header-logo">
         <span class="logo-text">Адресът на историята</span>
     </a>
-		<nav class="nav">
-			<a href="index.html">Начало</a>
-			<a href="map.html">Карта</a>
-			<a href="addresses.html">Домове</a>
-			<a href="about.html">За Нас</a>
+    <nav class="nav">
+        <a href="index.html">Начало</a>
+        <a href="map.html">Карта</a>
+        <a href="addresses.html">Домове</a>
+        <a href="about.html">За Нас</a>
     </nav>
     <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode"></button>
 </header>
@@ -45,164 +64,7 @@
         <p>© <span id="year"></span> Адресът на историята</p>
     </footer>
 
-    <script>
-    (function() {
-        // Simple query parameter getter
-        function q(name) {
-            var url = window.location.href;
-            name = name.replace(/[\[\]]/g, '\\$&');
-            var regex = new RegExp('[?&]' + name + '(=([^&#]*)|&|#|$)'),
-                results = regex.exec(url);
-            if (!results) return null;
-            if (!results[2]) return '';
-            return decodeURIComponent(results[2].replace(/\+/g, ' '));
-        }
-
-        var slug = q('slug');
-        var root = document.getElementById('detail');
-        
-        if (!slug) {
-            root.innerHTML = '<p>No home specified.</p>';
-            return;
-        }
-        
-        // Determine API base URL
-        var apiBase = window.location.protocol === 'file:' ? 'http://localhost:3000' : window.location.origin;
-        var API_URL = apiBase + '/api/homes/' + encodeURIComponent(slug);
-        
-        // Fetch home from API
-        fetch(API_URL)
-            .then(function(res){
-                if (!res.ok) {
-                    if (res.status === 404) throw new Error('Home not found');
-                    throw new Error('Server error');
-                }
-                return res.json();
-            })
-            .then(function(person){
-                renderHome(person);
-            })
-            .catch(function(err){
-                console.error('Error loading home:', err);
-                root.innerHTML = '<p>Error: ' + err.message + '. Please check the URL or server status.</p>';
-            });
-        
-        function renderHome(person) {
-            document.title = person.name + ' — Historic Addresses';
-            var ph = 'assets/img/placeholder.svg';
-            
-            var portraitHtml = '';
-            if (person.portrait_url) {
-                portraitHtml = '<div class="portrait-container slide-in-left"><img class="portrait-image" alt="Portrait of ' + person.name + '" src="' + person.portrait_url + '" loading="lazy"></div>';
-            }
-            
-            var gallery = (person.images||[]);
-            var hero = gallery[0] || null;
-            
-            var imgHtml = hero ? 
-                '<img alt="'+((hero && hero.alt) || ('Facade of '+person.name))+'" loading="lazy" src="'+((hero && hero.path) || ph)+'" onerror="this.onerror=null;this.src=\''+ph+'\';">' :
-                '';
-
-            var galleryHtml = '';
-            if ((gallery||[]).length > 1) {
-                galleryHtml = '<div class="gallery slide-up">' + gallery.slice(1).map(function(i){ 
-                    var s = (i && i.path) || ph; 
-                    var a = (i && i.alt) || ('Facade of '+person.name); 
-                    return '<img alt="'+a+'" loading="lazy" src="'+s+'" onerror="this.onerror=null;this.src=\''+ph+'\';">'; 
-                }).join('') + '</div>';
-            }
-            
-            var tags = (person.tags||[]).map(function(t){ return '<a class="tag" href="addresses.html?tag='+encodeURIComponent(t)+'">'+t+'</a>'; }).join(' ');
-            var mapLink = (person.coordinates && person.coordinates.lat && person.coordinates.lng) ? ('map.html?slug=' + encodeURIComponent(person.slug||person.id)) : '';
-            
-            var sources = (person.sources||[]).map(function(s){
-                var isUrl = /^https?:\/\//i.test(s.trim());
-                return isUrl ? '<li><a href="'+s.trim()+'" rel="noopener" target="_blank">'+s.trim()+'</a></li>' : '<li>'+s.trim()+'</li>';
-            }).join('');
-            
-            root.innerHTML =
-                (imgHtml ? ('<p class="fade-in">'+imgHtml+'</p>') : '') +
-                galleryHtml +
-                '<h1 class="gradient-text slide-up">'+person.name+'</h1>'+
-                '<p class="meta slide-up">Address: '+(person.address||'')+(mapLink ? ' — <a href="'+mapLink+'">View on map</a>' : '')+'</p>'+
-                
-                '<div class="content-split">'+
-                    portraitHtml +
-                    '<div class="biography-text slide-up">'+
-                        '<p>'+ (person.biography||'') +'</p>'+
-                    '</div>'+
-                '</div>'+
-                
-                (person.photo_date ? ('<p class="meta slide-up">Photo date: '+person.photo_date+'</p>') : '')+
-                (sources ? ('<h3 class="slide-up">Sources</h3><ul class="slide-up">'+sources+'</ul>') : '')+
-                (tags ? ('<p class="tags slide-up">'+tags+'</p>') : '');
-            
-            document.getElementById('year').textContent = new Date().getFullYear();
-        }
-    })();
-    </script>
-	<div id="lightbox" class="lightbox-backdrop" style="display:none;">
-        <div class="lightbox-content">
-            <button id="closeLightbox" class="theme-toggle" aria-label="Close" title="Close">×</button>
-            <img id="lightboxImage" src="" alt="Enlarged image" style="max-width: 90vw; max-height: 90vh;">
-        </div>
-    </div>
-
-    <script>
-    (function() {
-
-
-        function renderHome(person) {
-            var lightbox = document.getElementById('lightbox');
-            var lightboxImage = document.getElementById('lightboxImage');
-            var closeLightbox = document.getElementById('closeLightbox');
-            var detailContainer = document.getElementById('detail');
-
-            function openLightbox(src) {
-                lightboxImage.src = src;
-                lightbox.style.display = 'flex';
-                document.body.style.overflow = 'hidden'; 
-            }
-
-            function closeLightboxModal() {
-                lightbox.style.display = 'none';
-                document.body.style.overflow = '';
-            }
-
-            detailContainer.addEventListener('click', function(e) {
-                var target = e.target;
-
-                if (target.tagName === 'IMG' && target.closest('.detail')) {
-                    var imgSrc = target.getAttribute('src');
-                    if (imgSrc && imgSrc.indexOf(ph) === -1) { 
-                        openLightbox(imgSrc);
-                    }
-                }
-            });
-
-            closeLightbox.addEventListener('click', closeLightboxModal);
-            
-
-            lightbox.addEventListener('click', function(e) {
-                if (e.target.id === 'lightbox') {
-                    closeLightboxModal();
-                }
-            });
-
-            document.addEventListener('keydown', function(e) {
-                if (e.key === 'Escape' && lightbox.style.display === 'flex') {
-                    closeLightboxModal();
-                }
-            });
-
-
-
-            document.getElementById('year').textContent = new Date().getFullYear();
-        }
-    })();
-	
-    </script>
-	<div id="lightbox" class="lightbox-backdrop" style="display:none;">
+    <div id="lightbox" class="lightbox-backdrop" style="display:none;">
         <div class="lightbox-content">
             <button id="closeLightbox" class="close-btn" aria-label="Close" title="Close">×</button>
             <img id="lightboxImage" src="" alt="Enlarged image" style="max-width: 90vw; max-height: 90vh;">
@@ -224,17 +86,18 @@
 
         var slug = q('slug');
         var root = document.getElementById('detail');
-        var ph = 'assets/img/placeholder.svg'; 
+        var ph = 'assets/img/placeholder.svg';
 
         if (!slug) {
             root.innerHTML = '<p>No home specified.</p>';
             return;
         }
         
-        // Fetch home from API
+        // Determine API base URL
         var apiBase = window.location.protocol === 'file:' ? 'http://localhost:3000' : window.location.origin;
         var API_URL = apiBase + '/api/homes/' + encodeURIComponent(slug);
         
+        // Fetch home from API
         fetch(API_URL)
             .then(function(res){
                 if (!res.ok) {
@@ -245,13 +108,93 @@
             })
             .then(function(person){
                 renderHome(person);
+                updateMetaTags(person);
+                addStructuredData(person);
             })
             .catch(function(err){
                 console.error('Error loading home:', err);
                 root.innerHTML = '<p>Error: ' + err.message + '. Please check the URL or server status.</p>';
             });
         
-
+        // NEW: Update meta tags for SEO
+        function updateMetaTags(person) {
+            var pageUrl = 'https://historyaddress.bg/address.html?slug=' + encodeURIComponent(slug);
+            var description = person.biography ? person.biography.substring(0, 155) : 'Исторически адрес: ' + person.address;
+            var imageUrl = (person.images && person.images[0] && person.images[0].path) 
+                ? 'https://historyaddress.bg/' + person.images[0].path 
+                : 'https://historyaddress.bg/assets/img/HistAdrLogo.png';
+            
+            // Update title
+            document.title = person.name + ' — Historic Addresses';
+            
+            // Update meta description
+            var metaDesc = document.querySelector('meta[name="description"]');
+            if (metaDesc) metaDesc.setAttribute('content', description);
+            
+            // Update canonical
+            var canonical = document.querySelector('link[rel="canonical"]');
+            if (canonical) canonical.setAttribute('href', pageUrl);
+            
+            // Update Open Graph
+            var ogUrl = document.querySelector('meta[property="og:url"]');
+            if (ogUrl) ogUrl.setAttribute('content', pageUrl);
+            
+            var ogTitle = document.querySelector('meta[property="og:title"]');
+            if (ogTitle) ogTitle.setAttribute('content', person.name);
+            
+            var ogDesc = document.querySelector('meta[property="og:description"]');
+            if (ogDesc) ogDesc.setAttribute('content', description);
+            
+            var ogImage = document.querySelector('meta[property="og:image"]');
+            if (ogImage) ogImage.setAttribute('content', imageUrl);
+            
+            // Update Twitter
+            var twitterUrl = document.querySelector('meta[property="twitter:url"]');
+            if (twitterUrl) twitterUrl.setAttribute('content', pageUrl);
+            
+            var twitterTitle = document.querySelector('meta[property="twitter:title"]');
+            if (twitterTitle) twitterTitle.setAttribute('content', person.name);
+            
+            var twitterDesc = document.querySelector('meta[property="twitter:description"]');
+            if (twitterDesc) twitterDesc.setAttribute('content', description);
+            
+            var twitterImage = document.querySelector('meta[property="twitter:image"]');
+            if (twitterImage) twitterImage.setAttribute('content', imageUrl);
+        }
+        
+        // NEW: Add structured data for Google
+        function addStructuredData(person) {
+            var script = document.createElement('script');
+            script.type = 'application/ld+json';
+            
+            var structuredData = {
+                "@context": "https://schema.org",
+                "@type": "Place",
+                "name": person.name,
+                "description": person.biography || '',
+                "address": {
+                    "@type": "PostalAddress",
+                    "streetAddress": person.address || '',
+                    "addressCountry": "BG"
+                }
+            };
+            
+            if (person.coordinates && person.coordinates.lat && person.coordinates.lng) {
+                structuredData.geo = {
+                    "@type": "GeoCoordinates",
+                    "latitude": person.coordinates.lat,
+                    "longitude": person.coordinates.lng
+                };
+            }
+            
+            if (person.images && person.images[0] && person.images[0].path) {
+                structuredData.image = 'https://historyaddress.bg/' + person.images[0].path;
+            }
+            
+            script.textContent = JSON.stringify(structuredData);
+            document.head.appendChild(script);
+        }
+        
         function renderHome(person) {
             document.title = person.name + ' — Historic Addresses';
             
@@ -304,9 +247,7 @@
             document.getElementById('year').textContent = new Date().getFullYear();
         }
         
-        
-        // --- НОВА ИЗВЪН-ФУНКЦИОНАЛНА ЛОГИКА ЗА LIGHTBOX ---
-        
+        // --- Lightbox functionality ---
         var lightbox = document.getElementById('lightbox');
         var lightboxImage = document.getElementById('lightboxImage');
         var closeLightbox = document.getElementById('closeLightbox');
@@ -333,17 +274,13 @@
             }
         });
 
-
         closeLightbox.addEventListener('click', closeLightboxModal);
         
-
         lightbox.addEventListener('click', function(e) {
-
             if (e.target.id === 'lightbox') {
                 closeLightboxModal();
             }
         });
-
 
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape' && lightbox.style.display === 'flex') {
@@ -353,9 +290,5 @@
 
     })();
     </script>
-</body>
-</html>
-</body>
-</html>
 </body>
 </html>
