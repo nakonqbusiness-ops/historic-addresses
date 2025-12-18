@@ -231,10 +231,11 @@ Disallow: /assets/
 Sitemap: ${DOMAIN}/sitemap.xml`);
 });
 
+// FIXED SITEMAP - Higher priority for address pages + image namespace
 app.get('/sitemap.xml', (req, res) => {
-    db.all('SELECT slug, updated_at FROM homes WHERE published = 1', [], (err, rows) => {
+    db.all('SELECT slug, updated_at, name FROM homes WHERE published = 1', [], (err, rows) => {
         if (err) return res.status(500).send('Error');
-        let xml = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
+        let xml = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">\n';
         [
             { url: '', priority: '1.0', changefreq: 'weekly' },
             { url: 'addresses.html', priority: '0.9', changefreq: 'daily' },
@@ -247,10 +248,25 @@ app.get('/sitemap.xml', (req, res) => {
             const lastmod = home.updated_at ? new Date(home.updated_at).toISOString().split('T')[0] : '';
             xml += `  <url>\n    <loc>${DOMAIN}/address.html?slug=${encodeURIComponent(home.slug)}</loc>\n`;
             if (lastmod) xml += `    <lastmod>${lastmod}</lastmod>\n`;
-            xml += `    <changefreq>monthly</changefreq>\n    <priority>0.6</priority>\n  </url>\n`;
+            xml += `    <changefreq>monthly</changefreq>\n    <priority>0.8</priority>\n  </url>\n`;
         });
         xml += '</urlset>';
         res.type('application/xml').send(xml);
+    });
+});
+
+// Stats endpoint - get real counts from database
+app.get('/api/stats', (req, res) => {
+    db.get('SELECT COUNT(*) as total FROM homes', [], (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+        db.get('SELECT COUNT(*) as published FROM homes WHERE published = 1', [], (err2, row2) => {
+            if (err2) return res.status(500).json({ error: err2.message });
+            res.json({ 
+                total: row.total,
+                published: row2.published,
+                unpublished: row.total - row2.published
+            });
+        });
     });
 });
 
