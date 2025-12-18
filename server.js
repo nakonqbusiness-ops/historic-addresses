@@ -221,15 +221,15 @@ function rowToHome(row, ultraLean = false) {
         portrait_url: row.portrait_url
     };
 }
-// FAVICON & SEARCH ENGINE EMBLEM
-// This ensures that when Google asks for the icon, we give it the PNG
-app.get('/favicon.ico', (req, res) => {
-    res.sendFile(path.join(__dirname, 'assets', 'img', 'HistAdrLogoOrig.ico'));
+// This "tricks" the HTML into using the new square logo 
+// without you having to edit any .html files.
+app.get('/assets/img/HistAdrLogoOrig.ico', (req, res) => {
+    res.sendFile(path.join(__dirname, 'assets', 'img', 'Historyaddress.bg2.png'));
 });
 
-// This handles the specific path your HTML is currently using
-app.get('/assets/img/HistAdrLogoOrig.ico', (req, res) => {
-    res.sendFile(path.join(__dirname, 'assets', 'img', 'HistAdrLogoOrig.ico'));
+// This handles the standard search engine check
+app.get('/favicon.ico', (req, res) => {
+    res.sendFile(path.join(__dirname, 'assets', 'img', 'Historyaddress.bg2.png'));
 });
 
 // SEO ROUTES
