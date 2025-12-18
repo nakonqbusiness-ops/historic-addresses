@@ -221,9 +221,15 @@ function rowToHome(row, ultraLean = false) {
         portrait_url: row.portrait_url
     };
 }
-// FAVICON & EMBLEM ROUTE
+// FAVICON & SEARCH ENGINE EMBLEM
+// This ensures that when Google asks for the icon, we give it the PNG
 app.get('/favicon.ico', (req, res) => {
-    res.sendFile(path.join(__dirname, 'assets', 'img', 'HistAdrLogoOrig.png'));
+    res.sendFile(path.join(__dirname, 'assets', 'img', 'HistAdrLogoOrig.ico'));
+});
+
+// This handles the specific path your HTML is currently using
+app.get('/assets/img/HistAdrLogoOrig.ico', (req, res) => {
+    res.sendFile(path.join(__dirname, 'assets', 'img', 'HistAdrLogoOrig.ico'));
 });
 
 // SEO ROUTES
