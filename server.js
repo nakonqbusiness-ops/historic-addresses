@@ -221,6 +221,10 @@ function rowToHome(row, ultraLean = false) {
         portrait_url: row.portrait_url
     };
 }
+// FAVICON & EMBLEM ROUTE
+app.get('/favicon.ico', (req, res) => {
+    res.sendFile(path.join(__dirname, 'assets', 'img', 'HistAdrLogoOrig.png'));
+});
 
 // SEO ROUTES
 app.get('/robots.txt', (req, res) => {
