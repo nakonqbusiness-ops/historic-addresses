@@ -236,6 +236,9 @@ app.get('/favicon.ico', (req, res) => {
 app.get('/robots.txt', (req, res) => {
     res.type('text/plain').send(`User-agent: *
 Allow: /
+Allow: /assets/img/Historyaddress.bg.png
+Allow: /assets/img/HistAdrLogoOrig.ico
+Allow: /assets/img/Historyaddress.bg2.png
 Disallow: /admin.html
 Disallow: /assets/
 Sitemap: ${DOMAIN}/sitemap.xml`);
