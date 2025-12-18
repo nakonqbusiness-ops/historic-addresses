@@ -13,6 +13,33 @@ app.use(cors());
 app.use(express.json({ limit: '5mb' })); // Reduced from 10mb
 app.use(express.static(path.join(__dirname)));
 
+// ===== FAVICON ROUTES - For Google & Browsers =====
+app.get('/favicon.ico', (req, res) => {
+    const faviconPath = path.join(__dirname, 'assets', 'img', 'Historyaddress.bg2.png');
+    if (fs.existsSync(faviconPath)) {
+        res.sendFile(faviconPath);
+    } else {
+        res.status(404).send('Favicon not found');
+    }
+});
+
+app.get('/apple-touch-icon.png', (req, res) => {
+    res.sendFile(path.join(__dirname, 'assets', 'img', 'Historyaddress.bg2.png'));
+});
+
+app.get('/android-chrome-192x192.png', (req, res) => {
+    res.sendFile(path.join(__dirname, 'assets', 'img', 'Historyaddress.bg2.png'));
+});
+
+app.get('/android-chrome-512x512.png', (req, res) => {
+    res.sendFile(path.join(__dirname, 'assets', 'img', 'Historyaddress.bg2.png'));
+});
+
+app.get('/assets/img/HistAdrLogoOrig.ico', (req, res) => {
+    res.sendFile(path.join(__dirname, 'assets', 'img', 'Historyaddress.bg2.png'));
+});
+// ===== END FAVICON ROUTES =====
+
 // --- NEW VISITS LOGGING: MIDDLEWARE ---
 app.use((req, res, next) => {
     // 1. Get the IP Address. Uses 'x-forwarded-for' for services like Render,
@@ -221,16 +248,6 @@ function rowToHome(row, ultraLean = false) {
         portrait_url: row.portrait_url
     };
 }
-// This "tricks" the HTML into using the new square logo 
-// without you having to edit any .html files.
-app.get('/assets/img/HistAdrLogoOrig.ico', (req, res) => {
-    res.sendFile(path.join(__dirname, 'assets', 'img', 'Historyaddress.bg2.png'));
-});
-
-// This handles the standard search engine check
-app.get('/favicon.ico', (req, res) => {
-    res.sendFile(path.join(__dirname, 'assets', 'img', 'Historyaddress.bg2.png'));
-});
 
 // SEO ROUTES
 app.get('/robots.txt', (req, res) => {
