@@ -3,26 +3,25 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <!-- FAVICON - ADD THESE LINES -->
+
 <link rel="icon" type="image/png" href="/assets/img/Historyaddress.bg2.png">
 <link rel="shortcut icon" type="image/png" href="/assets/img/Historyaddress.bg2.png">
 <link rel="apple-touch-icon" href="/assets/img/Historyaddress.bg2.png">
 <meta name="msapplication-TileImage" content="/assets/img/Historyaddress.bg2.png">
-<!-- END FAVICON -->
     
-    <!-- Default meta tags - will be updated by JavaScript -->
+
     <title>Адресът на историята</title>
     <meta name="description" content="Исторически адреси и домове в България">
     <link rel="canonical" href="https://historyaddress.bg/address.html">
     
-    <!-- Open Graph / Facebook -->
+
     <meta property="og:type" content="article">
     <meta property="og:url" content="https://historyaddress.bg/address.html">
     <meta property="og:title" content="Адресът на историята">
     <meta property="og:description" content="Исторически адреси и домове в България">
     <meta property="og:image" content="https://historyaddress.bg/assets/img/HistAdrLogo.png">
     
-    <!-- Twitter -->
+
     <meta property="twitter:card" content="summary_large_image">
     <meta property="twitter:url" content="https://historyaddress.bg/address.html">
     <meta property="twitter:title" content="Адресът на историята">
@@ -31,7 +30,7 @@
     
     <link rel="icon" href="/assets/img/HistAdrLogoOrig.ico">
     <script>
-        // Apply theme immediately to prevent flash
+
         (function() {
             try {
                 var stored = localStorage.getItem('theme-preference');
@@ -79,7 +78,7 @@
 
     <script>
     (function() {
-        // Simple query parameter getter
+
         function q(name) {
             var url = window.location.href;
             name = name.replace(/[\[\]]/g, '\\$&');
@@ -99,11 +98,10 @@
             return;
         }
         
-        // Determine API base URL
         var apiBase = window.location.protocol === 'file:' ? 'http://localhost:3000' : window.location.origin;
         var API_URL = apiBase + '/api/homes/' + encodeURIComponent(slug);
         
-        // Fetch home from API
+
         fetch(API_URL)
             .then(function(res){
                 if (!res.ok) {
@@ -122,7 +120,7 @@
                 root.innerHTML = '<p>Error: ' + err.message + '. Please check the URL or server status.</p>';
             });
         
-        // NEW: Update meta tags for SEO
+
         function updateMetaTags(person) {
             var pageUrl = 'https://historyaddress.bg/address.html?slug=' + encodeURIComponent(slug);
             var description = person.biography ? person.biography.substring(0, 155) : 'Исторически адрес: ' + person.address;
@@ -130,14 +128,14 @@
                 ? 'https://historyaddress.bg/' + person.images[0].path 
                 : 'https://historyaddress.bg/assets/img/HistAdrLogo.png';
             
-            // Update title
+
             document.title = person.name + ' — Historic Addresses';
             
-            // Update meta description
+
             var metaDesc = document.querySelector('meta[name="description"]');
             if (metaDesc) metaDesc.setAttribute('content', description);
             
-            // Update canonical
+
             var canonical = document.querySelector('link[rel="canonical"]');
             if (canonical) canonical.setAttribute('href', pageUrl);
             
@@ -154,7 +152,7 @@
             var ogImage = document.querySelector('meta[property="og:image"]');
             if (ogImage) ogImage.setAttribute('content', imageUrl);
             
-            // Update Twitter
+
             var twitterUrl = document.querySelector('meta[property="twitter:url"]');
             if (twitterUrl) twitterUrl.setAttribute('content', pageUrl);
             
@@ -168,7 +166,7 @@
             if (twitterImage) twitterImage.setAttribute('content', imageUrl);
         }
         
-        // NEW: Add structured data for Google
+
         function addStructuredData(person) {
             var script = document.createElement('script');
             script.type = 'application/ld+json';
@@ -253,7 +251,7 @@
             document.getElementById('year').textContent = new Date().getFullYear();
         }
         
-        // --- Lightbox functionality ---
+
         var lightbox = document.getElementById('lightbox');
         var lightboxImage = document.getElementById('lightboxImage');
         var closeLightbox = document.getElementById('closeLightbox');
