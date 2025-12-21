@@ -247,7 +247,7 @@ Allow: /assets/img/Historyaddress.bg.png
 Allow: /favicon.ico
 Allow: /assets/img/HistAdrLogoOrig.ico
 Allow: /assets/img/Historyaddress.bg2.png
-Disallow: /admin.html
+Disallow: /sys-maintenance-panel-v2.html
 Disallow: /assets/
 Sitemap: ${DOMAIN}/sitemap.xml`);
 });
