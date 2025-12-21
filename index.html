@@ -90,13 +90,13 @@
 					// The API returns { data: [...], pagination: { total: X } }
 					var count = response.pagination ? response.pagination.total : 0;
 					if (stats) { 
-						stats.textContent = '📚 ' + count + ' архивирани адреса'; 
+						stats.textContent = '📚 ' + count + ' Архивирани Адреса'; 
 					}
 				})
 				.catch(function(err){
 					console.error('Error loading stats:', err);
 					if (stats) { 
-						stats.textContent = '📚 Колекция от исторически адреси'; 
+						stats.textContent = '📚 History Homes Collection'; 
 					}
 				});
 			
