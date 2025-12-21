@@ -3,8 +3,14 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Historic Addresses — Admin</title>
-    <link rel="icon" href="/assets/img/HistAdrLogoOrig.ico">
+    <meta name="robots" content="noindex, nofollow">
+    
+    <link rel="icon" type="image/png" href="/assets/img/Historyaddress.bg2.png">
+    <link rel="shortcut icon" type="image/png" href="/assets/img/Historyaddress.bg2.png">
+    <link rel="apple-touch-icon" href="/assets/img/Historyaddress.bg2.png">
+    <meta name="msapplication-TileImage" content="/assets/img/Historyaddress.bg2.png">
+    
+    <title>System Panel</title>
     <script>
         (function() {
             try {
@@ -34,105 +40,240 @@
             padding: 8px 16px;
             color: var(--text);
         }
+        .auth-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+        .auth-box {
+            background: var(--card-bg, #1a1a1a);
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+            max-width: 400px;
+            width: 90%;
+        }
+        .auth-box h2 {
+            margin-top: 0;
+            color: var(--text-primary, #fff);
+        }
+        .auth-box input {
+            width: 100%;
+            padding: 0.75rem;
+            margin: 1rem 0;
+            border: 1px solid var(--border-color, #333);
+            border-radius: 4px;
+            background: var(--input-bg, #0d0d0d);
+            color: var(--text-primary, #fff);
+            font-size: 1rem;
+        }
+        .auth-box button {
+            width: 100%;
+            padding: 0.75rem;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+        }
+        .auth-box button:hover {
+            background: #0056b3;
+        }
+        .auth-box button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .auth-error {
+            color: #ff4444;
+            margin-top: 0.5rem;
+            font-size: 0.9rem;
+        }
+        #adminContent {
+            display: none;
+        }
     </style>
 </head>
 <body>
-    <header class="site-header">
-        <a class="logo" href="index.html">Historic Addresses</a>
-        <nav class="nav">
-            <a href="index.html">Home</a>
-            <a href="map.html">Map</a>
-            <a href="addresses.html">Homes</a>
-            <a href="about.html">About</a>
-            <a href="admin.html">Admin</a>
-        </nav>
-        <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode"></button>
-    </header>
-
-    <main class="container" id="app">
-        <h1 class="page-title">Admin</h1>
-        <div id="login">
-            <p>Enter admin password:</p>
-            <input id="pw" class="input" type="password" placeholder="Password">
-            <button id="loginBtn" class="theme-toggle">Login</button>
-        </div>
-
-        <section id="panel" style="display:none">
-            <div class="toolbar">
-                <button id="logout" class="theme-toggle">Logout</button>
-            </div>
-
-            <div class="toolbar">
-                <button id="addBtn" class="theme-toggle">Add New</button>
-                <input id="search" class="input" placeholder="Search...">
-            </div>
-
-            <div id="list" class="grid"></div>
-            
-            <div class="pagination">
-                <button id="firstPage" class="theme-toggle">First</button>
-                <button id="prevPage" class="theme-toggle">Previous</button>
-                <span class="page-info" id="pageInfo">Page 1 of 1</span>
-                <button id="nextPage" class="theme-toggle">Next</button>
-                <button id="lastPage" class="theme-toggle">Last</button>
-            </div>
-        </section>
-    </main>
-
-    <div id="modal" class="backdrop">
-        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="dlgTitle">
-            <header>
-                <h2 id="dlgTitle">Edit Object</h2>
-                <button id="closeDlg" class="theme-toggle" aria-label="Close" title="Close">×</button>
-            </header>
-            <form id="objForm">
-                <div class="content">
-                    <input type="hidden" id="f_id">
-                    <div class="form-grid">
-                        <label class="full"><span class="label">Full name</span><input id="f_name" class="field" required></label>
-                        <label><span class="label">Slug (id)</span><input id="f_slug" class="field" placeholder="address-name" aria-describedby="slugHelp"></label>
-                        <div id="slugHelp" class="full" style="margin-top:-8px;color:var(--muted);font-size:.85rem;">Lowercase, URL-friendly identifier. If left blank, it will be generated from the name.</div>
-                        <label><span class="label">Published</span><span class="row"><input id="f_published" type="checkbox"><span>Visible</span></span></label>
-                        
-                        <label class="full" id="portraitFieldLabel">
-                            <span class="label">Portrait URL</span>
-                            <input id="f_portrait" class="field" placeholder="/assets/portraits/person.jpg" value="">
-                            <div class="full drop" id="portraitDrop">
-                                Drop one image here or 
-                                <button type="button" id="portraitPick" class="theme-toggle">Choose file</button>
-                                <input id="portraitFile" type="file" accept="image/*" style="display:none">
-                            </div>
-                            <div id="portraitPreview" style="margin-top: 10px; text-align: center;"></div>
-                        </label>
-                        <label class="full"><span class="label">Biography</span><textarea id="f_bio" class="field textarea" placeholder="5–6 sentences"></textarea></label>
-                        <label class="full"><span class="label">Address</span><input id="f_addr" class="field"></label>
-                        <label><span class="label">Latitude</span><input id="f_lat" class="field" inputmode="decimal"></label>
-                        <label><span class="label">Longitude</span><input id="f_lng" class="field" inputmode="decimal"></label>
-                    <label class="full"><span class="label">Image URLs (one per line) or drop/select files below</span><textarea id="f_imgs" class="field textarea" placeholder="/uploads/house1.jpg
-https://.../house2.jpg"></textarea></label>
-                    <div class="full drop" id="imgDrop">Drop images here or <button type="button" id="imgPick" class="theme-toggle">Choose files</button><input id="imgFile" type="file" accept="image/*" multiple style="display:none"></div>
-                    <div class="full" id="imgPrevWrap" style="display:none"><span class="label">Previews</span><div id="imgPreview" class="gallery"></div></div>
-                        <label><span class="label">Photo date</span><input id="f_date" class="field" placeholder="YYYY-MM-DD"></label>
-                        <label class="full"><span class="label">Sources (semicolon ; separated)</span><textarea id="f_sources" class="field textarea"></textarea></label>
-                        <label class="full"><span class="label">Tags (comma , separated)</span><input id="f_tags" class="field" placeholder="poet, 19th-century"></label>
-                    </div>
-                </div>
-                <div class="actions">
-                    <button type="button" id="cancelDlg" class="theme-toggle">Cancel</button>
-                    <button type="submit" class="theme-toggle">Save</button>
-                </div>
-            </form>
+    <!-- Authentication Overlay -->
+    <div id="authOverlay" class="auth-overlay">
+        <div class="auth-box">
+            <h2>🔐 System Access</h2>
+            <input type="password" id="authPassword" placeholder="Enter password" autocomplete="off">
+            <button id="authButton" onclick="checkAuth()">Access</button>
+            <div id="authError" class="auth-error"></div>
         </div>
     </div>
 
-    <footer class="site-footer">
-        <p>© <span id="year"></span> Historic Addresses</p>
-    </footer>
+    <!-- Admin Content (hidden by default) -->
+    <div id="adminContent">
+        <header class="site-header">
+            <a class="logo-link" href="index.html">
+                <img src="assets/img/HistAdrLogo.png" alt="Адресът на історията" class="header-logo">
+                <span class="logo-text">Admin Panel</span>
+            </a>
+            <nav class="nav">
+                <a href="index.html">Home</a>
+                <a href="map.html">Map</a>
+                <a href="addresses.html">Homes</a>
+                <a href="about.html">About</a>
+                <button onclick="logout()" class="theme-toggle" style="background: #dc3545;">Logout</button>
+            </nav>
+            <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode"></button>
+        </header>
+
+        <main class="container" id="app">
+            <h1 class="page-title">Admin</h1>
+
+            <section id="panel">
+                <div class="toolbar">
+                    <button id="addBtn" class="theme-toggle">Add New</button>
+                    <input id="search" class="input" placeholder="Search...">
+                </div>
+
+                <div id="list" class="grid"></div>
+                
+                <div class="pagination">
+                    <button id="firstPage" class="theme-toggle">First</button>
+                    <button id="prevPage" class="theme-toggle">Previous</button>
+                    <span class="page-info" id="pageInfo">Page 1 of 1</span>
+                    <button id="nextPage" class="theme-toggle">Next</button>
+                    <button id="lastPage" class="theme-toggle">Last</button>
+                </div>
+            </section>
+        </main>
+
+        <div id="modal" class="backdrop">
+            <div class="modal" role="dialog" aria-modal="true" aria-labelledby="dlgTitle">
+                <header>
+                    <h2 id="dlgTitle">Edit Object</h2>
+                    <button id="closeDlg" class="theme-toggle" aria-label="Close" title="Close">×</button>
+                </header>
+                <form id="objForm">
+                    <div class="content">
+                        <input type="hidden" id="f_id">
+                        <div class="form-grid">
+                            <label class="full"><span class="label">Full name</span><input id="f_name" class="field" required></label>
+                            <label><span class="label">Slug (id)</span><input id="f_slug" class="field" placeholder="address-name" aria-describedby="slugHelp"></label>
+                            <div id="slugHelp" class="full" style="margin-top:-8px;color:var(--muted);font-size:.85rem;">Lowercase, URL-friendly identifier. If left blank, it will be generated from the name.</div>
+                            <label><span class="label">Published</span><span class="row"><input id="f_published" type="checkbox"><span>Visible</span></span></label>
+                            
+                            <label class="full" id="portraitFieldLabel">
+                                <span class="label">Portrait URL</span>
+                                <input id="f_portrait" class="field" placeholder="/assets/portraits/person.jpg" value="">
+                                <div class="full drop" id="portraitDrop">
+                                    Drop one image here or 
+                                    <button type="button" id="portraitPick" class="theme-toggle">Choose file</button>
+                                    <input id="portraitFile" type="file" accept="image/*" style="display:none">
+                                </div>
+                                <div id="portraitPreview" style="margin-top: 10px; text-align: center;"></div>
+                            </label>
+                            <label class="full"><span class="label">Biography</span><textarea id="f_bio" class="field textarea" placeholder="5–6 sentences"></textarea></label>
+                            <label class="full"><span class="label">Address</span><input id="f_addr" class="field"></label>
+                            <label><span class="label">Latitude</span><input id="f_lat" class="field" inputmode="decimal"></label>
+                            <label><span class="label">Longitude</span><input id="f_lng" class="field" inputmode="decimal"></label>
+                        <label class="full"><span class="label">Image URLs (one per line) or drop/select files below</span><textarea id="f_imgs" class="field textarea" placeholder="/uploads/house1.jpg
+https://.../house2.jpg"></textarea></label>
+                        <div class="full drop" id="imgDrop">Drop images here or <button type="button" id="imgPick" class="theme-toggle">Choose files</button><input id="imgFile" type="file" accept="image/*" multiple style="display:none"></div>
+                        <div class="full" id="imgPrevWrap" style="display:none"><span class="label">Previews</span><div id="imgPreview" class="gallery"></div></div>
+                            <label><span class="label">Photo date</span><input id="f_date" class="field" placeholder="YYYY-MM-DD"></label>
+                            <label class="full"><span class="label">Sources (semicolon ; separated)</span><textarea id="f_sources" class="field textarea"></textarea></label>
+                            <label class="full"><span class="label">Tags (comma , separated)</span><input id="f_tags" class="field" placeholder="poet, 19th-century"></label>
+                        </div>
+                    </div>
+                    <div class="actions">
+                        <button type="button" id="cancelDlg" class="theme-toggle">Cancel</button>
+                        <button type="submit" class="theme-toggle">Save</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <footer class="site-footer">
+            <p>© <span id="year"></span> Historic Addresses</p>
+        </footer>
+    </div>
 
     <script>
     (function(){
-        var DEFAULT_PASSWORD = '_endjvJ6!d';
-        var STORAGE_KEY = 'admin-session';
+
+        const PASSWORD_HASH = '135a21d2896b3b414a72f31aa2ada261c499b0740bc747b731dcfbd4315619ec';
+        const SESSION_KEY = 'sys_auth_token';
+
+        async function hashPassword(password) {
+            const msgBuffer = new TextEncoder().encode(password);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        async function checkAuth() {
+            const input = document.getElementById('authPassword').value;
+            const errorEl = document.getElementById('authError');
+            const buttonEl = document.getElementById('authButton');
+            
+            if (!input) {
+                errorEl.textContent = 'Please enter password';
+                return;
+            }
+
+            buttonEl.disabled = true;
+            buttonEl.textContent = 'Checking...';
+
+            const hash = await hashPassword(input);
+            
+            if (hash === PASSWORD_HASH) {
+                sessionStorage.setItem(SESSION_KEY, hash);
+                showAdminPanel();
+            } else {
+                errorEl.textContent = '❌ Invalid password';
+                document.getElementById('authPassword').value = '';
+                
+                setTimeout(() => {
+                    buttonEl.disabled = false;
+                    buttonEl.textContent = 'Access';
+                    document.getElementById('authPassword').focus();
+                }, 2000);
+            }
+        }
+
+        function showAdminPanel() {
+            document.getElementById('authOverlay').style.display = 'none';
+            document.getElementById('adminContent').style.display = 'block';
+            loadHomes(1);
+        }
+
+        function logout() {
+            sessionStorage.removeItem(SESSION_KEY);
+            location.reload();
+        }
+
+        window.addEventListener('DOMContentLoaded', function() {
+            const stored = sessionStorage.getItem(SESSION_KEY);
+            if (stored === PASSWORD_HASH) {
+                showAdminPanel();
+            } else {
+                document.getElementById('authPassword').focus();
+            }
+        });
+
+        document.getElementById('authPassword').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') checkAuth();
+        });
+
+
+        window.logout = logout;
+        window.checkAuth = checkAuth;
+
+
         var apiBase = window.location.protocol === 'file:' ? 'http://localhost:3000' : window.location.origin;
         var API_URL = apiBase + '/api/homes';
         var state = { 
@@ -145,9 +286,6 @@ https://.../house2.jpg"></textarea></label>
         var portraitPreviewEl = document.getElementById('portraitPreview');
         var fPortraitEl = document.getElementById('f_portrait');
         var searchTimeout;
-
-        function isAuthed(){ return sessionStorage.getItem(STORAGE_KEY) === '1'; }
-        function setAuthed(v){ if (v) sessionStorage.setItem(STORAGE_KEY,'1'); else sessionStorage.removeItem(STORAGE_KEY); }
 
         function show(el){ el.style.display=''; }
         function hide(el){ el.style.display='none'; }
@@ -424,21 +562,6 @@ https://.../house2.jpg"></textarea></label>
         });
 
         document.getElementById('addBtn').addEventListener('click', addNew);
-
-        document.getElementById('loginBtn').addEventListener('click', function(){
-            var pw = document.getElementById('pw').value;
-            if (pw === DEFAULT_PASSWORD) {
-                setAuthed(true);
-                hide(document.getElementById('login'));
-                show(document.getElementById('panel'));
-                loadHomes(1);
-            } else {
-                alert('Incorrect password');
-            }
-        });
-
-        document.getElementById('logout').addEventListener('click', function(){ setAuthed(false); location.reload(); });
-
         document.getElementById('cancelDlg').addEventListener('click', closeModal);
         document.getElementById('closeDlg').addEventListener('click', closeModal);
 
@@ -534,7 +657,6 @@ https://.../house2.jpg"></textarea></label>
             }
         });
 
-        if (isAuthed()) { hide(document.getElementById('login')); show(document.getElementById('panel')); loadHomes(1); }
         document.getElementById('year').textContent = new Date().getFullYear();
     })();
     </script>
