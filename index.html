@@ -11,9 +11,7 @@
 
 	<title>Адресът на историята - Начало</title>
 	<meta name="description" content="Browse historic addresses with photos, bios, addresses, and map.">
-	<link rel="icon" href="/assets/img/HistAdrLogoOrig.ico">
 	<script>
-
 		(function() {
 			try {
 				var stored = localStorage.getItem('theme-preference');
@@ -30,9 +28,9 @@
 <body>
 	<header class="site-header">
 		<a class="logo-link" href="index.html">
-        <img src="assets/img/HistAdrLogo.png" alt="Адресът на историята" class="header-logo">
-        <span class="logo-text">Адресът на историята</span>
-    </a>
+        <img src="assets/img/HistAdrLogo.png" alt="Адресът на историята" class="header-logo">
+        <span class="logo-text">Адресът на историята</span>
+    </a>
 		<nav class="nav">
 			<a href="index.html">Начало</a>
 			<a href="map.html">Карта</a>
@@ -48,12 +46,12 @@
 			
 			<img src="assets/img/HistAdrLogoOrig.png" alt="Лого на Адресът на историята" style="float: left; margin-right: 1.5rem; margin-bottom: 1rem; width: 120px; height: auto; border-radius: 0.5rem; box-shadow: var(--shadow-small);">
 			
-			<p>„Адресът на историята“ е дигитален каталог на домовете, в които са живели значими български личности.
+			<p>„Адресът на историята" е дигитален каталог на домовете, в които са живели значими български личности.
 Сайтът събира на едно място адреси, снимки и кратка информация за хора, оставили следа в културата, науката, политиката и обществения живот.</p>
 			
 			<div style="clear: both;"></div>
 			
-			<div class="stats" id="stats">📚 Брой въведени адреси...</div>
+			<div class="stats" id="stats">📚 Зареждане...</div>
 		</section>
 
 		<section class="quick-links">
@@ -68,7 +66,7 @@
 			</a>
 			<a class="card" href="about.html">
 				<h2>📖 За Нас</h2>
-				<p>Открийте нашата мисия за опазване на архитектурното наследство и научете за проекта „Адресът на Историята“.</p>
+				<p>Открийте нашата мисия за опазване на архитектурното наследство и научете за проекта „Адресът на Историята".</p>
 			</a>
 		</section>
 	</main>
@@ -80,18 +78,28 @@
 	<script>
 		(function() {
 			var stats = document.getElementById('stats');
-
 			var apiBase = window.location.protocol === 'file:' ? 'http://localhost:3000' : window.location.origin;
-			fetch(apiBase + '/api/homes')
-				.then(function(res){ return res.json(); })
-				.then(function(data){
-					var count = data.filter(function(p){ return p.published; }).length;
-					if (stats) { stats.textContent = '📚 ' + count + ' архивирани адреса'; }
+			
+			// FIXED: Use the pagination endpoint to get total count
+			fetch(apiBase + '/api/homes?page=1&limit=1')
+				.then(function(res){ 
+					if (!res.ok) throw new Error('Server error');
+					return res.json(); 
+				})
+				.then(function(response){
+					// The API returns { data: [...], pagination: { total: X } }
+					var count = response.pagination ? response.pagination.total : 0;
+					if (stats) { 
+						stats.textContent = '📚 ' + count + ' архивирани адреса'; 
+					}
 				})
 				.catch(function(err){
-					console.error('Error loading homes:', err);
-					if (stats) { stats.textContent = '📚 Historic homes collection'; }
+					console.error('Error loading stats:', err);
+					if (stats) { 
+						stats.textContent = '📚 Колекция от исторически адреси'; 
+					}
 				});
+			
 			document.getElementById('year').textContent = new Date().getFullYear();
 		})();
 	</script>
