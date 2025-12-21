@@ -8,12 +8,10 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const DOMAIN = 'https://historyaddress.bg';
 
-// REDUCED: Lower JSON limit to prevent memory bloat
 app.use(cors());
-app.use(express.json({ limit: '5mb' })); // Reduced from 10mb
+app.use(express.json({ limit: '5mb' })); 
 app.use(express.static(path.join(__dirname)));
 
-// ===== FAVICON ROUTES - For Google & Browsers =====
 app.get('/favicon.ico', (req, res) => {
     const faviconPath = path.join(__dirname, 'assets', 'img', 'Historyaddress.bg2.png');
     if (fs.existsSync(faviconPath)) {
@@ -38,12 +36,9 @@ app.get('/android-chrome-512x512.png', (req, res) => {
 app.get('/assets/img/HistAdrLogoOrig.ico', (req, res) => {
     res.sendFile(path.join(__dirname, 'assets', 'img', 'Historyaddress.bg2.png'));
 });
-// ===== END FAVICON ROUTES =====
 
-// --- NEW VISITS LOGGING: MIDDLEWARE ---
 app.use((req, res, next) => {
-    // 1. Get the IP Address. Uses 'x-forwarded-for' for services like Render,
-    // which is critical for getting the *actual* visitor IP.
+
     const ip = req.headers['x-forwarded-for'] ?
                req.headers['x-forwarded-for'].split(',')[0].trim() :
                req.socket.remoteAddress;
@@ -52,24 +47,21 @@ app.use((req, res, next) => {
     const path = req.originalUrl;
     const method = req.method;
 
-    // 2. Log to Console for real-time monitoring
     console.log(`[VISIT] ${method} | IP: ${ip} | Path: ${path} | Time: ${timestamp}`);
 
-    // 3. Save to Database (Non-blocking)
     db.run('INSERT INTO visits (ip_address, timestamp, path) VALUES (?, ?, ?)',
         [ip, timestamp, path],
         (err) => {
             if (err && !err.message.includes('no such table')) {
-                // Ignore the "no such table" error if the tracking table hasn't been created yet
                 console.error('Error logging visit to DB:', err);
             }
         }
     );
 
-    // 4. Continue to the next middleware/route handler
+
     next();
 });
-// --- END NEW VISITS LOGGING: MIDDLEWARE ---
+
 
 const DB_DIR = process.env.RENDER ? '/data' : '.';
 const DB_FILE = path.join(DB_DIR, 'database.db');
@@ -90,21 +82,21 @@ const db = new sqlite3.Database(DB_FILE, (err) => {
     } else {
         console.log('Connected to SQLite database');
         initializeDatabase();
-        // --- NEW VISITS LOGGING: INITIALIZE TABLE ---
+
         initializeTrackingTable(); 
-        // --- END NEW VISITS LOGGING: INITIALIZE TABLE ---
+
     }
 });
 
-// CRITICAL: Reduce SQLite memory usage
-db.configure('busyTimeout', 5000);
-db.run('PRAGMA journal_mode = DELETE'); // Changed from WAL - uses less memory
-db.run('PRAGMA synchronous = NORMAL');
-db.run('PRAGMA cache_size = 500'); // Reduced from 1000
-db.run('PRAGMA temp_store = MEMORY');
-db.run('PRAGMA mmap_size = 0'); // Disable memory mapping
 
-// --- NEW VISITS LOGGING: TRACKING TABLE CREATION ---
+db.configure('busyTimeout', 5000);
+db.run('PRAGMA journal_mode = DELETE'); 
+db.run('PRAGMA synchronous = NORMAL');
+db.run('PRAGMA cache_size = 500'); 
+db.run('PRAGMA temp_store = MEMORY');
+db.run('PRAGMA mmap_size = 0'); 
+
+
 function initializeTrackingTable() {
     db.run(`
         CREATE TABLE IF NOT EXISTS visits (
@@ -121,7 +113,7 @@ function initializeTrackingTable() {
         }
     });
 }
-// --- END NEW VISITS LOGGING: TRACKING TABLE CREATION ---
+
 
 function initializeDatabase() {
     db.run(`
@@ -215,7 +207,6 @@ function insertHome(home) {
     stmt.finalize();
 }
 
-// ULTRA LEAN: No biography/sources for lists, only 1 image
 function rowToHome(row, ultraLean = false) {
     if (ultraLean) {
         const images = JSON.parse(row.images || '[]');
@@ -230,7 +221,6 @@ function rowToHome(row, ultraLean = false) {
             published: row.published === 1
         };
     }
-    // Full data for detail pages
     return {
         id: row.id,
         slug: row.slug,
@@ -249,7 +239,7 @@ function rowToHome(row, ultraLean = false) {
     };
 }
 
-// SEO ROUTES
+
 app.get('/robots.txt', (req, res) => {
     res.type('text/plain').send(`User-agent: *
 Allow: /
@@ -285,11 +275,11 @@ app.get('/sitemap.xml', (req, res) => {
     });
 });
 
-// API ROUTES - ULTRA LEAN
+
 app.get('/api/homes', (req, res) => {
     const showAll = req.query.all === 'true';
     const page = parseInt(req.query.page) || 1;
-    const limit = Math.min(parseInt(req.query.limit) || 6, 10); // Max 10 instead of 20
+    const limit = Math.min(parseInt(req.query.limit) || 6, 10); 
     const search = req.query.search || '';
     const tag = req.query.tag || '';
     const searchMode = req.query.searchMode || 'all';
@@ -327,14 +317,14 @@ app.get('/api/homes', (req, res) => {
         db.all(`SELECT * FROM homes ${whereClause} ORDER BY name LIMIT ? OFFSET ?`, [...params, limit, offset], (err, rows) => {
             if (err) return res.status(500).json({ error: err.message });
             
-            const homes = rows.map(row => rowToHome(row, true)); // ULTRA LEAN
+            const homes = rows.map(row => rowToHome(row, true)); 
             
             res.json({
                 data: homes,
                 pagination: { page, limit, total, totalPages, hasNext: page < totalPages, hasPrev: page > 1 }
             });
             
-            // FORCE GC after response
+
             setImmediate(() => {
                 if (global.gc) global.gc();
             });
@@ -342,12 +332,12 @@ app.get('/api/homes', (req, res) => {
     });
 });
 
-// NO CACHE - Map loads fresh every time (prevents memory accumulation)
+
 app.get('/api/homes/map', (req, res) => {
     db.all('SELECT id, slug, name, lat, lng FROM homes WHERE published = 1 AND lat IS NOT NULL AND lng IS NOT NULL ORDER BY name', [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         
-        // NO IMAGES - just coordinates
+
         const mapData = rows.map(row => ({
             id: row.id,
             slug: row.slug,
@@ -358,14 +348,14 @@ app.get('/api/homes/map', (req, res) => {
         
         res.json(mapData);
         
-        // FORCE GC immediately after sending
+
         setImmediate(() => {
             if (global.gc) global.gc();
         });
     });
 });
 
-// Tags - Simple cache with 5min TTL
+
 let tagsCache = null;
 let tagsCacheTime = 0;
 
@@ -393,7 +383,7 @@ app.get('/api/tags', (req, res) => {
     });
 });
 
-// Single home - Full data
+
 app.get('/api/homes/:slug', (req, res) => {
     db.get('SELECT * FROM homes WHERE slug = ? OR id = ?', [req.params.slug, req.params.slug], (err, row) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -403,7 +393,7 @@ app.get('/api/homes/:slug', (req, res) => {
     });
 });
 
-// CRUD operations
+
 app.post('/api/homes', (req, res) => {
     const home = req.body;
     if (!home.name) return res.status(400).json({ error: 'Name is required' });
@@ -412,7 +402,7 @@ app.post('/api/homes', (req, res) => {
     home.created_at = new Date().toISOString();
     home.updated_at = new Date().toISOString();
     insertHome(home);
-    tagsCache = null; // Clear cache
+    tagsCache = null; 
     res.status(201).json({ message: 'Home created', id: home.id });
 });
 
@@ -445,7 +435,7 @@ app.delete('/api/homes/:id', (req, res) => {
     });
 });
 
-// Serve HTML
+
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 app.get('/:page.html', (req, res) => {
     const filePath = path.join(__dirname, `${req.params.page}.html`);
@@ -460,7 +450,7 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`📊 DB: ${DB_FILE}\n`);
 });
 
-// AGGRESSIVE GC every 1 minute
+
 setInterval(() => {
     if (global.gc) {
         const before = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
