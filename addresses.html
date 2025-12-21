@@ -3,17 +3,17 @@
 <head>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<!-- FAVICON - ADD THESE LINES -->
+
 <link rel="icon" type="image/png" href="/assets/img/Historyaddress.bg2.png">
 <link rel="shortcut icon" type="image/png" href="/assets/img/Historyaddress.bg2.png">
 <link rel="apple-touch-icon" href="/assets/img/Historyaddress.bg2.png">
 <meta name="msapplication-TileImage" content="/assets/img/Historyaddress.bg2.png">
-<!-- END FAVICON -->
+
 	<title>Адресът на историята- Домове</title>
 	<meta name="description" content="Browse all historic addresses.">
 	<link rel="icon" href="/assets/img/HistAdrLogoOrig.ico">
 	<script>
-		// Apply theme immediately to prevent flash
+
 		(function() {
 			try {
 				var stored = localStorage.getItem('theme-preference');
@@ -25,7 +25,7 @@
 	</script>
 	<link rel="stylesheet" href="assets/css/styles.css">
 	<style>
-		/* Pagination styles */
+
 		.pagination {
 			display: flex;
 			justify-content: center;
@@ -123,7 +123,7 @@
 		var isLoading = false;
 		var apiBase = window.location.protocol === 'file:' ? 'http://localhost:3000' : window.location.origin;
 		
-		// Fetch tags for dropdown
+
 		function loadTags() {
 			fetch(apiBase + '/api/tags')
 				.then(function(res){ return res.json(); })
@@ -136,7 +136,7 @@
 						tagSel.appendChild(o);
 					});
 					
-					// Set initial tag from URL parameter (case-insensitive match)
+
 					if (initialTag) {
 						var match = Array.from(tagSel.options).find(function(o){ 
 							return o.value.toLowerCase() === initialTag.toLowerCase(); 
@@ -152,7 +152,7 @@
 				});
 		}
 		
-		// Fetch homes with pagination
+
 		function loadHomes(page) {
 			if (isLoading) return;
 			isLoading = true;
@@ -180,7 +180,7 @@
 				.then(function(response){
 					isLoading = false;
 					
-					// Handle both old format (array) and new format (object with data/pagination)
+
 					var homes = response.data || response;
 					var pagination = response.pagination || {
 						page: 1,
@@ -202,7 +202,6 @@
 				});
 		}
 		
-		// Render homes grid
 		function renderHomes(homes) {
 			var grid = document.getElementById('grid');
 			grid.innerHTML = '';
@@ -241,7 +240,7 @@
 
 				var placeholder = 'assets/img/placeholder.svg';
 				
-				// Use thumbnail if available, otherwise use full image
+
 				var img = placeholder;
 				if (p.images && p.images[0]) {
 					img = p.images[0].thumb || p.images[0].path || placeholder;
@@ -258,14 +257,14 @@
 			});
 		}
 		
-		// Render pagination controls
+
 		function renderPagination(pagination) {
 			var paginationDiv = document.getElementById('pagination');
 			paginationDiv.innerHTML = '';
 			
 			if (pagination.totalPages <= 1) return;
 			
-			// Previous button
+
 			var prevBtn = document.createElement('button');
 			prevBtn.textContent = '← Предишна';
 			prevBtn.disabled = !pagination.hasPrev;
@@ -277,7 +276,7 @@
 			};
 			paginationDiv.appendChild(prevBtn);
 			
-			// Page numbers
+
 			var startPage = Math.max(1, currentPage - 2);
 			var endPage = Math.min(pagination.totalPages, currentPage + 2);
 			
@@ -328,7 +327,7 @@
 				paginationDiv.appendChild(lastBtn);
 			}
 			
-			// Next button
+
 			var nextBtn = document.createElement('button');
 			nextBtn.textContent = 'Следваща →';
 			nextBtn.disabled = !pagination.hasNext;
@@ -341,7 +340,7 @@
 			paginationDiv.appendChild(nextBtn);
 		}
 		
-		// Update pagination info text
+
 		function updatePaginationInfo(pagination) {
 			var info = document.getElementById('pagination-info');
 			var start = (pagination.page - 1) * pagination.limit + 1;
@@ -349,7 +348,7 @@
 			info.textContent = 'Показване ' + start + '-' + end + ' от ' + pagination.total + ' адреса';
 		}
 		
-		// Debounce function for search
+
 		var searchTimeout;
 		function debounce(func, delay) {
 			return function() {
@@ -358,7 +357,7 @@
 			};
 		}
 		
-		// Event listeners
+
 		document.getElementById('q').addEventListener('input', debounce(function() {
 			currentPage = 1;
 			loadHomes(1);
@@ -369,7 +368,7 @@
 			loadHomes(1);
 		});
 		
-		// Initialize
+
 		document.getElementById('year').textContent = new Date().getFullYear();
 		loadTags();
 		loadHomes(1);
