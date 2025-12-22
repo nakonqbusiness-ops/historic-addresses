@@ -11,9 +11,7 @@
 
 	<title>Адресът на историята- Домове</title>
 	<meta name="description" content="Browse all historic addresses.">
-	<link rel="icon" href="/assets/img/HistAdrLogoOrig.ico">
 	<script>
-
 		(function() {
 			try {
 				var stored = localStorage.getItem('theme-preference');
@@ -25,7 +23,6 @@
 	</script>
 	<link rel="stylesheet" href="assets/css/styles.css">
 	<style>
-
 		.pagination {
 			display: flex;
 			justify-content: center;
@@ -99,7 +96,7 @@
 	<main class="container">
 		<h1 class="page-title gradient-text">🏡 Списък на адресите</h1>
 		<div class="toolbar">
-			<input id="q" class="input" type="search" placeholder="Търсене по име..." aria-label="Search">
+			<input id="q" class="input" type="search" placeholder="Търсене по име (напр. 'Иван' или 'Георгиев')..." aria-label="Search">
 			<select id="tag" class="select" aria-label="Filter by tag">
 				<option value="">Всички тагове</option>
 			</select>
@@ -123,7 +120,6 @@
 		var isLoading = false;
 		var apiBase = window.location.protocol === 'file:' ? 'http://localhost:3000' : window.location.origin;
 		
-
 		function loadTags() {
 			fetch(apiBase + '/api/tags')
 				.then(function(res){ return res.json(); })
@@ -136,7 +132,6 @@
 						tagSel.appendChild(o);
 					});
 					
-
 					if (initialTag) {
 						var match = Array.from(tagSel.options).find(function(o){ 
 							return o.value.toLowerCase() === initialTag.toLowerCase(); 
@@ -152,19 +147,26 @@
 				});
 		}
 		
-
 		function loadHomes(page) {
 			if (isLoading) return;
 			isLoading = true;
 			
-			var searchQuery = document.getElementById('q').value;
+			var searchQuery = document.getElementById('q').value.trim();
 			var tagFilter = document.getElementById('tag').value;
 			
+
 			var url = apiBase + '/api/homes?page=' + page + '&limit=6';
+			
+
 			if (searchQuery) {
+
+				var searchWords = searchQuery.split(/\s+/).filter(Boolean);
+				
+
 				url += '&search=' + encodeURIComponent(searchQuery);
-				url += '&searchMode=name'; // Always search by name only
+				url += '&searchMode=name'; 
 			}
+			
 			if (tagFilter) url += '&tag=' + encodeURIComponent(tagFilter);
 			
 			var grid = document.getElementById('grid');
@@ -180,7 +182,6 @@
 				.then(function(response){
 					isLoading = false;
 					
-
 					var homes = response.data || response;
 					var pagination = response.pagination || {
 						page: 1,
@@ -191,6 +192,14 @@
 					currentPage = pagination.page;
 					totalPages = pagination.totalPages;
 					
+
+					if (searchQuery) {
+						homes = filterHomesByWords(homes, searchQuery);
+
+						pagination.total = homes.length;
+						pagination.totalPages = Math.max(1, Math.ceil(homes.length / 6));
+					}
+					
 					renderHomes(homes);
 					renderPagination(pagination);
 					updatePaginationInfo(pagination);
@@ -200,6 +209,23 @@
 					console.error('Error loading homes:', err);
 					grid.innerHTML = '<p class="error-message">Грешка при зареждане на домовете от сървъра. Проверете конзолата за подробности.</p>';
 				});
+		}
+		
+
+		function filterHomesByWords(homes, query) {
+			if (!query) return homes;
+			
+
+			var searchWords = query.toLowerCase().split(/\s+/).filter(Boolean);
+			
+			return homes.filter(function(home) {
+				var name = (home.name || '').toLowerCase();
+				
+
+				return searchWords.every(function(word) {
+					return name.indexOf(word) !== -1;
+				});
+			});
 		}
 		
 		function renderHomes(homes) {
@@ -240,7 +266,6 @@
 
 				var placeholder = 'assets/img/placeholder.svg';
 				
-
 				var img = placeholder;
 				if (p.images && p.images[0]) {
 					img = p.images[0].thumb || p.images[0].path || placeholder;
@@ -257,14 +282,12 @@
 			});
 		}
 		
-
 		function renderPagination(pagination) {
 			var paginationDiv = document.getElementById('pagination');
 			paginationDiv.innerHTML = '';
 			
 			if (pagination.totalPages <= 1) return;
 			
-
 			var prevBtn = document.createElement('button');
 			prevBtn.textContent = '← Предишна';
 			prevBtn.disabled = !pagination.hasPrev;
@@ -276,7 +299,6 @@
 			};
 			paginationDiv.appendChild(prevBtn);
 			
-
 			var startPage = Math.max(1, currentPage - 2);
 			var endPage = Math.min(pagination.totalPages, currentPage + 2);
 			
@@ -327,7 +349,6 @@
 				paginationDiv.appendChild(lastBtn);
 			}
 			
-
 			var nextBtn = document.createElement('button');
 			nextBtn.textContent = 'Следваща →';
 			nextBtn.disabled = !pagination.hasNext;
@@ -340,7 +361,6 @@
 			paginationDiv.appendChild(nextBtn);
 		}
 		
-
 		function updatePaginationInfo(pagination) {
 			var info = document.getElementById('pagination-info');
 			var start = (pagination.page - 1) * pagination.limit + 1;
@@ -348,7 +368,6 @@
 			info.textContent = 'Показване ' + start + '-' + end + ' от ' + pagination.total + ' адреса';
 		}
 		
-
 		var searchTimeout;
 		function debounce(func, delay) {
 			return function() {
@@ -363,12 +382,20 @@
 			loadHomes(1);
 		}, 500));
 		
+
+		document.getElementById('q').addEventListener('keypress', function(e) {
+			if (e.key === 'Enter') {
+				clearTimeout(searchTimeout); 
+				currentPage = 1;
+				loadHomes(1);
+			}
+		});
+		
 		document.getElementById('tag').addEventListener('change', function() {
 			currentPage = 1;
 			loadHomes(1);
 		});
 		
-
 		document.getElementById('year').textContent = new Date().getFullYear();
 		loadTags();
 		loadHomes(1);
