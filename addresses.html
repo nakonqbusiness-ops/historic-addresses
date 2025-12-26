@@ -154,17 +154,13 @@
 			var searchQuery = document.getElementById('q').value.trim();
 			var tagFilter = document.getElementById('tag').value;
 			
-
+			// Build URL - server handles case-insensitive search already
 			var url = apiBase + '/api/homes?page=' + page + '&limit=6';
 			
-
 			if (searchQuery) {
-
-				var searchWords = searchQuery.split(/\s+/).filter(Boolean);
-				
-
+				// Just send the query as-is - server LIKE query handles partial matches
 				url += '&search=' + encodeURIComponent(searchQuery);
-				url += '&searchMode=name'; 
+				url += '&searchMode=name';
 			}
 			
 			if (tagFilter) url += '&tag=' + encodeURIComponent(tagFilter);
@@ -192,14 +188,6 @@
 					currentPage = pagination.page;
 					totalPages = pagination.totalPages;
 					
-
-					if (searchQuery) {
-						homes = filterHomesByWords(homes, searchQuery);
-
-						pagination.total = homes.length;
-						pagination.totalPages = Math.max(1, Math.ceil(homes.length / 6));
-					}
-					
 					renderHomes(homes);
 					renderPagination(pagination);
 					updatePaginationInfo(pagination);
@@ -209,23 +197,6 @@
 					console.error('Error loading homes:', err);
 					grid.innerHTML = '<p class="error-message">Грешка при зареждане на домовете от сървъра. Проверете конзолата за подробности.</p>';
 				});
-		}
-		
-
-		function filterHomesByWords(homes, query) {
-			if (!query) return homes;
-			
-
-			var searchWords = query.toLowerCase().split(/\s+/).filter(Boolean);
-			
-			return homes.filter(function(home) {
-				var name = (home.name || '').toLowerCase();
-				
-
-				return searchWords.every(function(word) {
-					return name.indexOf(word) !== -1;
-				});
-			});
 		}
 		
 		function renderHomes(homes) {
@@ -376,16 +347,16 @@
 			};
 		}
 		
-
+		// Search input with debounce
 		document.getElementById('q').addEventListener('input', debounce(function() {
 			currentPage = 1;
 			loadHomes(1);
 		}, 500));
 		
-
+		// Enter key triggers immediate search
 		document.getElementById('q').addEventListener('keypress', function(e) {
 			if (e.key === 'Enter') {
-				clearTimeout(searchTimeout); 
+				clearTimeout(searchTimeout);
 				currentPage = 1;
 				loadHomes(1);
 			}
