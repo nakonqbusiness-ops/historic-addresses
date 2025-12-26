@@ -96,7 +96,7 @@
 	<main class="container">
 		<h1 class="page-title gradient-text">🏡 Списък на адресите</h1>
 		<div class="toolbar">
-			<input id="q" class="input" type="search" placeholder="Търсене по име (напр. 'Иван' или 'Георгиев')..." aria-label="Search">
+			<input id="q" class="input" type="search" placeholder="Търсене по име (напр. 'Иван' или 'Николов')..." aria-label="Search">
 			<select id="tag" class="select" aria-label="Filter by tag">
 				<option value="">Всички тагове</option>
 			</select>
@@ -119,6 +119,8 @@
 		var totalPages = 1;
 		var isLoading = false;
 		var apiBase = window.location.protocol === 'file:' ? 'http://localhost:3000' : window.location.origin;
+		var allHomes = []; 
+		var filteredHomes = []; 
 		
 		function loadTags() {
 			fetch(apiBase + '/api/tags')
@@ -147,30 +149,16 @@
 				});
 		}
 		
-		function loadHomes(page) {
+
+		function loadAllHomes() {
 			if (isLoading) return;
 			isLoading = true;
 			
-			var searchQuery = document.getElementById('q').value.trim();
-			var tagFilter = document.getElementById('tag').value;
-			
-
-			var url = apiBase + '/api/homes?page=' + page + '&limit=6';
-			
-
-			if (searchQuery) {
-
-				var searchWords = searchQuery.split(/\s+/).filter(Boolean);
-				
-
-				url += '&search=' + encodeURIComponent(searchQuery);
-				url += '&searchMode=name'; 
-			}
-			
-			if (tagFilter) url += '&tag=' + encodeURIComponent(tagFilter);
-			
 			var grid = document.getElementById('grid');
 			grid.innerHTML = '<div class="loading">Зареждане...</div>';
+			
+
+			var url = apiBase + '/api/homes?page=1&limit=1000';
 			
 			fetch(url)
 				.then(function(res){ 
@@ -181,34 +169,69 @@
 				})
 				.then(function(response){
 					isLoading = false;
+					allHomes = response.data || response;
+					console.log('✅ Loaded', allHomes.length, 'homes from server');
 					
-					var homes = response.data || response;
-					var pagination = response.pagination || {
-						page: 1,
-						totalPages: 1,
-						total: homes.length
-					};
-					
-					currentPage = pagination.page;
-					totalPages = pagination.totalPages;
-					
-
-					if (searchQuery) {
-						homes = filterHomesByWords(homes, searchQuery);
-
-						pagination.total = homes.length;
-						pagination.totalPages = Math.max(1, Math.ceil(homes.length / 6));
-					}
-					
-					renderHomes(homes);
-					renderPagination(pagination);
-					updatePaginationInfo(pagination);
+					// Apply filters and render
+					applyFiltersAndRender();
 				})
 				.catch(function(err){
 					isLoading = false;
 					console.error('Error loading homes:', err);
-					grid.innerHTML = '<p class="error-message">Грешка при зареждане на домовете от сървъра. Проверете конзолата за подробности.</p>';
+					grid.innerHTML = '<p class="error-message">Грешка при зареждане на домовете от сървъра.</p>';
 				});
+		}
+		
+
+		function applyFiltersAndRender() {
+			var searchQuery = document.getElementById('q').value.trim();
+			var tagFilter = document.getElementById('tag').value;
+			
+
+			var homes = allHomes.slice();
+			
+
+			if (searchQuery) {
+				homes = filterHomesByWords(homes, searchQuery);
+				console.log('🔍 Search "' + searchQuery + '" found', homes.length, 'results');
+			}
+			
+
+			if (tagFilter) {
+				homes = homes.filter(function(home) {
+					var tags = home.tags || [];
+					return tags.some(function(tag) {
+						return tag.toLowerCase() === tagFilter.toLowerCase();
+					});
+				});
+				console.log('🏷️ Tag "' + tagFilter + '" found', homes.length, 'results');
+			}
+			
+			filteredHomes = homes;
+			
+
+			var itemsPerPage = 6;
+			totalPages = Math.max(1, Math.ceil(filteredHomes.length / itemsPerPage));
+			
+
+			if (currentPage > totalPages) currentPage = totalPages;
+			if (currentPage < 1) currentPage = 1;
+			
+
+			var startIdx = (currentPage - 1) * itemsPerPage;
+			var endIdx = startIdx + itemsPerPage;
+			var pageHomes = filteredHomes.slice(startIdx, endIdx);
+			
+			// Render
+			renderHomes(pageHomes);
+			renderPagination({
+				page: currentPage,
+				totalPages: totalPages,
+				total: filteredHomes.length,
+				limit: itemsPerPage,
+				hasPrev: currentPage > 1,
+				hasNext: currentPage < totalPages
+			});
 		}
 		
 
@@ -218,13 +241,21 @@
 
 			var searchWords = query.toLowerCase().split(/\s+/).filter(Boolean);
 			
+			console.log('🔍 Searching for words:', searchWords);
+			
 			return homes.filter(function(home) {
 				var name = (home.name || '').toLowerCase();
 				
 
-				return searchWords.every(function(word) {
+				var matches = searchWords.every(function(word) {
 					return name.indexOf(word) !== -1;
 				});
+				
+				if (matches) {
+					console.log('✓ Match:', home.name);
+				}
+				
+				return matches;
 			});
 		}
 		
@@ -241,13 +272,6 @@
 				var slugValue = p.slug;
 				var idValue = p.id;
 
-				if (typeof slugValue !== 'string' && typeof slugValue === 'object' && slugValue !== null) {
-					console.warn('Home Name:', p.name, ' - WARNING: p.slug is an object!', slugValue);
-				}
-				if (typeof idValue !== 'string' && typeof idValue === 'object' && idValue !== null) {
-					console.warn('Home Name:', p.name, ' - WARNING: p.id is an object!', idValue);
-				}
-
 				var finalSlug = '';
 				if (typeof slugValue === 'string' && slugValue) {
 					finalSlug = slugValue;
@@ -260,12 +284,11 @@
 				}
 				
 				if (!finalSlug) {
-					console.error('Skipping home because neither slug nor id is a valid string/property:', p.name, p);
+					console.error('Skipping home - no valid slug:', p.name);
 					return; 
 				}
 
 				var placeholder = 'assets/img/placeholder.svg';
-				
 				var img = placeholder;
 				if (p.images && p.images[0]) {
 					img = p.images[0].thumb || p.images[0].path || placeholder;
@@ -284,16 +307,25 @@
 		
 		function renderPagination(pagination) {
 			var paginationDiv = document.getElementById('pagination');
+			var infoDiv = document.getElementById('pagination-info');
+			
 			paginationDiv.innerHTML = '';
+			
+
+			var start = Math.min((pagination.page - 1) * pagination.limit + 1, pagination.total);
+			var end = Math.min(pagination.page * pagination.limit, pagination.total);
+			infoDiv.textContent = 'Показване ' + start + '-' + end + ' от ' + pagination.total + ' адреса';
 			
 			if (pagination.totalPages <= 1) return;
 			
+
 			var prevBtn = document.createElement('button');
 			prevBtn.textContent = '← Предишна';
 			prevBtn.disabled = !pagination.hasPrev;
 			prevBtn.onclick = function() {
 				if (pagination.hasPrev) {
-					loadHomes(currentPage - 1);
+					currentPage--;
+					applyFiltersAndRender();
 					window.scrollTo({ top: 0, behavior: 'smooth' });
 				}
 			};
@@ -302,11 +334,13 @@
 			var startPage = Math.max(1, currentPage - 2);
 			var endPage = Math.min(pagination.totalPages, currentPage + 2);
 			
+
 			if (startPage > 1) {
 				var firstBtn = document.createElement('button');
 				firstBtn.textContent = '1';
 				firstBtn.onclick = function() {
-					loadHomes(1);
+					currentPage = 1;
+					applyFiltersAndRender();
 					window.scrollTo({ top: 0, behavior: 'smooth' });
 				};
 				paginationDiv.appendChild(firstBtn);
@@ -319,19 +353,21 @@
 				}
 			}
 			
+
 			for (var i = startPage; i <= endPage; i++) {
 				var pageBtn = document.createElement('button');
 				pageBtn.textContent = i;
 				pageBtn.className = i === currentPage ? 'active' : '';
 				pageBtn.dataset.page = i;
 				pageBtn.onclick = function() {
-					var page = parseInt(this.dataset.page);
-					loadHomes(page);
+					currentPage = parseInt(this.dataset.page);
+					applyFiltersAndRender();
 					window.scrollTo({ top: 0, behavior: 'smooth' });
 				};
 				paginationDiv.appendChild(pageBtn);
 			}
 			
+			// Last page + dots
 			if (endPage < pagination.totalPages) {
 				if (endPage < pagination.totalPages - 1) {
 					var dots2 = document.createElement('span');
@@ -343,62 +379,56 @@
 				var lastBtn = document.createElement('button');
 				lastBtn.textContent = pagination.totalPages;
 				lastBtn.onclick = function() {
-					loadHomes(pagination.totalPages);
+					currentPage = pagination.totalPages;
+					applyFiltersAndRender();
 					window.scrollTo({ top: 0, behavior: 'smooth' });
 				};
 				paginationDiv.appendChild(lastBtn);
 			}
 			
+
 			var nextBtn = document.createElement('button');
 			nextBtn.textContent = 'Следваща →';
 			nextBtn.disabled = !pagination.hasNext;
 			nextBtn.onclick = function() {
 				if (pagination.hasNext) {
-					loadHomes(currentPage + 1);
+					currentPage++;
+					applyFiltersAndRender();
 					window.scrollTo({ top: 0, behavior: 'smooth' });
 				}
 			};
 			paginationDiv.appendChild(nextBtn);
 		}
 		
-		function updatePaginationInfo(pagination) {
-			var info = document.getElementById('pagination-info');
-			var start = (pagination.page - 1) * pagination.limit + 1;
-			var end = Math.min(pagination.page * pagination.limit, pagination.total);
-			info.textContent = 'Показване ' + start + '-' + end + ' от ' + pagination.total + ' адреса';
-		}
-		
 		var searchTimeout;
-		function debounce(func, delay) {
-			return function() {
-				clearTimeout(searchTimeout);
-				searchTimeout = setTimeout(func, delay);
-			};
-		}
 		
 
-		document.getElementById('q').addEventListener('input', debounce(function() {
-			currentPage = 1;
-			loadHomes(1);
-		}, 500));
+		document.getElementById('q').addEventListener('input', function() {
+			clearTimeout(searchTimeout);
+			searchTimeout = setTimeout(function() {
+				currentPage = 1;
+				applyFiltersAndRender();
+			}, 500);
+		});
 		
 
 		document.getElementById('q').addEventListener('keypress', function(e) {
 			if (e.key === 'Enter') {
-				clearTimeout(searchTimeout); 
+				clearTimeout(searchTimeout);
 				currentPage = 1;
-				loadHomes(1);
+				applyFiltersAndRender();
 			}
 		});
 		
+		// Tag filter
 		document.getElementById('tag').addEventListener('change', function() {
 			currentPage = 1;
-			loadHomes(1);
+			applyFiltersAndRender();
 		});
 		
 		document.getElementById('year').textContent = new Date().getFullYear();
 		loadTags();
-		loadHomes(1);
+		loadAllHomes(); 
 	})();
 	</script>
 </body>
