@@ -38,7 +38,6 @@ app.get('/assets/img/HistAdrLogoOrig.ico', (req, res) => {
 });
 
 app.use((req, res, next) => {
-
     const ip = req.headers['x-forwarded-for'] ?
                req.headers['x-forwarded-for'].split(',')[0].trim() :
                req.socket.remoteAddress;
@@ -58,10 +57,8 @@ app.use((req, res, next) => {
         }
     );
 
-
     next();
 });
-
 
 const DB_DIR = process.env.RENDER ? '/data' : '.';
 const DB_FILE = path.join(DB_DIR, 'database.db');
@@ -82,12 +79,9 @@ const db = new sqlite3.Database(DB_FILE, (err) => {
     } else {
         console.log('Connected to SQLite database');
         initializeDatabase();
-
         initializeTrackingTable(); 
-
     }
 });
-
 
 db.configure('busyTimeout', 5000);
 db.run('PRAGMA journal_mode = DELETE'); 
@@ -95,7 +89,6 @@ db.run('PRAGMA synchronous = NORMAL');
 db.run('PRAGMA cache_size = 500'); 
 db.run('PRAGMA temp_store = MEMORY');
 db.run('PRAGMA mmap_size = 0'); 
-
 
 function initializeTrackingTable() {
     db.run(`
@@ -113,7 +106,6 @@ function initializeTrackingTable() {
         }
     });
 }
-
 
 function initializeDatabase() {
     db.run(`
@@ -239,7 +231,6 @@ function rowToHome(row, ultraLean = false) {
     };
 }
 
-
 app.get('/robots.txt', (req, res) => {
     res.type('text/plain').send(`User-agent: *
 Allow: /
@@ -275,7 +266,6 @@ app.get('/sitemap.xml', (req, res) => {
     });
 });
 
-
 app.get('/api/homes', (req, res) => {
     const showAll = req.query.all === 'true';
     const page = parseInt(req.query.page) || 1;
@@ -291,13 +281,21 @@ app.get('/api/homes', (req, res) => {
     if (!showAll) whereConditions.push('published = 1');
     
     if (search) {
+        const searchWords = search.trim().split(/\s+/).filter(word => word.length > 0);
+        
         if (searchMode === 'name') {
-            whereConditions.push('LOWER(name) LIKE LOWER(?)');
-            params.push(`%${search}%`);
+            const nameConditions = searchWords.map(() => 'LOWER(name) LIKE LOWER(?)');
+            whereConditions.push('(' + nameConditions.join(' AND ') + ')');
+            searchWords.forEach(word => params.push(`%${word}%`));
         } else {
-            whereConditions.push('(LOWER(name) LIKE LOWER(?) OR LOWER(biography) LIKE LOWER(?) OR LOWER(address) LIKE LOWER(?) OR LOWER(sources) LIKE LOWER(?) OR LOWER(tags) LIKE LOWER(?))');
-            const sp = `%${search}%`;
-            params.push(sp, sp, sp, sp, sp);
+            const allConditions = searchWords.map(() => 
+                '(LOWER(name) LIKE LOWER(?) OR LOWER(biography) LIKE LOWER(?) OR LOWER(address) LIKE LOWER(?) OR LOWER(sources) LIKE LOWER(?) OR LOWER(tags) LIKE LOWER(?))'
+            );
+            whereConditions.push('(' + allConditions.join(' AND ') + ')');
+            searchWords.forEach(word => {
+                const sp = `%${word}%`;
+                params.push(sp, sp, sp, sp, sp);
+            });
         }
     }
     
@@ -324,7 +322,6 @@ app.get('/api/homes', (req, res) => {
                 pagination: { page, limit, total, totalPages, hasNext: page < totalPages, hasPrev: page > 1 }
             });
             
-
             setImmediate(() => {
                 if (global.gc) global.gc();
             });
@@ -332,12 +329,10 @@ app.get('/api/homes', (req, res) => {
     });
 });
 
-
 app.get('/api/homes/map', (req, res) => {
     db.all('SELECT id, slug, name, lat, lng FROM homes WHERE published = 1 AND lat IS NOT NULL AND lng IS NOT NULL ORDER BY name', [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         
-
         const mapData = rows.map(row => ({
             id: row.id,
             slug: row.slug,
@@ -348,13 +343,11 @@ app.get('/api/homes/map', (req, res) => {
         
         res.json(mapData);
         
-
         setImmediate(() => {
             if (global.gc) global.gc();
         });
     });
 });
-
 
 let tagsCache = null;
 let tagsCacheTime = 0;
@@ -383,7 +376,6 @@ app.get('/api/tags', (req, res) => {
     });
 });
 
-
 app.get('/api/homes/:slug', (req, res) => {
     db.get('SELECT * FROM homes WHERE slug = ? OR id = ?', [req.params.slug, req.params.slug], (err, row) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -392,7 +384,6 @@ app.get('/api/homes/:slug', (req, res) => {
         setImmediate(() => { if (global.gc) global.gc(); });
     });
 });
-
 
 app.post('/api/homes', (req, res) => {
     const home = req.body;
@@ -435,7 +426,6 @@ app.delete('/api/homes/:id', (req, res) => {
     });
 });
 
-
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 app.get('/:page.html', (req, res) => {
     const filePath = path.join(__dirname, `${req.params.page}.html`);
@@ -444,18 +434,16 @@ app.get('/:page.html', (req, res) => {
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`\n🏛️ Historic Addresses Server - NUCLEAR MEMORY MODE`);
+    console.log(`\n🏛️ Historic Addresses Server`);
     console.log(`✅ Running on port ${PORT}`);
-    console.log(`⚡ Ultra-lean mode: No caching, aggressive GC, minimal data`);
     console.log(`📊 DB: ${DB_FILE}\n`);
 });
-
 
 setInterval(() => {
     if (global.gc) {
         const before = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
         global.gc();
-        global.gc(); // Run twice
+        global.gc();
         const after = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
         console.log(`♻️ GC: ${before}MB → ${after}MB (freed ${before - after}MB)`);
     }
