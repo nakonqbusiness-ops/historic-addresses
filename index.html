@@ -1,16 +1,31 @@
 <!doctype html>
-<html lang="en" data-theme="dark">
+<html lang="bg" data-theme="dark">
 <head>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 
-<link rel="icon" type="image/png" href="/assets/img/Historyaddress.bg2.png">
-<link rel="shortcut icon" type="image/png" href="/assets/img/Historyaddress.bg2.png">
-<link rel="apple-touch-icon" href="/assets/img/Historyaddress.bg2.png">
-<meta name="msapplication-TileImage" content="/assets/img/Historyaddress.bg2.png">
+	<!-- FIXED: Proper favicon for Google Search -->
+	<link rel="icon" type="image/x-icon" href="/favicon.ico">
+	<link rel="icon" type="image/png" sizes="192x192" href="/assets/img/favicon-192.png">
+	<link rel="apple-touch-icon" sizes="180x180" href="/assets/img/apple-touch-icon.png">
 
 	<title>Адресът на историята - Начало</title>
-	<meta name="description" content="Browse historic addresses with photos, bios, addresses, and map.">
+	<meta name="description" content="Дигитален каталог на домовете, в които са живели значими български личности. Открийте адреси, снимки и истории.">
+	
+	<!-- Open Graph / Facebook -->
+	<meta property="og:type" content="website">
+	<meta property="og:url" content="https://historyaddress.bg/">
+	<meta property="og:title" content="Адресът на историята">
+	<meta property="og:description" content="Дигитален каталог на домовете, в които са живели значими български личности">
+	<meta property="og:image" content="https://historyaddress.bg/assets/img/HistAdrLogo.png">
+	
+	<!-- Twitter -->
+	<meta property="twitter:card" content="summary_large_image">
+	<meta property="twitter:url" content="https://historyaddress.bg/">
+	<meta property="twitter:title" content="Адресът на историята">
+	<meta property="twitter:description" content="Дигитален каталог на домовете, в които са живели значими български личности">
+	<meta property="twitter:image" content="https://historyaddress.bg/assets/img/HistAdrLogo.png">
+	
 	<script>
 		(function() {
 			try {
@@ -80,14 +95,12 @@
 			var stats = document.getElementById('stats');
 			var apiBase = window.location.protocol === 'file:' ? 'http://localhost:3000' : window.location.origin;
 			
-			// FIXED: Use the pagination endpoint to get total count
 			fetch(apiBase + '/api/homes?page=1&limit=1')
 				.then(function(res){ 
 					if (!res.ok) throw new Error('Server error');
 					return res.json(); 
 				})
 				.then(function(response){
-					// The API returns { data: [...], pagination: { total: X } }
 					var count = response.pagination ? response.pagination.total : 0;
 					if (stats) { 
 						stats.textContent = '📚 ' + count + ' Архивирани Адреса'; 
