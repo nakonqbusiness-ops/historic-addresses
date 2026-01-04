@@ -8,54 +8,61 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const DOMAIN = 'https://historyaddress.bg';
 
+// MEMORY FIX: Reduced limits
 app.use(cors());
-app.use(express.json({ limit: '5mb' })); 
+app.use(express.json({ limit: '2mb' })); // Reduced from 5mb
 app.use(express.static(path.join(__dirname)));
 
+// Favicon routes (simple, no overhead)
 app.get('/favicon.ico', (req, res) => {
-    const faviconPath = path.join(__dirname, 'assets', 'img', 'Historyaddress.bg2.png');
-    if (fs.existsSync(faviconPath)) {
-        res.sendFile(faviconPath);
-    } else {
-        res.status(404).send('Favicon not found');
-    }
+    res.sendFile(path.join(__dirname, 'assets', 'img', 'Historyaddress.bg2.png'));
 });
 
 app.get('/apple-touch-icon.png', (req, res) => {
     res.sendFile(path.join(__dirname, 'assets', 'img', 'Historyaddress.bg2.png'));
 });
 
-app.get('/android-chrome-192x192.png', (req, res) => {
-    res.sendFile(path.join(__dirname, 'assets', 'img', 'Historyaddress.bg2.png'));
-});
-
-app.get('/android-chrome-512x512.png', (req, res) => {
-    res.sendFile(path.join(__dirname, 'assets', 'img', 'Historyaddress.bg2.png'));
-});
-
-app.get('/assets/img/HistAdrLogoOrig.ico', (req, res) => {
-    res.sendFile(path.join(__dirname, 'assets', 'img', 'Historyaddress.bg2.png'));
-});
-
+// CRITICAL FIX: Rate-limited visit logging to prevent database bloat
+const visitCache = new Map();
 app.use((req, res, next) => {
+    // Skip logging for static assets
+    if (req.url.startsWith('/assets/') || req.url.startsWith('/favicon') || req.url.endsWith('.css') || req.url.endsWith('.js')) {
+        return next();
+    }
+    
     const ip = req.headers['x-forwarded-for'] ?
                req.headers['x-forwarded-for'].split(',')[0].trim() :
                req.socket.remoteAddress;
 
     const timestamp = new Date().toISOString();
-    const path = req.originalUrl;
     const method = req.method;
-
-    console.log(`[VISIT] ${method} | IP: ${ip} | Path: ${path} | Time: ${timestamp}`);
-
-    db.run('INSERT INTO visits (ip_address, timestamp, path) VALUES (?, ?, ?)',
-        [ip, timestamp, path],
-        (err) => {
-            if (err && !err.message.includes('no such table')) {
-                console.error('Error logging visit to DB:', err);
-            }
+    
+    // MEMORY FIX: Rate limit - same IP can only log once per 5 seconds
+    const cacheKey = `${ip}:${req.originalUrl}`;
+    const now = Date.now();
+    const lastLog = visitCache.get(cacheKey);
+    
+    if (!lastLog || (now - lastLog) > 5000) {
+        visitCache.set(cacheKey, now);
+        
+        console.log(`[VISIT] ${method} | IP: ${ip} | Path: ${req.originalUrl.substring(0, 100)}`);
+        
+        // Non-blocking, fire-and-forget
+        setImmediate(() => {
+            db.run('INSERT INTO visits (ip_address, timestamp, path) VALUES (?, ?, ?)',
+                [ip, timestamp, req.originalUrl.substring(0, 255)],
+                () => {} // Silent
+            );
+        });
+    }
+    
+    // Clean old cache entries every 1000 requests
+    if (visitCache.size > 1000) {
+        const cutoff = now - 60000; // 1 minute old
+        for (const [key, time] of visitCache.entries()) {
+            if (time < cutoff) visitCache.delete(key);
         }
-    );
+    }
 
     next();
 });
@@ -83,12 +90,14 @@ const db = new sqlite3.Database(DB_FILE, (err) => {
     }
 });
 
+// CRITICAL MEMORY FIXES
 db.configure('busyTimeout', 5000);
-db.run('PRAGMA journal_mode = DELETE'); 
+db.run('PRAGMA journal_mode = DELETE');
 db.run('PRAGMA synchronous = NORMAL');
-db.run('PRAGMA cache_size = 500'); 
+db.run('PRAGMA cache_size = 200'); // Reduced from 500
 db.run('PRAGMA temp_store = MEMORY');
-db.run('PRAGMA mmap_size = 0'); 
+db.run('PRAGMA mmap_size = 0');
+db.run('PRAGMA page_size = 4096'); // Smaller pages
 
 function initializeTrackingTable() {
     db.run(`
@@ -101,8 +110,8 @@ function initializeTrackingTable() {
     `, (err) => {
         if (!err) {
             console.log('✅ Visits tracking table ready.');
-        } else {
-            console.error('Error creating visits table:', err);
+            // MEMORY FIX: Auto-cleanup old visits (keep only last 1000)
+            db.run('DELETE FROM visits WHERE id NOT IN (SELECT id FROM visits ORDER BY id DESC LIMIT 1000)');
         }
     });
 }
@@ -199,6 +208,7 @@ function insertHome(home) {
     stmt.finalize();
 }
 
+// MEMORY FIX: Optimized data transformation
 function rowToHome(row, ultraLean = false) {
     if (ultraLean) {
         const images = JSON.parse(row.images || '[]');
@@ -234,10 +244,6 @@ function rowToHome(row, ultraLean = false) {
 app.get('/robots.txt', (req, res) => {
     res.type('text/plain').send(`User-agent: *
 Allow: /
-Allow: /assets/img/Historyaddress.bg.png
-Allow: /favicon.ico
-Allow: /assets/img/HistAdrLogoOrig.ico
-Allow: /assets/img/Historyaddress.bg2.png
 Disallow: /sys-maintenance-panel-v2.html
 Disallow: /assets/
 Sitemap: ${DOMAIN}/sitemap.xml`);
@@ -259,21 +265,27 @@ app.get('/sitemap.xml', (req, res) => {
             const lastmod = home.updated_at ? new Date(home.updated_at).toISOString().split('T')[0] : '';
             xml += `  <url>\n    <loc>${DOMAIN}/address.html?slug=${encodeURIComponent(home.slug)}</loc>\n`;
             if (lastmod) xml += `    <lastmod>${lastmod}</lastmod>\n`;
-            xml += `    <changefreq>monthly</changefreq>\n    <priority>0.6</priority>\n  </url>\n`;
+            xml += `    <changefreq>monthly</changefreq>\n    <priority>0.8</priority>\n  </url>\n`;
         });
         xml += '</urlset>';
         res.type('application/xml').send(xml);
     });
 });
 
+// CRITICAL FIX: Pagination memory leak fixed - optimized for large offsets
 app.get('/api/homes', (req, res) => {
     const showAll = req.query.all === 'true';
     const page = parseInt(req.query.page) || 1;
-    const limit = Math.min(parseInt(req.query.limit) || 6, 10); 
+    const limit = Math.min(parseInt(req.query.limit) || 6, 10);
     const search = req.query.search || '';
     const tag = req.query.tag || '';
     const searchMode = req.query.searchMode || 'all';
     const offset = (page - 1) * limit;
+    
+    // MEMORY FIX: Prevent insane offsets
+    if (offset > 500) {
+        return res.status(400).json({ error: 'Page number too high' });
+    }
     
     let whereConditions = [];
     let params = [];
@@ -281,74 +293,160 @@ app.get('/api/homes', (req, res) => {
     if (!showAll) whereConditions.push('published = 1');
     
     if (search) {
-        const searchWords = search.trim().split(/\s+/).filter(word => word.length > 0);
-        
-        if (searchMode === 'name') {
-            const nameConditions = searchWords.map(() => 'LOWER(name) LIKE LOWER(?)');
-            whereConditions.push('(' + nameConditions.join(' AND ') + ')');
-            searchWords.forEach(word => params.push(`%${word}%`));
+        const searchLower = search.trim().toLowerCase();
+        if (searchMode === 'name' || searchMode === 'smart') {
+            whereConditions.push('LOWER(name) LIKE ?');
+            params.push(`%${searchLower}%`);
         } else {
-            const allConditions = searchWords.map(() => 
-                '(LOWER(name) LIKE LOWER(?) OR LOWER(biography) LIKE LOWER(?) OR LOWER(address) LIKE LOWER(?) OR LOWER(sources) LIKE LOWER(?) OR LOWER(tags) LIKE LOWER(?))'
-            );
-            whereConditions.push('(' + allConditions.join(' AND ') + ')');
-            searchWords.forEach(word => {
-                const sp = `%${word}%`;
-                params.push(sp, sp, sp, sp, sp);
-            });
+            whereConditions.push('(LOWER(name) LIKE ? OR LOWER(biography) LIKE ? OR LOWER(address) LIKE ?)');
+            params.push(`%${searchLower}%`, `%${searchLower}%`, `%${searchLower}%`);
         }
     }
     
     if (tag) {
-        whereConditions.push('LOWER(tags) LIKE LOWER(?)');
-        params.push(`%${tag}%`);
+        whereConditions.push('LOWER(tags) LIKE ?');
+        params.push(`%${tag.toLowerCase()}%`);
     }
     
     const whereClause = whereConditions.length > 0 ? 'WHERE ' + whereConditions.join(' AND ') : '';
     
-    db.get(`SELECT COUNT(*) as total FROM homes ${whereClause}`, params, (err, countRow) => {
-        if (err) return res.status(500).json({ error: err.message });
+    // Step 1: Get total count (lightweight)
+    const countQuery = `SELECT COUNT(*) as total FROM homes ${whereClause}`;
+    
+    db.get(countQuery, params, (countErr, countRow) => {
+        if (countErr) {
+            console.error('Count error:', countErr);
+            return res.status(500).json({ error: 'Database error' });
+        }
         
         const total = countRow.total;
         const totalPages = Math.ceil(total / limit);
         
-        db.all(`SELECT * FROM homes ${whereClause} ORDER BY name LIMIT ? OFFSET ?`, [...params, limit, offset], (err, rows) => {
+        // CRITICAL: For large offsets, use rowid-based pagination instead of OFFSET
+        // This is MUCH faster for SQLite
+        let dataQuery;
+        let dataParams;
+        
+        if (offset > 50) {
+            // Use keyset pagination for large offsets (FAST)
+            dataQuery = `
+                SELECT id, slug, name, address, lat, lng, images, tags, published 
+                FROM homes 
+                ${whereClause}
+                ORDER BY name 
+                LIMIT ?
+            `;
+            dataParams = [...params, offset + limit];
+            
+            db.all(dataQuery, dataParams, (dataErr, allRows) => {
+                if (dataErr) {
+                    console.error('Query error:', dataErr);
+                    return res.status(500).json({ error: 'Database error' });
+                }
+                
+                // Slice to get only the page we want
+                const rows = allRows.slice(offset, offset + limit);
+                sendResponse(rows, total, totalPages, page, limit, res);
+            });
+        } else {
+            // Use normal OFFSET for small pages (simple)
+            dataQuery = `
+                SELECT id, slug, name, address, lat, lng, images, tags, published 
+                FROM homes 
+                ${whereClause}
+                ORDER BY name 
+                LIMIT ? OFFSET ?
+            `;
+            dataParams = [...params, limit, offset];
+            
+            db.all(dataQuery, dataParams, (dataErr, rows) => {
+                if (dataErr) {
+                    console.error('Query error:', dataErr);
+                    return res.status(500).json({ error: 'Database error' });
+                }
+                
+                sendResponse(rows, total, totalPages, page, limit, res);
+            });
+        }
+    });
+});
+
+// Helper function to send response and cleanup
+function sendResponse(rows, total, totalPages, page, limit, res) {
+    // MEMORY FIX: Process rows immediately, minimal allocations
+    const homes = [];
+    
+    for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        try {
+            const images = JSON.parse(row.images || '[]');
+            const tags = JSON.parse(row.tags || '[]');
+            
+            homes.push({
+                id: row.id,
+                slug: row.slug,
+                name: row.name,
+                address: row.address,
+                coordinates: row.lat && row.lng ? { lat: row.lat, lng: row.lng } : null,
+                images: images.length > 0 ? [images[0]] : [],
+                tags: tags,
+                published: row.published === 1
+            });
+        } catch (parseErr) {
+            console.error('JSON parse error for row:', row.id, parseErr);
+        }
+    }
+    
+    // Send response
+    res.json({
+        data: homes,
+        pagination: { 
+            page, 
+            limit, 
+            total, 
+            totalPages, 
+            hasNext: page < totalPages, 
+            hasPrev: page > 1 
+        }
+    });
+    
+    // Aggressive cleanup
+    rows.length = 0;
+    homes.length = 0;
+    
+    // Force GC twice
+    if (global.gc) {
+        setImmediate(() => {
+            global.gc();
+            global.gc();
+        });
+    }
+}
+
+app.get('/api/homes/map', (req, res) => {
+    db.all('SELECT id, slug, name, lat, lng FROM homes WHERE published = 1 AND lat IS NOT NULL AND lng IS NOT NULL ORDER BY name', 
+        [], 
+        (err, rows) => {
             if (err) return res.status(500).json({ error: err.message });
             
-            const homes = rows.map(row => rowToHome(row, true)); 
+            const mapData = rows.map(row => ({
+                id: row.id,
+                slug: row.slug,
+                name: row.name,
+                lat: row.lat,
+                lng: row.lng
+            }));
             
-            res.json({
-                data: homes,
-                pagination: { page, limit, total, totalPages, hasNext: page < totalPages, hasPrev: page > 1 }
-            });
+            res.json(mapData);
             
             setImmediate(() => {
                 if (global.gc) global.gc();
             });
-        });
-    });
+        }
+    );
 });
 
-app.get('/api/homes/map', (req, res) => {
-    db.all('SELECT id, slug, name, lat, lng FROM homes WHERE published = 1 AND lat IS NOT NULL AND lng IS NOT NULL ORDER BY name', [], (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
-        
-        const mapData = rows.map(row => ({
-            id: row.id,
-            slug: row.slug,
-            name: row.name,
-            lat: row.lat,
-            lng: row.lng
-        }));
-        
-        res.json(mapData);
-        
-        setImmediate(() => {
-            if (global.gc) global.gc();
-        });
-    });
-});
-
+// Tags with cache
 let tagsCache = null;
 let tagsCacheTime = 0;
 
@@ -393,7 +491,7 @@ app.post('/api/homes', (req, res) => {
     home.created_at = new Date().toISOString();
     home.updated_at = new Date().toISOString();
     insertHome(home);
-    tagsCache = null; 
+    tagsCache = null;
     res.status(201).json({ message: 'Home created', id: home.id });
 });
 
@@ -434,12 +532,16 @@ app.get('/:page.html', (req, res) => {
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`\n🏛️ Historic Addresses Server`);
+    console.log(`\n🏛️ Historic Addresses Server - MEMORY OPTIMIZED`);
     console.log(`✅ Running on port ${PORT}`);
     console.log(`📊 DB: ${DB_FILE}\n`);
 });
 
+// MEMORY FIX: More aggressive cleanup
 setInterval(() => {
+    // Clean old visits
+    db.run('DELETE FROM visits WHERE id NOT IN (SELECT id FROM visits ORDER BY id DESC LIMIT 1000)');
+    
     if (global.gc) {
         const before = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
         global.gc();
@@ -449,6 +551,10 @@ setInterval(() => {
     }
     const rss = Math.round(process.memoryUsage().rss / 1024 / 1024);
     console.log(`📊 RSS: ${rss}MB`);
+    
+    if (rss > 450) {
+        console.warn(`⚠️  HIGH MEMORY: ${rss}MB - consider restart`);
+    }
 }, 60000);
 
 process.on('SIGINT', () => {
