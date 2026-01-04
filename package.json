@@ -4,7 +4,7 @@
 	"description": "Historic Homes website with database backend",
 	"main": "server.js",
 	"scripts": {
-		"start": "node server.js",
+		"start": "node --expose-gc server.js",
 		"dev": "nodemon server.js"
 	},
 	"keywords": ["historic", "homes", "vintage"],
