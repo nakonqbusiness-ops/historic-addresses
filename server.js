@@ -9,16 +9,11 @@ const PORT = process.env.PORT || 3000;
 const DOMAIN = 'https://historyaddress.bg';
 
 app.use(cors());
-app.use(express.json({ limit: '5mb' })); 
-app.use(express.static(path.join(__dirname)));
+app.use(express.json({ limit: '2mb' }));
+app.use(express.static(path.join(__dirname), { maxAge: 0 }));
 
 app.get('/favicon.ico', (req, res) => {
-    const faviconPath = path.join(__dirname, 'assets', 'img', 'Historyaddress.bg2.png');
-    if (fs.existsSync(faviconPath)) {
-        res.sendFile(faviconPath);
-    } else {
-        res.status(404).send('Favicon not found');
-    }
+    res.sendFile(path.join(__dirname, 'assets', 'img', 'Historyaddress.bg2.png'));
 });
 
 app.get('/apple-touch-icon.png', (req, res) => {
@@ -37,48 +32,28 @@ app.get('/assets/img/HistAdrLogoOrig.ico', (req, res) => {
     res.sendFile(path.join(__dirname, 'assets', 'img', 'Historyaddress.bg2.png'));
 });
 
-app.use((req, res, next) => {
-    if (req.path.match(/\.(css|js|jpg|jpeg|png|gif|svg|ico|woff|woff2|ttf|eot|webp|map)$/i)) {
-        return next();
-    }
-    
-    const ip = req.headers['x-forwarded-for'] ?
-               req.headers['x-forwarded-for'].split(',')[0].trim() :
-               req.socket.remoteAddress;
-
-    console.log(`[${new Date().toISOString().slice(11,19)}] ${req.method} ${ip} → ${req.originalUrl}`);
-    
-    next();
-});
-
 const DB_DIR = process.env.RENDER ? '/data' : '.';
 const DB_FILE = path.join(DB_DIR, 'database.db');
 
 if (process.env.RENDER && !fs.existsSync(DB_DIR)) {
-    try {
-        fs.mkdirSync(DB_DIR, { recursive: true });
-        console.log(`✅ Created persistent data directory: ${DB_DIR}`);
-    } catch (e) {
-        console.error('CRITICAL ERROR:', e);
-        process.exit(1);
-    }
+    fs.mkdirSync(DB_DIR, { recursive: true });
 }
 
 const db = new sqlite3.Database(DB_FILE, (err) => {
     if (err) {
-        console.error('Error opening database:', err);
-    } else {
-        console.log('Connected to SQLite database');
-        initializeDatabase();
+        console.error('DB Error:', err);
+        process.exit(1);
     }
+    console.log('✅ DB Connected');
+    initializeDatabase();
 });
 
-db.configure('busyTimeout', 5000);
-db.run('PRAGMA journal_mode = DELETE'); 
-db.run('PRAGMA synchronous = NORMAL');
-db.run('PRAGMA cache_size = 500'); 
+db.configure('busyTimeout', 10000);
+db.run('PRAGMA journal_mode = MEMORY');
+db.run('PRAGMA synchronous = OFF');
+db.run('PRAGMA cache_size = 200');
 db.run('PRAGMA temp_store = MEMORY');
-db.run('PRAGMA mmap_size = 0'); 
+db.run('PRAGMA mmap_size = 0');
 
 function initializeDatabase() {
     db.run(`
@@ -101,12 +76,10 @@ function initializeDatabase() {
         )
     `, (err) => {
         if (err) {
-            console.error('Error creating table:', err);
+            console.error('Table Error:', err);
         } else {
-            console.log('Database table ready');
             db.run('CREATE INDEX IF NOT EXISTS idx_homes_published ON homes(published)');
             db.run('CREATE INDEX IF NOT EXISTS idx_homes_slug ON homes(slug)');
-            db.run('CREATE INDEX IF NOT EXISTS idx_homes_name ON homes(name)');
             checkAndMigrateSchema();
         }
     });
@@ -115,15 +88,12 @@ function initializeDatabase() {
 function checkAndMigrateSchema() {
     db.all("PRAGMA table_info(homes)", (err, columns) => {
         if (err) {
-            console.error('Error checking columns:', err);
             importInitialData();
             return;
         }
         const columnNames = columns.map(col => col.name);
         if (!columnNames.includes('portrait_url')) {
-            db.run('ALTER TABLE homes ADD COLUMN portrait_url TEXT', (err) => {
-                if (err) console.error('Migration failed:', err);
-                else console.log('✅ Added portrait_url column');
+            db.run('ALTER TABLE homes ADD COLUMN portrait_url TEXT', () => {
                 importInitialData();
             });
         } else {
@@ -147,7 +117,7 @@ function importInitialData() {
                 }
             }
         } catch (error) {
-            console.error('Error importing data:', error);
+            console.error('Import Error:', error);
         }
     });
 }
@@ -207,10 +177,6 @@ function rowToHome(row, ultraLean = false) {
 app.get('/robots.txt', (req, res) => {
     res.type('text/plain').send(`User-agent: *
 Allow: /
-Allow: /assets/img/Historyaddress.bg.png
-Allow: /favicon.ico
-Allow: /assets/img/HistAdrLogoOrig.ico
-Allow: /assets/img/Historyaddress.bg2.png
 Disallow: /sys-maintenance-panel-v2.html
 Disallow: /assets/
 Sitemap: ${DOMAIN}/sitemap.xml`);
@@ -242,7 +208,7 @@ app.get('/sitemap.xml', (req, res) => {
 app.get('/api/homes', (req, res) => {
     const showAll = req.query.all === 'true';
     const page = parseInt(req.query.page) || 1;
-    const limit = Math.min(parseInt(req.query.limit) || 6, 10); 
+    const limit = Math.min(parseInt(req.query.limit) || 6, 6);
     const search = req.query.search || '';
     const tag = req.query.tag || '';
     const searchMode = req.query.searchMode || 'all';
@@ -254,7 +220,7 @@ app.get('/api/homes', (req, res) => {
     if (!showAll) whereConditions.push('published = 1');
     
     if (search) {
-        const searchWords = search.trim().split(/\s+/).filter(word => word.length > 0);
+        const searchWords = search.trim().split(/\s+/).filter(word => word.length > 0).slice(0, 3);
         
         if (searchMode === 'name') {
             const nameConditions = searchWords.map(() => 'LOWER(name) LIKE LOWER(?)');
@@ -288,16 +254,14 @@ app.get('/api/homes', (req, res) => {
         db.all(`SELECT * FROM homes ${whereClause} ORDER BY name LIMIT ? OFFSET ?`, [...params, limit, offset], (err, rows) => {
             if (err) return res.status(500).json({ error: err.message });
             
-            const homes = rows.map(row => rowToHome(row, true)); 
+            const homes = rows.map(row => rowToHome(row, true));
             
             res.json({
                 data: homes,
                 pagination: { page, limit, total, totalPages, hasNext: page < totalPages, hasPrev: page > 1 }
             });
             
-            setImmediate(() => {
-                if (global.gc) global.gc();
-            });
+            if (global.gc) setImmediate(() => global.gc());
         });
     });
 });
@@ -315,10 +279,7 @@ app.get('/api/homes/map', (req, res) => {
         }));
         
         res.json(mapData);
-        
-        setImmediate(() => {
-            if (global.gc) global.gc();
-        });
+        if (global.gc) setImmediate(() => global.gc());
     });
 });
 
@@ -327,7 +288,7 @@ let tagsCacheTime = 0;
 
 app.get('/api/tags', (req, res) => {
     const now = Date.now();
-    if (tagsCache && (now - tagsCacheTime) < 300000) {
+    if (tagsCache && (now - tagsCacheTime) < 600000) {
         return res.json(tagsCache);
     }
     
@@ -354,7 +315,7 @@ app.get('/api/homes/:slug', (req, res) => {
         if (err) return res.status(500).json({ error: err.message });
         if (!row) return res.status(404).json({ error: 'Home not found' });
         res.json(rowToHome(row, false));
-        setImmediate(() => { if (global.gc) global.gc(); });
+        if (global.gc) setImmediate(() => global.gc());
     });
 });
 
@@ -366,7 +327,7 @@ app.post('/api/homes', (req, res) => {
     home.created_at = new Date().toISOString();
     home.updated_at = new Date().toISOString();
     insertHome(home);
-    tagsCache = null; 
+    tagsCache = null;
     res.status(201).json({ message: 'Home created', id: home.id });
 });
 
@@ -407,28 +368,25 @@ app.get('/:page.html', (req, res) => {
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`\n🏛️ Historic Addresses Server`);
-    console.log(`✅ Running on port ${PORT}`);
-    console.log(`📊 DB: ${DB_FILE}`);
-    console.log(`🔍 IP logging: Console only (zero RAM overhead)\n`);
+    console.log(`✅ Server running on port ${PORT}`);
 });
 
 setInterval(() => {
     if (global.gc) {
-        const before = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
         global.gc();
-        global.gc();
-        const after = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
-        console.log(`♻️ GC: ${before}MB → ${after}MB (freed ${before - after}MB)`);
+        const mem = process.memoryUsage();
+        const rss = Math.round(mem.rss / 1024 / 1024);
+        if (rss > 400) {
+            console.error(`⚠️ RAM: ${rss}MB - Near limit!`);
+            global.gc();
+        }
     }
-    const rss = Math.round(process.memoryUsage().rss / 1024 / 1024);
-    console.log(`📊 RSS: ${rss}MB`);
-}, 60000);
+}, 15000);
+
+process.on('SIGTERM', () => {
+    db.close(() => process.exit(0));
+});
 
 process.on('SIGINT', () => {
-    db.close((err) => {
-        if (err) console.error(err.message);
-        console.log('\n✅ Closed');
-        process.exit(0);
-    });
+    db.close(() => process.exit(0));
 });
