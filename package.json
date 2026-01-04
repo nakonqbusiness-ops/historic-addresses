@@ -5,8 +5,7 @@
 	"main": "server.js",
 	"scripts": {
 		"start": "node --expose-gc server.js",
-		"dev": "nodemon server.js",
-		"generate-thumbs": "node generate-thumbnails.js"
+		"dev": "nodemon server.js"
 	},
 	"keywords": ["historic", "homes", "vintage"],
 	"author": "",
@@ -14,8 +13,7 @@
 	"dependencies": {
 		"express": "^4.18.2",
 		"sqlite3": "^5.1.6",
-		"cors": "^2.8.5",
-		"sharp": "^0.33.0"
+		"cors": "^2.8.5"
 	},
 	"devDependencies": {
 		"nodemon": "^3.0.1"
