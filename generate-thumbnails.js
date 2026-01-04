@@ -3,7 +3,11 @@ const fs = require('fs');
 const path = require('path');
 const sqlite3 = require('sqlite3').verbose();
 
-const db = new sqlite3.Database('./database.db');
+// CRITICAL: Use correct database path for Render
+const DB_DIR = process.env.RENDER ? '/data' : '.';
+const DB_FILE = path.join(DB_DIR, 'database.db');
+
+const db = new sqlite3.Database(DB_FILE);
 const thumbDir = path.join(__dirname, 'assets', 'img', 'thumbs');
 
 // Create thumbs directory
