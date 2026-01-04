@@ -199,21 +199,25 @@ function insertHome(home) {
     stmt.finalize();
 }
 
-// CRITICAL FIX: Minimize data sent and parsed
 function rowToHome(row, ultraLean = false) {
     if (ultraLean) {
-        // Only parse what's absolutely necessary
         let firstImage = null;
         try {
-            const images = JSON.parse(row.images || '[]');
-            firstImage = images.length > 0 ? images[0] : null;
+            const imgStr = row.images || '[]';
+            if (imgStr && imgStr !== '[]') {
+                const images = JSON.parse(imgStr);
+                firstImage = images.length > 0 ? images[0] : null;
+            }
         } catch (e) {
             firstImage = null;
         }
         
         let tags = [];
         try {
-            tags = JSON.parse(row.tags || '[]');
+            const tagStr = row.tags || '[]';
+            if (tagStr && tagStr !== '[]') {
+                tags = JSON.parse(tagStr);
+            }
         } catch (e) {
             tags = [];
         }
@@ -282,11 +286,13 @@ app.get('/sitemap.xml', (req, res) => {
     });
 });
 
-// CRITICAL FIX: Optimized query - only select what's needed for listing
+// ============================================================================
+// CRITICAL MEMORY FIX: Optimized /api/homes endpoint
+// ============================================================================
 app.get('/api/homes', (req, res) => {
     const showAll = req.query.all === 'true';
     const page = parseInt(req.query.page) || 1;
-    const limit = Math.min(parseInt(req.query.limit) || 6, 10); 
+    const limit = Math.min(parseInt(req.query.limit) || 6, 10);
     const search = req.query.search || '';
     const tag = req.query.tag || '';
     const searchMode = req.query.searchMode || 'all';
@@ -323,7 +329,7 @@ app.get('/api/homes', (req, res) => {
     
     const whereClause = whereConditions.length > 0 ? 'WHERE ' + whereConditions.join(' AND ') : '';
     
-    // CRITICAL FIX: Get count first with minimal data
+    // Step 1: Get count first with minimal overhead
     db.get(`SELECT COUNT(*) as total FROM homes ${whereClause}`, params, (err, countRow) => {
         if (err) {
             console.error('Count query error:', err);
@@ -333,7 +339,7 @@ app.get('/api/homes', (req, res) => {
         const total = countRow.total;
         const totalPages = Math.ceil(total / limit);
         
-        // CRITICAL FIX: Only select minimal columns needed for listing
+        // Step 2: ONLY select columns needed for listing (NOT biography, sources, etc.)
         const minimalQuery = `
             SELECT id, slug, name, address, lat, lng, images, tags, published 
             FROM homes ${whereClause} 
@@ -347,12 +353,13 @@ app.get('/api/homes', (req, res) => {
                 return res.status(500).json({ error: err.message });
             }
             
-            // CRITICAL FIX: Process rows immediately and release
+            // Step 3: Process rows with ultraLean mode (minimal parsing)
             const homes = rows.map(row => rowToHome(row, true));
             
-            // Clear the rows array to free memory
+            // Step 4: Clear rows array to release memory immediately
             rows = null;
             
+            // Step 5: Send response
             res.json({
                 data: homes,
                 pagination: { 
@@ -365,10 +372,12 @@ app.get('/api/homes', (req, res) => {
                 }
             });
             
-            // Force garbage collection if available
-            if (global.gc) {
-                setImmediate(() => global.gc());
-            }
+            // Step 6: Force garbage collection after response sent
+            setImmediate(() => {
+                if (global.gc) {
+                    global.gc();
+                }
+            });
         });
     });
 });
@@ -483,18 +492,21 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`📊 DB: ${DB_FILE}\n`);
 });
 
-// CRITICAL FIX: More aggressive garbage collection
+// ============================================================================
+// MORE AGGRESSIVE GARBAGE COLLECTION
+// ============================================================================
 setInterval(() => {
     if (global.gc) {
         const before = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
         global.gc();
-        global.gc();
+        global.gc(); // Double GC for thoroughness
         const after = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
         console.log(`♻️ GC: ${before}MB → ${after}MB (freed ${before - after}MB)`);
     }
     const rss = Math.round(process.memoryUsage().rss / 1024 / 1024);
-    console.log(`📊 RSS: ${rss}MB`);
-}, 30000); // Run every 30 seconds instead of 60
+    const heap = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
+    console.log(`📊 Memory - RSS: ${rss}MB | Heap: ${heap}MB`);
+}, 20000); // Run every 20 seconds
 
 process.on('SIGINT', () => {
     db.close((err) => {
