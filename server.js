@@ -43,23 +43,19 @@ app.use((req, res, next) => {
                req.socket.remoteAddress;
 
     const timestamp = new Date().toISOString();
-    const urlPath = req.originalUrl;
+    const path = req.originalUrl;
     const method = req.method;
 
-    console.log(`[VISIT] ${method} | IP: ${ip} | Path: ${urlPath} | Time: ${timestamp}`);
+    console.log(`[VISIT] ${method} | IP: ${ip} | Path: ${path} | Time: ${timestamp}`);
 
-    if (urlPath.startsWith('/api/')) {
-        setImmediate(() => {
-            db.run('INSERT INTO visits (ip_address, timestamp, path) VALUES (?, ?, ?)',
-                [ip, timestamp, urlPath],
-                (err) => {
-                    if (err && !err.message.includes('no such table')) {
-                        console.error('Error logging visit:', err);
-                    }
-                }
-            );
-        });
-    }
+    db.run('INSERT INTO visits (ip_address, timestamp, path) VALUES (?, ?, ?)',
+        [ip, timestamp, path],
+        (err) => {
+            if (err && !err.message.includes('no such table')) {
+                console.error('Error logging visit to DB:', err);
+            }
+        }
+    );
 
     next();
 });
@@ -88,12 +84,11 @@ const db = new sqlite3.Database(DB_FILE, (err) => {
 });
 
 db.configure('busyTimeout', 5000);
-db.run('PRAGMA journal_mode = WAL');
+db.run('PRAGMA journal_mode = DELETE'); 
 db.run('PRAGMA synchronous = NORMAL');
-db.run('PRAGMA cache_size = -2000');
+db.run('PRAGMA cache_size = 500'); 
 db.run('PRAGMA temp_store = MEMORY');
 db.run('PRAGMA mmap_size = 0'); 
-db.run('PRAGMA page_size = 4096');
 
 function initializeTrackingTable() {
     db.run(`
@@ -204,52 +199,20 @@ function insertHome(home) {
     stmt.finalize();
 }
 
-// ⭐ CRITICAL FIX: This is the key change - use thumbnails for listing pages!
 function rowToHome(row, ultraLean = false) {
     if (ultraLean) {
-        let firstImage = null;
-        const imgStr = row.images;
-        
-        if (imgStr && imgStr !== '[]' && imgStr.length > 2) {
-            try {
-                const parsed = JSON.parse(imgStr);
-                if (parsed && parsed.length > 0) {
-                    // ⭐⭐⭐ THIS IS THE CRITICAL LINE - Use thumbnail instead of original!
-                    // Thumbnails stored in /data/thumbs on Render (persistent storage)
-                    firstImage = {
-                        thumb: `/thumbnails/${row.id}.jpg`,  // 35KB thumbnail via custom route
-                        path: parsed[0].path,  // Keep original path for detail page
-                        alt: parsed[0].alt || row.name
-                    };
-                }
-            } catch (e) {
-                // Silent fail
-            }
-        }
-        
-        let tags = [];
-        const tagStr = row.tags;
-        if (tagStr && tagStr !== '[]' && tagStr.length > 2) {
-            try {
-                tags = JSON.parse(tagStr);
-            } catch (e) {
-                // Silent fail
-            }
-        }
-        
+        const images = JSON.parse(row.images || '[]');
         return {
             id: row.id,
             slug: row.slug,
             name: row.name,
-            address: row.address || '',
+            address: row.address,
             coordinates: row.lat && row.lng ? { lat: row.lat, lng: row.lng } : null,
-            images: firstImage ? [firstImage] : [],
-            tags: tags,
+            images: images.length > 0 ? [images[0]] : [],
+            tags: JSON.parse(row.tags || '[]'),
             published: row.published === 1
         };
     }
-    
-    // Full detail view - uses original images
     return {
         id: row.id,
         slug: row.slug,
@@ -280,18 +243,6 @@ Disallow: /assets/
 Sitemap: ${DOMAIN}/sitemap.xml`);
 });
 
-// Serve thumbnails from persistent /data directory
-app.get('/thumbnails/:filename', (req, res) => {
-    const thumbDir = process.env.RENDER ? '/data/thumbs' : path.join(__dirname, 'assets', 'img', 'thumbs');
-    const thumbPath = path.join(thumbDir, req.params.filename);
-    
-    if (fs.existsSync(thumbPath)) {
-        res.sendFile(thumbPath);
-    } else {
-        res.status(404).send('Thumbnail not found');
-    }
-});
-
 app.get('/sitemap.xml', (req, res) => {
     db.all('SELECT slug, updated_at FROM homes WHERE published = 1', [], (err, rows) => {
         if (err) return res.status(500).send('Error');
@@ -318,7 +269,7 @@ app.get('/sitemap.xml', (req, res) => {
 app.get('/api/homes', (req, res) => {
     const showAll = req.query.all === 'true';
     const page = parseInt(req.query.page) || 1;
-    const limit = Math.min(parseInt(req.query.limit) || 6, 10);
+    const limit = Math.min(parseInt(req.query.limit) || 6, 10); 
     const search = req.query.search || '';
     const tag = req.query.tag || '';
     const searchMode = req.query.searchMode || 'all';
@@ -356,87 +307,46 @@ app.get('/api/homes', (req, res) => {
     const whereClause = whereConditions.length > 0 ? 'WHERE ' + whereConditions.join(' AND ') : '';
     
     db.get(`SELECT COUNT(*) as total FROM homes ${whereClause}`, params, (err, countRow) => {
-        if (err) {
-            console.error('Count error:', err);
-            return res.status(500).json({ error: err.message });
-        }
+        if (err) return res.status(500).json({ error: err.message });
         
         const total = countRow.total;
         const totalPages = Math.ceil(total / limit);
-        countRow = null;
         
-        const minimalQuery = `
-            SELECT id, slug, name, address, lat, lng, images, tags, published 
-            FROM homes ${whereClause} 
-            ORDER BY name 
-            LIMIT ? OFFSET ?
-        `;
-        
-        const homes = [];
-        
-        db.each(
-            minimalQuery, 
-            [...params, limit, offset],
-            function(err, row) {
-                if (err) {
-                    console.error('Row error:', err);
-                    return;
-                }
-                homes.push(rowToHome(row, true));
-                row = null;
-            },
-            function(err, count) {
-                if (err) {
-                    console.error('Complete error:', err);
-                    return res.status(500).json({ error: err.message });
-                }
-                
-                res.json({
-                    data: homes,
-                    pagination: { 
-                        page, 
-                        limit, 
-                        total, 
-                        totalPages, 
-                        hasNext: page < totalPages, 
-                        hasPrev: page > 1 
-                    }
-                });
-                
-                setImmediate(() => {
-                    if (global.gc) global.gc();
-                });
-            }
-        );
+        db.all(`SELECT * FROM homes ${whereClause} ORDER BY name LIMIT ? OFFSET ?`, [...params, limit, offset], (err, rows) => {
+            if (err) return res.status(500).json({ error: err.message });
+            
+            const homes = rows.map(row => rowToHome(row, true)); 
+            
+            res.json({
+                data: homes,
+                pagination: { page, limit, total, totalPages, hasNext: page < totalPages, hasPrev: page > 1 }
+            });
+            
+            setImmediate(() => {
+                if (global.gc) global.gc();
+            });
+        });
     });
 });
 
 app.get('/api/homes/map', (req, res) => {
-    const mapData = [];
-    
-    db.each(
-        'SELECT id, slug, name, lat, lng FROM homes WHERE published = 1 AND lat IS NOT NULL AND lng IS NOT NULL ORDER BY name',
-        [],
-        function(err, row) {
-            if (!err) {
-                mapData.push({
-                    id: row.id,
-                    slug: row.slug,
-                    name: row.name,
-                    lat: row.lat,
-                    lng: row.lng
-                });
-                row = null;
-            }
-        },
-        function(err) {
-            if (err) return res.status(500).json({ error: err.message });
-            res.json(mapData);
-            setImmediate(() => {
-                if (global.gc) global.gc();
-            });
-        }
-    );
+    db.all('SELECT id, slug, name, lat, lng FROM homes WHERE published = 1 AND lat IS NOT NULL AND lng IS NOT NULL ORDER BY name', [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        
+        const mapData = rows.map(row => ({
+            id: row.id,
+            slug: row.slug,
+            name: row.name,
+            lat: row.lat,
+            lng: row.lng
+        }));
+        
+        res.json(mapData);
+        
+        setImmediate(() => {
+            if (global.gc) global.gc();
+        });
+    });
 });
 
 let tagsCache = null;
@@ -448,38 +358,29 @@ app.get('/api/tags', (req, res) => {
         return res.json(tagsCache);
     }
     
-    const tagSet = new Set();
-    
-    db.each(
-        'SELECT tags FROM homes WHERE published = 1',
-        [],
-        function(err, row) {
-            if (!err && row.tags) {
-                try {
-                    const tags = JSON.parse(row.tags);
-                    tags.forEach(tag => { if (tag) tagSet.add(String(tag)); });
-                } catch (e) {}
-            }
-            row = null;
-        },
-        function(err) {
-            if (err) return res.status(500).json({ error: err.message });
-            
-            const tagArray = Array.from(tagSet).sort((a, b) => a.localeCompare(b));
-            tagsCache = tagArray;
-            tagsCacheTime = now;
-            res.json(tagArray);
-        }
-    );
+    db.all('SELECT DISTINCT tags FROM homes WHERE published = 1', [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        
+        const tagSet = new Set();
+        rows.forEach(row => {
+            try {
+                const tags = JSON.parse(row.tags || '[]');
+                tags.forEach(tag => { if (tag) tagSet.add(String(tag)); });
+            } catch (e) {}
+        });
+        
+        const tagArray = Array.from(tagSet).sort((a, b) => a.localeCompare(b));
+        tagsCache = tagArray;
+        tagsCacheTime = now;
+        res.json(tagArray);
+    });
 });
 
 app.get('/api/homes/:slug', (req, res) => {
     db.get('SELECT * FROM homes WHERE slug = ? OR id = ?', [req.params.slug, req.params.slug], (err, row) => {
         if (err) return res.status(500).json({ error: err.message });
         if (!row) return res.status(404).json({ error: 'Home not found' });
-        const home = rowToHome(row, false);
-        row = null;
-        res.json(home);
+        res.json(rowToHome(row, false));
         setImmediate(() => { if (global.gc) global.gc(); });
     });
 });
@@ -535,30 +436,25 @@ app.get('/:page.html', (req, res) => {
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`\n🏛️ Historic Addresses Server`);
     console.log(`✅ Running on port ${PORT}`);
-    console.log(`📊 DB: ${DB_FILE}`);
-    console.log(`💾 Initial Memory: ${Math.round(process.memoryUsage().rss / 1024 / 1024)}MB RSS\n`);
+    console.log(`📊 DB: ${DB_FILE}\n`);
 });
 
 setInterval(() => {
     if (global.gc) {
-        const beforeHeap = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
-        const beforeRSS = Math.round(process.memoryUsage().rss / 1024 / 1024);
-        
+        const before = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
         global.gc();
         global.gc();
-        
-        const afterHeap = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
-        const afterRSS = Math.round(process.memoryUsage().rss / 1024 / 1024);
-        
-        console.log(`♻️ GC: Heap ${beforeHeap}→${afterHeap}MB | RSS ${beforeRSS}→${afterRSS}MB`);
+        const after = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
+        console.log(`♻️ GC: ${before}MB → ${after}MB (freed ${before - after}MB)`);
     }
-}, 15000);
+    const rss = Math.round(process.memoryUsage().rss / 1024 / 1024);
+    console.log(`📊 RSS: ${rss}MB`);
+}, 60000);
 
 process.on('SIGINT', () => {
-    console.log('\n🛑 Shutting down...');
     db.close((err) => {
         if (err) console.error(err.message);
-        console.log('✅ Database closed');
+        console.log('\n✅ Closed');
         process.exit(0);
     });
 });
