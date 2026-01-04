@@ -22,48 +22,20 @@ app.get('/apple-touch-icon.png', (req, res) => {
     res.sendFile(path.join(__dirname, 'assets', 'img', 'Historyaddress.bg2.png'));
 });
 
-// CRITICAL FIX: Rate-limited visit logging to prevent database bloat
+// TEMPORARY: DISABLE visit logging completely to test
+/*
 const visitCache = new Map();
 app.use((req, res, next) => {
-    // Skip logging for static assets
-    if (req.url.startsWith('/assets/') || req.url.startsWith('/favicon') || req.url.endsWith('.css') || req.url.endsWith('.js')) {
-        return next();
-    }
-    
-    const ip = req.headers['x-forwarded-for'] ?
-               req.headers['x-forwarded-for'].split(',')[0].trim() :
-               req.socket.remoteAddress;
+    // DISABLED FOR TESTING
+    next();
+});
+*/
 
-    const timestamp = new Date().toISOString();
-    const method = req.method;
-    
-    // MEMORY FIX: Rate limit - same IP can only log once per 5 seconds
-    const cacheKey = `${ip}:${req.originalUrl}`;
-    const now = Date.now();
-    const lastLog = visitCache.get(cacheKey);
-    
-    if (!lastLog || (now - lastLog) > 5000) {
-        visitCache.set(cacheKey, now);
-        
-        console.log(`[VISIT] ${method} | IP: ${ip} | Path: ${req.originalUrl.substring(0, 100)}`);
-        
-        // Non-blocking, fire-and-forget
-        setImmediate(() => {
-            db.run('INSERT INTO visits (ip_address, timestamp, path) VALUES (?, ?, ?)',
-                [ip, timestamp, req.originalUrl.substring(0, 255)],
-                () => {} // Silent
-            );
-        });
+// Minimal logging - console only, no database
+app.use((req, res, next) => {
+    if (req.url.startsWith('/api/homes')) {
+        console.log(`[API] ${req.method} ${req.url}`);
     }
-    
-    // Clean old cache entries every 1000 requests
-    if (visitCache.size > 1000) {
-        const cutoff = now - 60000; // 1 minute old
-        for (const [key, time] of visitCache.entries()) {
-            if (time < cutoff) visitCache.delete(key);
-        }
-    }
-
     next();
 });
 
@@ -272,19 +244,18 @@ app.get('/sitemap.xml', (req, res) => {
     });
 });
 
-// CRITICAL FIX: Pagination memory leak fixed - optimized for large offsets
+// NUCLEAR OPTION: Absolute minimal pagination - no JSON parsing in query
 app.get('/api/homes', (req, res) => {
     const showAll = req.query.all === 'true';
     const page = parseInt(req.query.page) || 1;
-    const limit = Math.min(parseInt(req.query.limit) || 6, 10);
+    const limit = 6; // FIXED at 6, no variation
     const search = req.query.search || '';
     const tag = req.query.tag || '';
-    const searchMode = req.query.searchMode || 'all';
     const offset = (page - 1) * limit;
     
-    // MEMORY FIX: Prevent insane offsets
-    if (offset > 500) {
-        return res.status(400).json({ error: 'Page number too high' });
+    // Block insane requests
+    if (page > 50 || offset > 300) {
+        return res.status(400).json({ error: 'Page limit exceeded' });
     }
     
     let whereConditions = [];
@@ -293,14 +264,8 @@ app.get('/api/homes', (req, res) => {
     if (!showAll) whereConditions.push('published = 1');
     
     if (search) {
-        const searchLower = search.trim().toLowerCase();
-        if (searchMode === 'name' || searchMode === 'smart') {
-            whereConditions.push('LOWER(name) LIKE ?');
-            params.push(`%${searchLower}%`);
-        } else {
-            whereConditions.push('(LOWER(name) LIKE ? OR LOWER(biography) LIKE ? OR LOWER(address) LIKE ?)');
-            params.push(`%${searchLower}%`, `%${searchLower}%`, `%${searchLower}%`);
-        }
+        whereConditions.push('LOWER(name) LIKE ?');
+        params.push(`%${search.trim().toLowerCase()}%`);
     }
     
     if (tag) {
@@ -310,118 +275,97 @@ app.get('/api/homes', (req, res) => {
     
     const whereClause = whereConditions.length > 0 ? 'WHERE ' + whereConditions.join(' AND ') : '';
     
-    // Step 1: Get total count (lightweight)
-    const countQuery = `SELECT COUNT(*) as total FROM homes ${whereClause}`;
-    
-    db.get(countQuery, params, (countErr, countRow) => {
-        if (countErr) {
-            console.error('Count error:', countErr);
+    // ULTRA SIMPLE: Just get count
+    db.get(`SELECT COUNT(*) as total FROM homes ${whereClause}`, params, (err, countRow) => {
+        if (err) {
+            console.error('Count error:', err);
             return res.status(500).json({ error: 'Database error' });
         }
         
-        const total = countRow.total;
+        const total = countRow ? countRow.total : 0;
         const totalPages = Math.ceil(total / limit);
         
-        // CRITICAL: For large offsets, use rowid-based pagination instead of OFFSET
-        // This is MUCH faster for SQLite
-        let dataQuery;
-        let dataParams;
+        // ULTRA SIMPLE: Minimal data, no complex JSON
+        const query = `
+            SELECT id, slug, name, address, lat, lng, images, tags
+            FROM homes 
+            ${whereClause}
+            ORDER BY name 
+            LIMIT ? OFFSET ?
+        `;
         
-        if (offset > 50) {
-            // Use keyset pagination for large offsets (FAST)
-            dataQuery = `
-                SELECT id, slug, name, address, lat, lng, images, tags, published 
-                FROM homes 
-                ${whereClause}
-                ORDER BY name 
-                LIMIT ?
-            `;
-            dataParams = [...params, offset + limit];
+        db.all(query, [...params, limit, offset], (err, rows) => {
+            if (err) {
+                console.error('Query error:', err);
+                return res.status(500).json({ error: 'Database error' });
+            }
             
-            db.all(dataQuery, dataParams, (dataErr, allRows) => {
-                if (dataErr) {
-                    console.error('Query error:', dataErr);
-                    return res.status(500).json({ error: 'Database error' });
-                }
-                
-                // Slice to get only the page we want
-                const rows = allRows.slice(offset, offset + limit);
-                sendResponse(rows, total, totalPages, page, limit, res);
-            });
-        } else {
-            // Use normal OFFSET for small pages (simple)
-            dataQuery = `
-                SELECT id, slug, name, address, lat, lng, images, tags, published 
-                FROM homes 
-                ${whereClause}
-                ORDER BY name 
-                LIMIT ? OFFSET ?
-            `;
-            dataParams = [...params, limit, offset];
+            // NUCLEAR: Minimal processing
+            const homes = [];
             
-            db.all(dataQuery, dataParams, (dataErr, rows) => {
-                if (dataErr) {
-                    console.error('Query error:', dataErr);
-                    return res.status(500).json({ error: 'Database error' });
+            try {
+                for (let i = 0; i < rows.length; i++) {
+                    const r = rows[i];
+                    
+                    // Safe image parsing
+                    let firstImage = [];
+                    try {
+                        const imgs = JSON.parse(r.images || '[]');
+                        if (imgs && imgs[0]) firstImage = [imgs[0]];
+                    } catch (e) {
+                        firstImage = [];
+                    }
+                    
+                    // Safe tags parsing
+                    let parsedTags = [];
+                    try {
+                        parsedTags = JSON.parse(r.tags || '[]');
+                    } catch (e) {
+                        parsedTags = [];
+                    }
+                    
+                    homes.push({
+                        id: r.id,
+                        slug: r.slug,
+                        name: r.name,
+                        address: r.address || '',
+                        coordinates: r.lat && r.lng ? { lat: r.lat, lng: r.lng } : null,
+                        images: firstImage,
+                        tags: parsedTags,
+                        published: true
+                    });
                 }
-                
-                sendResponse(rows, total, totalPages, page, limit, res);
+            } catch (loopErr) {
+                console.error('Processing error:', loopErr);
+                return res.status(500).json({ error: 'Processing error' });
+            }
+            
+            // Send immediately
+            res.json({
+                data: homes,
+                pagination: { 
+                    page, 
+                    limit, 
+                    total, 
+                    totalPages, 
+                    hasNext: page < totalPages, 
+                    hasPrev: page > 1 
+                }
             });
-        }
+            
+            // Cleanup
+            homes.length = 0;
+            
+            // Force GC
+            if (global.gc) {
+                setImmediate(() => {
+                    global.gc();
+                    global.gc();
+                });
+            }
+        });
     });
 });
-
-// Helper function to send response and cleanup
-function sendResponse(rows, total, totalPages, page, limit, res) {
-    // MEMORY FIX: Process rows immediately, minimal allocations
-    const homes = [];
-    
-    for (let i = 0; i < rows.length; i++) {
-        const row = rows[i];
-        try {
-            const images = JSON.parse(row.images || '[]');
-            const tags = JSON.parse(row.tags || '[]');
-            
-            homes.push({
-                id: row.id,
-                slug: row.slug,
-                name: row.name,
-                address: row.address,
-                coordinates: row.lat && row.lng ? { lat: row.lat, lng: row.lng } : null,
-                images: images.length > 0 ? [images[0]] : [],
-                tags: tags,
-                published: row.published === 1
-            });
-        } catch (parseErr) {
-            console.error('JSON parse error for row:', row.id, parseErr);
-        }
-    }
-    
-    // Send response
-    res.json({
-        data: homes,
-        pagination: { 
-            page, 
-            limit, 
-            total, 
-            totalPages, 
-            hasNext: page < totalPages, 
-            hasPrev: page > 1 
-        }
-    });
-    
-    // Aggressive cleanup
-    rows.length = 0;
-    homes.length = 0;
-    
-    // Force GC twice
-    if (global.gc) {
-        setImmediate(() => {
-            global.gc();
-            global.gc();
-        });
-    }
-}
 
 app.get('/api/homes/map', (req, res) => {
     db.all('SELECT id, slug, name, lat, lng FROM homes WHERE published = 1 AND lat IS NOT NULL AND lng IS NOT NULL ORDER BY name', 
