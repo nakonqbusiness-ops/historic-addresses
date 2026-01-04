@@ -74,9 +74,22 @@
 			padding: 2rem;
 			color: #ff6b6b;
 		}
+
+		.skeleton-card {
+			background: linear-gradient(90deg, #2a2a2a 25%, #333 50%, #2a2a2a 75%);
+			background-size: 200% 100%;
+			animation: loading 1.5s ease-in-out infinite;
+			border-radius: 8px;
+			height: 300px;
+		}
+
+		@keyframes loading {
+			0% { background-position: 200% 0; }
+			100% { background-position: -200% 0; }
+		}
 	</style>
-	<script src="assets/js/theme.js"></script>
-	<script src="assets/js/transitions.js"></script>
+	<script defer src="assets/js/theme.js"></script>
+	<script defer src="assets/js/transitions.js"></script>
 </head>
 <body>
 	<header class="site-header">
@@ -102,8 +115,15 @@
 			</select>
 		</div>
 		
-		<div class="pagination-info" id="pagination-info"></div>
-		<div id="grid" class="grid" aria-live="polite"></div>
+		<div class="pagination-info" id="pagination-info">Зареждане...</div>
+		<div id="grid" class="grid" aria-live="polite">
+			<div class="skeleton-card"></div>
+			<div class="skeleton-card"></div>
+			<div class="skeleton-card"></div>
+			<div class="skeleton-card"></div>
+			<div class="skeleton-card"></div>
+			<div class="skeleton-card"></div>
+		</div>
 		<div class="pagination" id="pagination"></div>
 	</main>
 
@@ -138,7 +158,6 @@
 						});
 						if (match) {
 							tagSel.value = match.value;
-							console.log('Set tag filter to:', match.value);
 						}
 					}
 				})
@@ -154,11 +173,9 @@
 			var searchQuery = document.getElementById('q').value.trim();
 			var tagFilter = document.getElementById('tag').value;
 			
-			// Build URL - server handles case-insensitive search already
 			var url = apiBase + '/api/homes?page=' + page + '&limit=6';
 			
 			if (searchQuery) {
-				// Just send the query as-is - server LIKE query handles partial matches
 				url += '&search=' + encodeURIComponent(searchQuery);
 				url += '&searchMode=name';
 			}
@@ -166,7 +183,8 @@
 			if (tagFilter) url += '&tag=' + encodeURIComponent(tagFilter);
 			
 			var grid = document.getElementById('grid');
-			grid.innerHTML = '<div class="loading">Зареждане...</div>';
+			
+			var startTime = performance.now();
 			
 			fetch(url)
 				.then(function(res){ 
@@ -177,6 +195,9 @@
 				})
 				.then(function(response){
 					isLoading = false;
+					
+					var loadTime = Math.round(performance.now() - startTime);
+					console.log('Loaded in ' + loadTime + 'ms');
 					
 					var homes = response.data || response;
 					var pagination = response.pagination || {
@@ -208,16 +229,11 @@
 				return;
 			}
 			
+			var fragment = document.createDocumentFragment();
+			
 			homes.forEach(function(p){
 				var slugValue = p.slug;
 				var idValue = p.id;
-
-				if (typeof slugValue !== 'string' && typeof slugValue === 'object' && slugValue !== null) {
-					console.warn('Home Name:', p.name, ' - WARNING: p.slug is an object!', slugValue);
-				}
-				if (typeof idValue !== 'string' && typeof idValue === 'object' && idValue !== null) {
-					console.warn('Home Name:', p.name, ' - WARNING: p.id is an object!', idValue);
-				}
 
 				var finalSlug = '';
 				if (typeof slugValue === 'string' && slugValue) {
@@ -231,12 +247,11 @@
 				}
 				
 				if (!finalSlug) {
-					console.error('Skipping home because neither slug nor id is a valid string/property:', p.name, p);
+					console.error('Skipping home:', p.name);
 					return; 
 				}
 
 				var placeholder = 'assets/img/placeholder.svg';
-				
 				var img = placeholder;
 				if (p.images && p.images[0]) {
 					img = p.images[0].thumb || p.images[0].path || placeholder;
@@ -249,8 +264,10 @@
 				var imgAlt = (p.images && p.images[0] && p.images[0].alt) || ('Facade of ' + p.name);
 				el.innerHTML = '<img alt="' + imgAlt + '" loading="lazy" src="' + img + '" onerror="this.onerror=null;this.src=\'' + placeholder + '\';">' +
 					'<div class="meta"><strong>' + p.name + '</strong><div class="muted">' + (p.address || '') + '</div></div>';
-				grid.appendChild(el);
+				fragment.appendChild(el);
 			});
+			
+			grid.appendChild(fragment);
 		}
 		
 		function renderPagination(pagination) {
@@ -347,13 +364,11 @@
 			};
 		}
 		
-		// Search input with debounce
 		document.getElementById('q').addEventListener('input', debounce(function() {
 			currentPage = 1;
 			loadHomes(1);
 		}, 500));
 		
-		// Enter key triggers immediate search
 		document.getElementById('q').addEventListener('keypress', function(e) {
 			if (e.key === 'Enter') {
 				clearTimeout(searchTimeout);
@@ -368,6 +383,7 @@
 		});
 		
 		document.getElementById('year').textContent = new Date().getFullYear();
+		
 		loadTags();
 		loadHomes(1);
 	})();
