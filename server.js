@@ -199,17 +199,33 @@ function insertHome(home) {
     stmt.finalize();
 }
 
+// CRITICAL FIX: Minimize data sent and parsed
 function rowToHome(row, ultraLean = false) {
     if (ultraLean) {
-        const images = JSON.parse(row.images || '[]');
+        // Only parse what's absolutely necessary
+        let firstImage = null;
+        try {
+            const images = JSON.parse(row.images || '[]');
+            firstImage = images.length > 0 ? images[0] : null;
+        } catch (e) {
+            firstImage = null;
+        }
+        
+        let tags = [];
+        try {
+            tags = JSON.parse(row.tags || '[]');
+        } catch (e) {
+            tags = [];
+        }
+        
         return {
             id: row.id,
             slug: row.slug,
             name: row.name,
-            address: row.address,
+            address: row.address || '',
             coordinates: row.lat && row.lng ? { lat: row.lat, lng: row.lng } : null,
-            images: images.length > 0 ? [images[0]] : [],
-            tags: JSON.parse(row.tags || '[]'),
+            images: firstImage ? [firstImage] : [],
+            tags: tags,
             published: row.published === 1
         };
     }
@@ -266,6 +282,7 @@ app.get('/sitemap.xml', (req, res) => {
     });
 });
 
+// CRITICAL FIX: Optimized query - only select what's needed for listing
 app.get('/api/homes', (req, res) => {
     const showAll = req.query.all === 'true';
     const page = parseInt(req.query.page) || 1;
@@ -306,25 +323,52 @@ app.get('/api/homes', (req, res) => {
     
     const whereClause = whereConditions.length > 0 ? 'WHERE ' + whereConditions.join(' AND ') : '';
     
+    // CRITICAL FIX: Get count first with minimal data
     db.get(`SELECT COUNT(*) as total FROM homes ${whereClause}`, params, (err, countRow) => {
-        if (err) return res.status(500).json({ error: err.message });
+        if (err) {
+            console.error('Count query error:', err);
+            return res.status(500).json({ error: err.message });
+        }
         
         const total = countRow.total;
         const totalPages = Math.ceil(total / limit);
         
-        db.all(`SELECT * FROM homes ${whereClause} ORDER BY name LIMIT ? OFFSET ?`, [...params, limit, offset], (err, rows) => {
-            if (err) return res.status(500).json({ error: err.message });
+        // CRITICAL FIX: Only select minimal columns needed for listing
+        const minimalQuery = `
+            SELECT id, slug, name, address, lat, lng, images, tags, published 
+            FROM homes ${whereClause} 
+            ORDER BY name 
+            LIMIT ? OFFSET ?
+        `;
+        
+        db.all(minimalQuery, [...params, limit, offset], (err, rows) => {
+            if (err) {
+                console.error('Data query error:', err);
+                return res.status(500).json({ error: err.message });
+            }
             
-            const homes = rows.map(row => rowToHome(row, true)); 
+            // CRITICAL FIX: Process rows immediately and release
+            const homes = rows.map(row => rowToHome(row, true));
+            
+            // Clear the rows array to free memory
+            rows = null;
             
             res.json({
                 data: homes,
-                pagination: { page, limit, total, totalPages, hasNext: page < totalPages, hasPrev: page > 1 }
+                pagination: { 
+                    page, 
+                    limit, 
+                    total, 
+                    totalPages, 
+                    hasNext: page < totalPages, 
+                    hasPrev: page > 1 
+                }
             });
             
-            setImmediate(() => {
-                if (global.gc) global.gc();
-            });
+            // Force garbage collection if available
+            if (global.gc) {
+                setImmediate(() => global.gc());
+            }
         });
     });
 });
@@ -439,6 +483,7 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`📊 DB: ${DB_FILE}\n`);
 });
 
+// CRITICAL FIX: More aggressive garbage collection
 setInterval(() => {
     if (global.gc) {
         const before = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
@@ -449,7 +494,7 @@ setInterval(() => {
     }
     const rss = Math.round(process.memoryUsage().rss / 1024 / 1024);
     console.log(`📊 RSS: ${rss}MB`);
-}, 60000);
+}, 30000); // Run every 30 seconds instead of 60
 
 process.on('SIGINT', () => {
     db.close((err) => {
