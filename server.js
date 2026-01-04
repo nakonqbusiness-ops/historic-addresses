@@ -38,25 +38,16 @@ app.get('/assets/img/HistAdrLogoOrig.ico', (req, res) => {
 });
 
 app.use((req, res, next) => {
+    if (req.path.match(/\.(css|js|jpg|jpeg|png|gif|svg|ico|woff|woff2|ttf|eot|webp|map)$/i)) {
+        return next();
+    }
+    
     const ip = req.headers['x-forwarded-for'] ?
                req.headers['x-forwarded-for'].split(',')[0].trim() :
                req.socket.remoteAddress;
 
-    const timestamp = new Date().toISOString();
-    const path = req.originalUrl;
-    const method = req.method;
-
-    console.log(`[VISIT] ${method} | IP: ${ip} | Path: ${path} | Time: ${timestamp}`);
-
-    db.run('INSERT INTO visits (ip_address, timestamp, path) VALUES (?, ?, ?)',
-        [ip, timestamp, path],
-        (err) => {
-            if (err && !err.message.includes('no such table')) {
-                console.error('Error logging visit to DB:', err);
-            }
-        }
-    );
-
+    console.log(`[${new Date().toISOString().slice(11,19)}] ${req.method} ${ip} → ${req.originalUrl}`);
+    
     next();
 });
 
@@ -79,7 +70,6 @@ const db = new sqlite3.Database(DB_FILE, (err) => {
     } else {
         console.log('Connected to SQLite database');
         initializeDatabase();
-        initializeTrackingTable(); 
     }
 });
 
@@ -89,23 +79,6 @@ db.run('PRAGMA synchronous = NORMAL');
 db.run('PRAGMA cache_size = 500'); 
 db.run('PRAGMA temp_store = MEMORY');
 db.run('PRAGMA mmap_size = 0'); 
-
-function initializeTrackingTable() {
-    db.run(`
-        CREATE TABLE IF NOT EXISTS visits (
-           id INTEGER PRIMARY KEY AUTOINCREMENT,
-           ip_address TEXT,
-           timestamp TEXT,
-           path TEXT
-        )
-    `, (err) => {
-        if (!err) {
-            console.log('✅ Visits tracking table ready.');
-        } else {
-            console.error('Error creating visits table:', err);
-        }
-    });
-}
 
 function initializeDatabase() {
     db.run(`
@@ -436,7 +409,8 @@ app.get('/:page.html', (req, res) => {
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`\n🏛️ Historic Addresses Server`);
     console.log(`✅ Running on port ${PORT}`);
-    console.log(`📊 DB: ${DB_FILE}\n`);
+    console.log(`📊 DB: ${DB_FILE}`);
+    console.log(`🔍 IP logging: Console only (zero RAM overhead)\n`);
 });
 
 setInterval(() => {
