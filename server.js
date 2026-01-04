@@ -8,34 +8,55 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const DOMAIN = 'https://historyaddress.bg';
 
-// MEMORY FIX: Reduced limits
 app.use(cors());
-app.use(express.json({ limit: '2mb' })); // Reduced from 5mb
+app.use(express.json({ limit: '5mb' })); 
 app.use(express.static(path.join(__dirname)));
 
-// Favicon routes (simple, no overhead)
 app.get('/favicon.ico', (req, res) => {
-    res.sendFile(path.join(__dirname, 'assets', 'img', 'Historyaddress.bg2.png'));
+    const faviconPath = path.join(__dirname, 'assets', 'img', 'Historyaddress.bg2.png');
+    if (fs.existsSync(faviconPath)) {
+        res.sendFile(faviconPath);
+    } else {
+        res.status(404).send('Favicon not found');
+    }
 });
 
 app.get('/apple-touch-icon.png', (req, res) => {
     res.sendFile(path.join(__dirname, 'assets', 'img', 'Historyaddress.bg2.png'));
 });
 
-// TEMPORARY: DISABLE visit logging completely to test
-/*
-const visitCache = new Map();
-app.use((req, res, next) => {
-    // DISABLED FOR TESTING
-    next();
+app.get('/android-chrome-192x192.png', (req, res) => {
+    res.sendFile(path.join(__dirname, 'assets', 'img', 'Historyaddress.bg2.png'));
 });
-*/
 
-// Minimal logging - console only, no database
+app.get('/android-chrome-512x512.png', (req, res) => {
+    res.sendFile(path.join(__dirname, 'assets', 'img', 'Historyaddress.bg2.png'));
+});
+
+app.get('/assets/img/HistAdrLogoOrig.ico', (req, res) => {
+    res.sendFile(path.join(__dirname, 'assets', 'img', 'Historyaddress.bg2.png'));
+});
+
 app.use((req, res, next) => {
-    if (req.url.startsWith('/api/homes')) {
-        console.log(`[API] ${req.method} ${req.url}`);
-    }
+    const ip = req.headers['x-forwarded-for'] ?
+               req.headers['x-forwarded-for'].split(',')[0].trim() :
+               req.socket.remoteAddress;
+
+    const timestamp = new Date().toISOString();
+    const path = req.originalUrl;
+    const method = req.method;
+
+    console.log(`[VISIT] ${method} | IP: ${ip} | Path: ${path} | Time: ${timestamp}`);
+
+    db.run('INSERT INTO visits (ip_address, timestamp, path) VALUES (?, ?, ?)',
+        [ip, timestamp, path],
+        (err) => {
+            if (err && !err.message.includes('no such table')) {
+                console.error('Error logging visit to DB:', err);
+            }
+        }
+    );
+
     next();
 });
 
@@ -62,14 +83,12 @@ const db = new sqlite3.Database(DB_FILE, (err) => {
     }
 });
 
-// CRITICAL MEMORY FIXES
 db.configure('busyTimeout', 5000);
-db.run('PRAGMA journal_mode = DELETE');
+db.run('PRAGMA journal_mode = DELETE'); 
 db.run('PRAGMA synchronous = NORMAL');
-db.run('PRAGMA cache_size = 200'); // Reduced from 500
+db.run('PRAGMA cache_size = 500'); 
 db.run('PRAGMA temp_store = MEMORY');
-db.run('PRAGMA mmap_size = 0');
-db.run('PRAGMA page_size = 4096'); // Smaller pages
+db.run('PRAGMA mmap_size = 0'); 
 
 function initializeTrackingTable() {
     db.run(`
@@ -82,8 +101,8 @@ function initializeTrackingTable() {
     `, (err) => {
         if (!err) {
             console.log('✅ Visits tracking table ready.');
-            // MEMORY FIX: Auto-cleanup old visits (keep only last 1000)
-            db.run('DELETE FROM visits WHERE id NOT IN (SELECT id FROM visits ORDER BY id DESC LIMIT 1000)');
+        } else {
+            console.error('Error creating visits table:', err);
         }
     });
 }
@@ -180,7 +199,6 @@ function insertHome(home) {
     stmt.finalize();
 }
 
-// MEMORY FIX: Optimized data transformation
 function rowToHome(row, ultraLean = false) {
     if (ultraLean) {
         const images = JSON.parse(row.images || '[]');
@@ -216,6 +234,10 @@ function rowToHome(row, ultraLean = false) {
 app.get('/robots.txt', (req, res) => {
     res.type('text/plain').send(`User-agent: *
 Allow: /
+Allow: /assets/img/Historyaddress.bg.png
+Allow: /favicon.ico
+Allow: /assets/img/HistAdrLogoOrig.ico
+Allow: /assets/img/Historyaddress.bg2.png
 Disallow: /sys-maintenance-panel-v2.html
 Disallow: /assets/
 Sitemap: ${DOMAIN}/sitemap.xml`);
@@ -237,26 +259,21 @@ app.get('/sitemap.xml', (req, res) => {
             const lastmod = home.updated_at ? new Date(home.updated_at).toISOString().split('T')[0] : '';
             xml += `  <url>\n    <loc>${DOMAIN}/address.html?slug=${encodeURIComponent(home.slug)}</loc>\n`;
             if (lastmod) xml += `    <lastmod>${lastmod}</lastmod>\n`;
-            xml += `    <changefreq>monthly</changefreq>\n    <priority>0.8</priority>\n  </url>\n`;
+            xml += `    <changefreq>monthly</changefreq>\n    <priority>0.6</priority>\n  </url>\n`;
         });
         xml += '</urlset>';
         res.type('application/xml').send(xml);
     });
 });
 
-// NUCLEAR OPTION: Absolute minimal pagination - no JSON parsing in query
 app.get('/api/homes', (req, res) => {
     const showAll = req.query.all === 'true';
     const page = parseInt(req.query.page) || 1;
-    const limit = 6; // FIXED at 6, no variation
+    const limit = Math.min(parseInt(req.query.limit) || 6, 10); 
     const search = req.query.search || '';
     const tag = req.query.tag || '';
+    const searchMode = req.query.searchMode || 'all';
     const offset = (page - 1) * limit;
-    
-    // Block insane requests
-    if (page > 50 || offset > 300) {
-        return res.status(400).json({ error: 'Page limit exceeded' });
-    }
     
     let whereConditions = [];
     let params = [];
@@ -264,133 +281,74 @@ app.get('/api/homes', (req, res) => {
     if (!showAll) whereConditions.push('published = 1');
     
     if (search) {
-        whereConditions.push('LOWER(name) LIKE ?');
-        params.push(`%${search.trim().toLowerCase()}%`);
+        const searchWords = search.trim().split(/\s+/).filter(word => word.length > 0);
+        
+        if (searchMode === 'name') {
+            const nameConditions = searchWords.map(() => 'LOWER(name) LIKE LOWER(?)');
+            whereConditions.push('(' + nameConditions.join(' AND ') + ')');
+            searchWords.forEach(word => params.push(`%${word}%`));
+        } else {
+            const allConditions = searchWords.map(() => 
+                '(LOWER(name) LIKE LOWER(?) OR LOWER(biography) LIKE LOWER(?) OR LOWER(address) LIKE LOWER(?) OR LOWER(sources) LIKE LOWER(?) OR LOWER(tags) LIKE LOWER(?))'
+            );
+            whereConditions.push('(' + allConditions.join(' AND ') + ')');
+            searchWords.forEach(word => {
+                const sp = `%${word}%`;
+                params.push(sp, sp, sp, sp, sp);
+            });
+        }
     }
     
     if (tag) {
-        whereConditions.push('LOWER(tags) LIKE ?');
-        params.push(`%${tag.toLowerCase()}%`);
+        whereConditions.push('LOWER(tags) LIKE LOWER(?)');
+        params.push(`%${tag}%`);
     }
     
     const whereClause = whereConditions.length > 0 ? 'WHERE ' + whereConditions.join(' AND ') : '';
     
-    // ULTRA SIMPLE: Just get count
     db.get(`SELECT COUNT(*) as total FROM homes ${whereClause}`, params, (err, countRow) => {
-        if (err) {
-            console.error('Count error:', err);
-            return res.status(500).json({ error: 'Database error' });
-        }
+        if (err) return res.status(500).json({ error: err.message });
         
-        const total = countRow ? countRow.total : 0;
+        const total = countRow.total;
         const totalPages = Math.ceil(total / limit);
         
-        // ULTRA SIMPLE: Minimal data, no complex JSON
-        const query = `
-            SELECT id, slug, name, address, lat, lng, images, tags
-            FROM homes 
-            ${whereClause}
-            ORDER BY name 
-            LIMIT ? OFFSET ?
-        `;
-        
-        db.all(query, [...params, limit, offset], (err, rows) => {
-            if (err) {
-                console.error('Query error:', err);
-                return res.status(500).json({ error: 'Database error' });
-            }
+        db.all(`SELECT * FROM homes ${whereClause} ORDER BY name LIMIT ? OFFSET ?`, [...params, limit, offset], (err, rows) => {
+            if (err) return res.status(500).json({ error: err.message });
             
-            // NUCLEAR: Minimal processing
-            const homes = [];
+            const homes = rows.map(row => rowToHome(row, true)); 
             
-            try {
-                for (let i = 0; i < rows.length; i++) {
-                    const r = rows[i];
-                    
-                    // Safe image parsing
-                    let firstImage = [];
-                    try {
-                        const imgs = JSON.parse(r.images || '[]');
-                        if (imgs && imgs[0]) firstImage = [imgs[0]];
-                    } catch (e) {
-                        firstImage = [];
-                    }
-                    
-                    // Safe tags parsing
-                    let parsedTags = [];
-                    try {
-                        parsedTags = JSON.parse(r.tags || '[]');
-                    } catch (e) {
-                        parsedTags = [];
-                    }
-                    
-                    homes.push({
-                        id: r.id,
-                        slug: r.slug,
-                        name: r.name,
-                        address: r.address || '',
-                        coordinates: r.lat && r.lng ? { lat: r.lat, lng: r.lng } : null,
-                        images: firstImage,
-                        tags: parsedTags,
-                        published: true
-                    });
-                }
-            } catch (loopErr) {
-                console.error('Processing error:', loopErr);
-                return res.status(500).json({ error: 'Processing error' });
-            }
-            
-            // Send immediately
             res.json({
                 data: homes,
-                pagination: { 
-                    page, 
-                    limit, 
-                    total, 
-                    totalPages, 
-                    hasNext: page < totalPages, 
-                    hasPrev: page > 1 
-                }
+                pagination: { page, limit, total, totalPages, hasNext: page < totalPages, hasPrev: page > 1 }
             });
             
-            // Cleanup
-            homes.length = 0;
-            
-            // Force GC
-            if (global.gc) {
-                setImmediate(() => {
-                    global.gc();
-                    global.gc();
-                });
-            }
+            setImmediate(() => {
+                if (global.gc) global.gc();
+            });
         });
     });
 });
 
 app.get('/api/homes/map', (req, res) => {
-    db.all('SELECT id, slug, name, lat, lng FROM homes WHERE published = 1 AND lat IS NOT NULL AND lng IS NOT NULL ORDER BY name', 
-        [], 
-        (err, rows) => {
-            if (err) return res.status(500).json({ error: err.message });
-            
-            const mapData = rows.map(row => ({
-                id: row.id,
-                slug: row.slug,
-                name: row.name,
-                lat: row.lat,
-                lng: row.lng
-            }));
-            
-            res.json(mapData);
-            
-            setImmediate(() => {
-                if (global.gc) global.gc();
-            });
-        }
-    );
+    db.all('SELECT id, slug, name, lat, lng FROM homes WHERE published = 1 AND lat IS NOT NULL AND lng IS NOT NULL ORDER BY name', [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        
+        const mapData = rows.map(row => ({
+            id: row.id,
+            slug: row.slug,
+            name: row.name,
+            lat: row.lat,
+            lng: row.lng
+        }));
+        
+        res.json(mapData);
+        
+        setImmediate(() => {
+            if (global.gc) global.gc();
+        });
+    });
 });
 
-// Tags with cache
 let tagsCache = null;
 let tagsCacheTime = 0;
 
@@ -435,7 +393,7 @@ app.post('/api/homes', (req, res) => {
     home.created_at = new Date().toISOString();
     home.updated_at = new Date().toISOString();
     insertHome(home);
-    tagsCache = null;
+    tagsCache = null; 
     res.status(201).json({ message: 'Home created', id: home.id });
 });
 
@@ -476,16 +434,12 @@ app.get('/:page.html', (req, res) => {
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`\n🏛️ Historic Addresses Server - MEMORY OPTIMIZED`);
+    console.log(`\n🏛️ Historic Addresses Server`);
     console.log(`✅ Running on port ${PORT}`);
     console.log(`📊 DB: ${DB_FILE}\n`);
 });
 
-// MEMORY FIX: More aggressive cleanup
 setInterval(() => {
-    // Clean old visits
-    db.run('DELETE FROM visits WHERE id NOT IN (SELECT id FROM visits ORDER BY id DESC LIMIT 1000)');
-    
     if (global.gc) {
         const before = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
         global.gc();
@@ -495,10 +449,6 @@ setInterval(() => {
     }
     const rss = Math.round(process.memoryUsage().rss / 1024 / 1024);
     console.log(`📊 RSS: ${rss}MB`);
-    
-    if (rss > 450) {
-        console.warn(`⚠️  HIGH MEMORY: ${rss}MB - consider restart`);
-    }
 }, 60000);
 
 process.on('SIGINT', () => {
