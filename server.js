@@ -215,8 +215,9 @@ function rowToHome(row, ultraLean = false) {
                 const parsed = JSON.parse(imgStr);
                 if (parsed && parsed.length > 0) {
                     // ⭐⭐⭐ THIS IS THE CRITICAL LINE - Use thumbnail instead of original!
+                    // Thumbnails stored in /data/thumbs on Render (persistent storage)
                     firstImage = {
-                        thumb: `/assets/img/thumbs/${row.id}.jpg`,  // 35KB thumbnail
+                        thumb: `/thumbnails/${row.id}.jpg`,  // 35KB thumbnail via custom route
                         path: parsed[0].path,  // Keep original path for detail page
                         alt: parsed[0].alt || row.name
                     };
@@ -277,6 +278,18 @@ Allow: /assets/img/Historyaddress.bg2.png
 Disallow: /sys-maintenance-panel-v2.html
 Disallow: /assets/
 Sitemap: ${DOMAIN}/sitemap.xml`);
+});
+
+// Serve thumbnails from persistent /data directory
+app.get('/thumbnails/:filename', (req, res) => {
+    const thumbDir = process.env.RENDER ? '/data/thumbs' : path.join(__dirname, 'assets', 'img', 'thumbs');
+    const thumbPath = path.join(thumbDir, req.params.filename);
+    
+    if (fs.existsSync(thumbPath)) {
+        res.sendFile(thumbPath);
+    } else {
+        res.status(404).send('Thumbnail not found');
+    }
 });
 
 app.get('/sitemap.xml', (req, res) => {
