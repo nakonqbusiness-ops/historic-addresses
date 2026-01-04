@@ -27,56 +27,33 @@
 			display: flex;
 			justify-content: center;
 			align-items: center;
-			gap: 0.5rem;
-			margin: 2rem 0;
+			gap: 12px;
+			margin: 24px 0;
 			flex-wrap: wrap;
 		}
-		
 		.pagination button {
+			min-width: 60px;
 			padding: 0.5rem 1rem;
 			border: 1px solid var(--border-color, #444);
 			background: var(--bg-secondary, #2a2a2a);
 			color: var(--text-color, #fff);
 			cursor: pointer;
 			border-radius: 4px;
-			transition: all 0.2s;
 		}
-		
 		.pagination button:hover:not(:disabled) {
 			background: var(--primary-color, #007bff);
-			border-color: var(--primary-color, #007bff);
 		}
-		
 		.pagination button:disabled {
 			opacity: 0.5;
 			cursor: not-allowed;
 		}
-		
-		.pagination button.active {
-			background: var(--primary-color, #007bff);
-			border-color: var(--primary-color, #007bff);
-			font-weight: bold;
-		}
-		
-		.pagination-info {
+		.page-info {
+			padding: 8px 16px;
 			color: var(--text-muted, #999);
-			font-size: 0.9rem;
-		}
-		
-		.loading {
-			text-align: center;
-			padding: 2rem;
-			color: var(--text-muted, #999);
-		}
-		
-		.error-message {
-			text-align: center;
-			padding: 2rem;
-			color: #ff6b6b;
 		}
 	</style>
-	<script src="assets/js/theme.js"></script>
-	<script src="assets/js/transitions.js"></script>
+	<script defer src="assets/js/theme.js"></script>
+	<script defer src="assets/js/transitions.js"></script>
 </head>
 <body>
 	<header class="site-header">
@@ -102,9 +79,15 @@
 			</select>
 		</div>
 		
-		<div class="pagination-info" id="pagination-info"></div>
 		<div id="grid" class="grid" aria-live="polite"></div>
-		<div class="pagination" id="pagination"></div>
+		
+		<div class="pagination">
+			<button id="firstPage" class="theme-toggle">First</button>
+			<button id="prevPage" class="theme-toggle">Previous</button>
+			<span class="page-info" id="pageInfo">Page 1 of 1</span>
+			<button id="nextPage" class="theme-toggle">Next</button>
+			<button id="lastPage" class="theme-toggle">Last</button>
+		</div>
 	</main>
 
 	<footer class="site-footer">
@@ -115,10 +98,16 @@
 	(function() {
 		var params = new URLSearchParams(location.search);
 		var initialTag = params.get('tag') || '';
-		var currentPage = 1;
-		var totalPages = 1;
+		var state = {
+			currentPage: 1,
+			totalPages: 1,
+			totalHomes: 0,
+			currentHomes: [],
+			searchQuery: ''
+		};
 		var isLoading = false;
 		var apiBase = window.location.protocol === 'file:' ? 'http://localhost:3000' : window.location.origin;
+		var searchTimeout;
 		
 		function loadTags() {
 			fetch(apiBase + '/api/tags')
@@ -138,7 +127,6 @@
 						});
 						if (match) {
 							tagSel.value = match.value;
-							console.log('Set tag filter to:', match.value);
 						}
 					}
 				})
@@ -151,28 +139,23 @@
 			if (isLoading) return;
 			isLoading = true;
 			
-			var searchQuery = document.getElementById('q').value.trim();
-			var tagFilter = document.getElementById('tag').value;
-			
-			// Build URL - server handles case-insensitive search already
+			page = page || state.currentPage;
 			var url = apiBase + '/api/homes?page=' + page + '&limit=6';
 			
-			if (searchQuery) {
-				// Just send the query as-is - server LIKE query handles partial matches
-				url += '&search=' + encodeURIComponent(searchQuery);
+			if (state.searchQuery) {
+				url += '&search=' + encodeURIComponent(state.searchQuery);
 				url += '&searchMode=name';
 			}
 			
+			var tagFilter = document.getElementById('tag').value;
 			if (tagFilter) url += '&tag=' + encodeURIComponent(tagFilter);
 			
 			var grid = document.getElementById('grid');
-			grid.innerHTML = '<div class="loading">Зареждане...</div>';
+			grid.innerHTML = '<p style="text-align:center;padding:2rem;">Зареждане...</p>';
 			
 			fetch(url)
 				.then(function(res){ 
-					if (!res.ok) {
-						throw new Error('Network response was not ok: ' + res.statusText);
-					}
+					if (!res.ok) throw new Error('Server error');
 					return res.json(); 
 				})
 				.then(function(response){
@@ -185,58 +168,41 @@
 						total: homes.length
 					};
 					
-					currentPage = pagination.page;
-					totalPages = pagination.totalPages;
+					state.currentHomes = homes;
+					state.currentPage = pagination.page;
+					state.totalPages = pagination.totalPages;
+					state.totalHomes = pagination.total;
 					
-					renderHomes(homes);
-					renderPagination(pagination);
-					updatePaginationInfo(pagination);
+					renderHomes();
+					updatePagination();
 				})
 				.catch(function(err){
 					isLoading = false;
 					console.error('Error loading homes:', err);
-					grid.innerHTML = '<p class="error-message">Грешка при зареждане на домовете от сървъра. Проверете конзолата за подробности.</p>';
+					grid.innerHTML = '<p style="text-align:center;padding:2rem;color:#ff6b6b;">Грешка при зареждане.</p>';
 				});
 		}
 		
-		function renderHomes(homes) {
+		function renderHomes() {
 			var grid = document.getElementById('grid');
 			grid.innerHTML = '';
 			
-			if (homes.length === 0) {
-				grid.innerHTML = '<p class="error-message">Няма намерени резултати.</p>';
+			if (state.currentHomes.length === 0) {
+				grid.innerHTML = '<p style="text-align:center;padding:2rem;color:#999;">Няма намерени резултати.</p>';
 				return;
 			}
 			
-			homes.forEach(function(p){
-				var slugValue = p.slug;
-				var idValue = p.id;
-
-				if (typeof slugValue !== 'string' && typeof slugValue === 'object' && slugValue !== null) {
-					console.warn('Home Name:', p.name, ' - WARNING: p.slug is an object!', slugValue);
-				}
-				if (typeof idValue !== 'string' && typeof idValue === 'object' && idValue !== null) {
-					console.warn('Home Name:', p.name, ' - WARNING: p.id is an object!', idValue);
-				}
-
+			state.currentHomes.forEach(function(p){
 				var finalSlug = '';
-				if (typeof slugValue === 'string' && slugValue) {
-					finalSlug = slugValue;
-				} else if (typeof slugValue === 'object' && slugValue !== null && slugValue.slug) {
-					finalSlug = String(slugValue.slug);
-				} else if (typeof idValue === 'string' && idValue) {
-					finalSlug = idValue;
-				} else if (typeof idValue === 'object' && idValue !== null && idValue.id) {
-					finalSlug = String(idValue.id);
+				if (typeof p.slug === 'string' && p.slug) {
+					finalSlug = p.slug;
+				} else if (typeof p.id === 'string' && p.id) {
+					finalSlug = p.id;
 				}
 				
-				if (!finalSlug) {
-					console.error('Skipping home because neither slug nor id is a valid string/property:', p.name, p);
-					return; 
-				}
+				if (!finalSlug) return;
 
 				var placeholder = 'assets/img/placeholder.svg';
-				
 				var img = placeholder;
 				if (p.images && p.images[0]) {
 					img = p.images[0].thumb || p.images[0].path || placeholder;
@@ -253,117 +219,51 @@
 			});
 		}
 		
-		function renderPagination(pagination) {
-			var paginationDiv = document.getElementById('pagination');
-			paginationDiv.innerHTML = '';
-			
-			if (pagination.totalPages <= 1) return;
-			
-			var prevBtn = document.createElement('button');
-			prevBtn.textContent = '← Предишна';
-			prevBtn.disabled = !pagination.hasPrev;
-			prevBtn.onclick = function() {
-				if (pagination.hasPrev) {
-					loadHomes(currentPage - 1);
-					window.scrollTo({ top: 0, behavior: 'smooth' });
-				}
-			};
-			paginationDiv.appendChild(prevBtn);
-			
-			var startPage = Math.max(1, currentPage - 2);
-			var endPage = Math.min(pagination.totalPages, currentPage + 2);
-			
-			if (startPage > 1) {
-				var firstBtn = document.createElement('button');
-				firstBtn.textContent = '1';
-				firstBtn.onclick = function() {
-					loadHomes(1);
-					window.scrollTo({ top: 0, behavior: 'smooth' });
-				};
-				paginationDiv.appendChild(firstBtn);
-				
-				if (startPage > 2) {
-					var dots = document.createElement('span');
-					dots.textContent = '...';
-					dots.style.padding = '0.5rem';
-					paginationDiv.appendChild(dots);
-				}
+		function updatePagination() {
+			var info = 'Page ' + state.currentPage + ' of ' + state.totalPages;
+			if (state.totalHomes > 0) {
+				info += ' (' + state.totalHomes + ' total)';
 			}
-			
-			for (var i = startPage; i <= endPage; i++) {
-				var pageBtn = document.createElement('button');
-				pageBtn.textContent = i;
-				pageBtn.className = i === currentPage ? 'active' : '';
-				pageBtn.dataset.page = i;
-				pageBtn.onclick = function() {
-					var page = parseInt(this.dataset.page);
-					loadHomes(page);
-					window.scrollTo({ top: 0, behavior: 'smooth' });
-				};
-				paginationDiv.appendChild(pageBtn);
-			}
-			
-			if (endPage < pagination.totalPages) {
-				if (endPage < pagination.totalPages - 1) {
-					var dots2 = document.createElement('span');
-					dots2.textContent = '...';
-					dots2.style.padding = '0.5rem';
-					paginationDiv.appendChild(dots2);
-				}
-				
-				var lastBtn = document.createElement('button');
-				lastBtn.textContent = pagination.totalPages;
-				lastBtn.onclick = function() {
-					loadHomes(pagination.totalPages);
-					window.scrollTo({ top: 0, behavior: 'smooth' });
-				};
-				paginationDiv.appendChild(lastBtn);
-			}
-			
-			var nextBtn = document.createElement('button');
-			nextBtn.textContent = 'Следваща →';
-			nextBtn.disabled = !pagination.hasNext;
-			nextBtn.onclick = function() {
-				if (pagination.hasNext) {
-					loadHomes(currentPage + 1);
-					window.scrollTo({ top: 0, behavior: 'smooth' });
-				}
-			};
-			paginationDiv.appendChild(nextBtn);
+			document.getElementById('pageInfo').textContent = info;
+			document.getElementById('firstPage').disabled = state.currentPage === 1;
+			document.getElementById('prevPage').disabled = state.currentPage === 1;
+			document.getElementById('nextPage').disabled = state.currentPage >= state.totalPages;
+			document.getElementById('lastPage').disabled = state.currentPage >= state.totalPages;
 		}
 		
-		function updatePaginationInfo(pagination) {
-			var info = document.getElementById('pagination-info');
-			var start = (pagination.page - 1) * pagination.limit + 1;
-			var end = Math.min(pagination.page * pagination.limit, pagination.total);
-			info.textContent = 'Показване ' + start + '-' + end + ' от ' + pagination.total + ' адреса';
+		function goToPage(page) {
+			if (page < 1) page = 1;
+			if (page > state.totalPages) page = state.totalPages;
+			state.currentPage = page;
+			loadHomes(page);
+			window.scrollTo({ top: 0, behavior: 'smooth' });
 		}
 		
-		var searchTimeout;
-		function debounce(func, delay) {
-			return function() {
-				clearTimeout(searchTimeout);
-				searchTimeout = setTimeout(func, delay);
-			};
-		}
+		document.getElementById('firstPage').addEventListener('click', function(){ goToPage(1); });
+		document.getElementById('prevPage').addEventListener('click', function(){ goToPage(state.currentPage - 1); });
+		document.getElementById('nextPage').addEventListener('click', function(){ goToPage(state.currentPage + 1); });
+		document.getElementById('lastPage').addEventListener('click', function(){ goToPage(state.totalPages); });
 		
-		// Search input with debounce
-		document.getElementById('q').addEventListener('input', debounce(function() {
-			currentPage = 1;
-			loadHomes(1);
-		}, 500));
+		document.getElementById('q').addEventListener('input', function() {
+			clearTimeout(searchTimeout);
+			searchTimeout = setTimeout(function() {
+				state.searchQuery = document.getElementById('q').value.trim();
+				state.currentPage = 1;
+				loadHomes(1);
+			}, 500);
+		});
 		
-		// Enter key triggers immediate search
 		document.getElementById('q').addEventListener('keypress', function(e) {
 			if (e.key === 'Enter') {
 				clearTimeout(searchTimeout);
-				currentPage = 1;
+				state.searchQuery = document.getElementById('q').value.trim();
+				state.currentPage = 1;
 				loadHomes(1);
 			}
 		});
 		
 		document.getElementById('tag').addEventListener('change', function() {
-			currentPage = 1;
+			state.currentPage = 1;
 			loadHomes(1);
 		});
 		
