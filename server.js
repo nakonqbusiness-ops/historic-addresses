@@ -43,19 +43,23 @@ app.use((req, res, next) => {
                req.socket.remoteAddress;
 
     const timestamp = new Date().toISOString();
-    const path = req.originalUrl;
+    const urlPath = req.originalUrl;
     const method = req.method;
 
-    console.log(`[VISIT] ${method} | IP: ${ip} | Path: ${path} | Time: ${timestamp}`);
+    console.log(`[VISIT] ${method} | IP: ${ip} | Path: ${urlPath} | Time: ${timestamp}`);
 
-    db.run('INSERT INTO visits (ip_address, timestamp, path) VALUES (?, ?, ?)',
-        [ip, timestamp, path],
-        (err) => {
-            if (err && !err.message.includes('no such table')) {
-                console.error('Error logging visit to DB:', err);
-            }
-        }
-    );
+    if (urlPath.startsWith('/api/')) {
+        setImmediate(() => {
+            db.run('INSERT INTO visits (ip_address, timestamp, path) VALUES (?, ?, ?)',
+                [ip, timestamp, urlPath],
+                (err) => {
+                    if (err && !err.message.includes('no such table')) {
+                        console.error('Error logging visit:', err);
+                    }
+                }
+            );
+        });
+    }
 
     next();
 });
@@ -84,11 +88,12 @@ const db = new sqlite3.Database(DB_FILE, (err) => {
 });
 
 db.configure('busyTimeout', 5000);
-db.run('PRAGMA journal_mode = DELETE'); 
+db.run('PRAGMA journal_mode = WAL');
 db.run('PRAGMA synchronous = NORMAL');
-db.run('PRAGMA cache_size = 500'); 
+db.run('PRAGMA cache_size = -2000');
 db.run('PRAGMA temp_store = MEMORY');
 db.run('PRAGMA mmap_size = 0'); 
+db.run('PRAGMA page_size = 4096');
 
 function initializeTrackingTable() {
     db.run(`
@@ -199,27 +204,36 @@ function insertHome(home) {
     stmt.finalize();
 }
 
+// ⭐ CRITICAL FIX: This is the key change - use thumbnails for listing pages!
 function rowToHome(row, ultraLean = false) {
     if (ultraLean) {
         let firstImage = null;
-        try {
-            const imgStr = row.images || '[]';
-            if (imgStr && imgStr !== '[]') {
-                const images = JSON.parse(imgStr);
-                firstImage = images.length > 0 ? images[0] : null;
+        const imgStr = row.images;
+        
+        if (imgStr && imgStr !== '[]' && imgStr.length > 2) {
+            try {
+                const parsed = JSON.parse(imgStr);
+                if (parsed && parsed.length > 0) {
+                    // ⭐⭐⭐ THIS IS THE CRITICAL LINE - Use thumbnail instead of original!
+                    firstImage = {
+                        thumb: `/assets/img/thumbs/${row.id}.jpg`,  // 35KB thumbnail
+                        path: parsed[0].path,  // Keep original path for detail page
+                        alt: parsed[0].alt || row.name
+                    };
+                }
+            } catch (e) {
+                // Silent fail
             }
-        } catch (e) {
-            firstImage = null;
         }
         
         let tags = [];
-        try {
-            const tagStr = row.tags || '[]';
-            if (tagStr && tagStr !== '[]') {
+        const tagStr = row.tags;
+        if (tagStr && tagStr !== '[]' && tagStr.length > 2) {
+            try {
                 tags = JSON.parse(tagStr);
+            } catch (e) {
+                // Silent fail
             }
-        } catch (e) {
-            tags = [];
         }
         
         return {
@@ -233,6 +247,8 @@ function rowToHome(row, ultraLean = false) {
             published: row.published === 1
         };
     }
+    
+    // Full detail view - uses original images
     return {
         id: row.id,
         slug: row.slug,
@@ -286,9 +302,6 @@ app.get('/sitemap.xml', (req, res) => {
     });
 });
 
-// ============================================================================
-// CRITICAL MEMORY FIX: Optimized /api/homes endpoint
-// ============================================================================
 app.get('/api/homes', (req, res) => {
     const showAll = req.query.all === 'true';
     const page = parseInt(req.query.page) || 1;
@@ -329,17 +342,16 @@ app.get('/api/homes', (req, res) => {
     
     const whereClause = whereConditions.length > 0 ? 'WHERE ' + whereConditions.join(' AND ') : '';
     
-    // Step 1: Get count first with minimal overhead
     db.get(`SELECT COUNT(*) as total FROM homes ${whereClause}`, params, (err, countRow) => {
         if (err) {
-            console.error('Count query error:', err);
+            console.error('Count error:', err);
             return res.status(500).json({ error: err.message });
         }
         
         const total = countRow.total;
         const totalPages = Math.ceil(total / limit);
+        countRow = null;
         
-        // Step 2: ONLY select columns needed for listing (NOT biography, sources, etc.)
         const minimalQuery = `
             SELECT id, slug, name, address, lat, lng, images, tags, published 
             FROM homes ${whereClause} 
@@ -347,59 +359,71 @@ app.get('/api/homes', (req, res) => {
             LIMIT ? OFFSET ?
         `;
         
-        db.all(minimalQuery, [...params, limit, offset], (err, rows) => {
-            if (err) {
-                console.error('Data query error:', err);
-                return res.status(500).json({ error: err.message });
+        const homes = [];
+        
+        db.each(
+            minimalQuery, 
+            [...params, limit, offset],
+            function(err, row) {
+                if (err) {
+                    console.error('Row error:', err);
+                    return;
+                }
+                homes.push(rowToHome(row, true));
+                row = null;
+            },
+            function(err, count) {
+                if (err) {
+                    console.error('Complete error:', err);
+                    return res.status(500).json({ error: err.message });
+                }
+                
+                res.json({
+                    data: homes,
+                    pagination: { 
+                        page, 
+                        limit, 
+                        total, 
+                        totalPages, 
+                        hasNext: page < totalPages, 
+                        hasPrev: page > 1 
+                    }
+                });
+                
+                setImmediate(() => {
+                    if (global.gc) global.gc();
+                });
             }
-            
-            // Step 3: Process rows with ultraLean mode (minimal parsing)
-            const homes = rows.map(row => rowToHome(row, true));
-            
-            // Step 4: Clear rows array to release memory immediately
-            rows = null;
-            
-            // Step 5: Send response
-            res.json({
-                data: homes,
-                pagination: { 
-                    page, 
-                    limit, 
-                    total, 
-                    totalPages, 
-                    hasNext: page < totalPages, 
-                    hasPrev: page > 1 
-                }
-            });
-            
-            // Step 6: Force garbage collection after response sent
-            setImmediate(() => {
-                if (global.gc) {
-                    global.gc();
-                }
-            });
-        });
+        );
     });
 });
 
 app.get('/api/homes/map', (req, res) => {
-    db.all('SELECT id, slug, name, lat, lng FROM homes WHERE published = 1 AND lat IS NOT NULL AND lng IS NOT NULL ORDER BY name', [], (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
-        
-        const mapData = rows.map(row => ({
-            id: row.id,
-            slug: row.slug,
-            name: row.name,
-            lat: row.lat,
-            lng: row.lng
-        }));
-        
-        res.json(mapData);
-        
-        setImmediate(() => {
-            if (global.gc) global.gc();
-        });
-    });
+    const mapData = [];
+    
+    db.each(
+        'SELECT id, slug, name, lat, lng FROM homes WHERE published = 1 AND lat IS NOT NULL AND lng IS NOT NULL ORDER BY name',
+        [],
+        function(err, row) {
+            if (!err) {
+                mapData.push({
+                    id: row.id,
+                    slug: row.slug,
+                    name: row.name,
+                    lat: row.lat,
+                    lng: row.lng
+                });
+                row = null;
+            }
+        },
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json(mapData);
+            setImmediate(() => {
+                if (global.gc) global.gc();
+            });
+        }
+    );
 });
 
 let tagsCache = null;
@@ -411,29 +435,38 @@ app.get('/api/tags', (req, res) => {
         return res.json(tagsCache);
     }
     
-    db.all('SELECT DISTINCT tags FROM homes WHERE published = 1', [], (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
-        
-        const tagSet = new Set();
-        rows.forEach(row => {
-            try {
-                const tags = JSON.parse(row.tags || '[]');
-                tags.forEach(tag => { if (tag) tagSet.add(String(tag)); });
-            } catch (e) {}
-        });
-        
-        const tagArray = Array.from(tagSet).sort((a, b) => a.localeCompare(b));
-        tagsCache = tagArray;
-        tagsCacheTime = now;
-        res.json(tagArray);
-    });
+    const tagSet = new Set();
+    
+    db.each(
+        'SELECT tags FROM homes WHERE published = 1',
+        [],
+        function(err, row) {
+            if (!err && row.tags) {
+                try {
+                    const tags = JSON.parse(row.tags);
+                    tags.forEach(tag => { if (tag) tagSet.add(String(tag)); });
+                } catch (e) {}
+            }
+            row = null;
+        },
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            
+            const tagArray = Array.from(tagSet).sort((a, b) => a.localeCompare(b));
+            tagsCache = tagArray;
+            tagsCacheTime = now;
+            res.json(tagArray);
+        }
+    );
 });
 
 app.get('/api/homes/:slug', (req, res) => {
     db.get('SELECT * FROM homes WHERE slug = ? OR id = ?', [req.params.slug, req.params.slug], (err, row) => {
         if (err) return res.status(500).json({ error: err.message });
         if (!row) return res.status(404).json({ error: 'Home not found' });
-        res.json(rowToHome(row, false));
+        const home = rowToHome(row, false);
+        row = null;
+        res.json(home);
         setImmediate(() => { if (global.gc) global.gc(); });
     });
 });
@@ -489,29 +522,30 @@ app.get('/:page.html', (req, res) => {
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`\n🏛️ Historic Addresses Server`);
     console.log(`✅ Running on port ${PORT}`);
-    console.log(`📊 DB: ${DB_FILE}\n`);
+    console.log(`📊 DB: ${DB_FILE}`);
+    console.log(`💾 Initial Memory: ${Math.round(process.memoryUsage().rss / 1024 / 1024)}MB RSS\n`);
 });
 
-// ============================================================================
-// MORE AGGRESSIVE GARBAGE COLLECTION
-// ============================================================================
 setInterval(() => {
     if (global.gc) {
-        const before = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
+        const beforeHeap = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
+        const beforeRSS = Math.round(process.memoryUsage().rss / 1024 / 1024);
+        
         global.gc();
-        global.gc(); // Double GC for thoroughness
-        const after = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
-        console.log(`♻️ GC: ${before}MB → ${after}MB (freed ${before - after}MB)`);
+        global.gc();
+        
+        const afterHeap = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
+        const afterRSS = Math.round(process.memoryUsage().rss / 1024 / 1024);
+        
+        console.log(`♻️ GC: Heap ${beforeHeap}→${afterHeap}MB | RSS ${beforeRSS}→${afterRSS}MB`);
     }
-    const rss = Math.round(process.memoryUsage().rss / 1024 / 1024);
-    const heap = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
-    console.log(`📊 Memory - RSS: ${rss}MB | Heap: ${heap}MB`);
-}, 20000); // Run every 20 seconds
+}, 15000);
 
 process.on('SIGINT', () => {
+    console.log('\n🛑 Shutting down...');
     db.close((err) => {
         if (err) console.error(err.message);
-        console.log('\n✅ Closed');
+        console.log('✅ Database closed');
         process.exit(0);
     });
 });
