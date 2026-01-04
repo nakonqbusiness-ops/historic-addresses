@@ -51,11 +51,6 @@
 			padding: 8px 16px;
 			color: var(--text-muted, #999);
 		}
-		.thumb img {
-			max-width: 100%;
-			height: auto;
-			background: #2a2a2a;
-		}
 	</style>
 	<script defer src="assets/js/theme.js"></script>
 	<script defer src="assets/js/transitions.js"></script>
@@ -140,23 +135,9 @@
 				});
 		}
 		
-		function cleanupPreviousPage() {
-			var grid = document.getElementById('grid');
-			var images = grid.querySelectorAll('img');
-			images.forEach(function(img) {
-				img.src = '';
-				img.removeAttribute('src');
-			});
-			while (grid.firstChild) {
-				grid.removeChild(grid.firstChild);
-			}
-			state.currentHomes = [];
-		}
-		
 		function loadHomes(page) {
 			if (isLoading) return;
 			isLoading = true;
-			cleanupPreviousPage();
 			
 			page = page || state.currentPage;
 			var url = apiBase + '/api/homes?page=' + page + '&limit=6';
@@ -204,9 +185,7 @@
 		
 		function renderHomes() {
 			var grid = document.getElementById('grid');
-			while (grid.firstChild) {
-				grid.removeChild(grid.firstChild);
-			}
+			grid.innerHTML = '';
 			
 			if (state.currentHomes.length === 0) {
 				grid.innerHTML = '<p style="text-align:center;padding:2rem;color:#999;">Няма намерени резултати.</p>';
@@ -225,17 +204,8 @@
 
 				var placeholder = 'assets/img/placeholder.svg';
 				var img = placeholder;
-				
-				// CRITICAL: Use thumbnail if available, otherwise use placeholder
 				if (p.images && p.images[0]) {
-					// Try thumbnail first (from /thumbnails/ route)
-					if (p.images[0].thumb) {
-						img = p.images[0].thumb;
-					} else if (p.images[0].path && !p.images[0].path.startsWith('data:')) {
-						// If path exists and it's not base64, use it
-						img = p.images[0].path;
-					}
-					// If it's base64, just use placeholder (don't load massive base64)
+					img = p.images[0].thumb || p.images[0].path || placeholder;
 				}
 				
 				var el = document.createElement('a');
@@ -243,10 +213,7 @@
 				el.href = 'address.html?slug=' + encodeURIComponent(finalSlug); 
 				
 				var imgAlt = (p.images && p.images[0] && p.images[0].alt) || ('Facade of ' + p.name);
-				
-				// CRITICAL: Proper error handling - try thumbnail, then placeholder
-				el.innerHTML = '<img alt="' + imgAlt + '" loading="lazy" decoding="async" src="' + img + '" ' +
-					'onerror="this.onerror=null;this.src=\'' + placeholder + '\';">' +
+				el.innerHTML = '<img alt="' + imgAlt + '" loading="lazy" src="' + img + '" onerror="this.onerror=null;this.src=\'' + placeholder + '\';">' +
 					'<div class="meta"><strong>' + p.name + '</strong><div class="muted">' + (p.address || '') + '</div></div>';
 				grid.appendChild(el);
 			});
