@@ -3,14 +3,23 @@ const fs = require('fs');
 const path = require('path');
 const sqlite3 = require('sqlite3').verbose();
 
-// CRITICAL: Use correct database path for Render
-const DB_DIR = process.env.RENDER ? '/data' : '.';
-const DB_FILE = path.join(DB_DIR, 'database.db');
+// Check if database exists in /data first, then fallback to current directory
+let DB_FILE;
+if (fs.existsSync('/data/database.db')) {
+    DB_FILE = '/data/database.db';
+    console.log('✅ Using database at /data/database.db');
+} else if (fs.existsSync('./database.db')) {
+    DB_FILE = './database.db';
+    console.log('✅ Using database at ./database.db');
+} else {
+    console.error('❌ No database found! Checked /data/database.db and ./database.db');
+    process.exit(1);
+}
 
 const db = new sqlite3.Database(DB_FILE);
 
 // CRITICAL: Store thumbnails in persistent /data directory on Render
-const thumbDir = process.env.RENDER ? '/data/thumbs' : path.join(__dirname, 'assets', 'img', 'thumbs');
+const thumbDir = fs.existsSync('/data') ? '/data/thumbs' : path.join(__dirname, 'assets', 'img', 'thumbs');
 
 // Create thumbs directory
 if (!fs.existsSync(thumbDir)) {
