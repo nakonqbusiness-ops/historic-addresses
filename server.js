@@ -193,27 +193,38 @@ function insertHome(home) {
     stmt.finalize();
 }
 
-// CRITICAL: Don't parse base64 images for list view!
+// CRITICAL: Minimal parsing for list view
 function rowToHome(row, ultraLean = false) {
     if (ultraLean) {
-        // Don't parse images at all - just return thumbnail path
+        // Only parse first image for list view
+        let firstImage = null;
+        try {
+            const images = JSON.parse(row.images || '[]');
+            firstImage = images.length > 0 ? images[0] : null;
+        } catch (e) {
+            firstImage = null;
+        }
+        
+        let tags = [];
+        try {
+            tags = JSON.parse(row.tags || '[]');
+        } catch (e) {
+            tags = [];
+        }
+        
         return {
             id: row.id,
             slug: row.slug,
             name: row.name,
             address: row.address || '',
             coordinates: row.lat && row.lng ? { lat: row.lat, lng: row.lng } : null,
-            images: [{
-                thumb: `/thumbnails/${row.id}.jpg`,
-                path: `/thumbnails/${row.id}.jpg`,
-                alt: row.name
-            }],
-            tags: JSON.parse(row.tags || '[]'),
+            images: firstImage ? [firstImage] : [],
+            tags: tags,
             published: true
         };
     }
     
-    // Full view
+    // Full view for detail page
     return {
         id: row.id,
         slug: row.slug,
@@ -240,16 +251,6 @@ Disallow: /assets/
 Sitemap: ${DOMAIN}/sitemap.xml`);
 });
 
-// Serve thumbnails
-app.get('/thumbnails/:filename', (req, res) => {
-    const thumbPath = path.join(DB_DIR, 'thumbs', req.params.filename);
-    if (fs.existsSync(thumbPath)) {
-        res.sendFile(thumbPath);
-    } else {
-        res.sendFile(path.join(__dirname, 'assets', 'img', 'placeholder.svg'));
-    }
-});
-
 app.get('/sitemap.xml', (req, res) => {
     db.all('SELECT slug, updated_at FROM homes WHERE published = 1', [], (err, rows) => {
         if (err) return res.status(500).send('Error');
@@ -273,7 +274,7 @@ app.get('/sitemap.xml', (req, res) => {
     });
 });
 
-// ULTRA LEAN API
+// ULTRA LEAN API - Only select what we need!
 app.get('/api/homes', (req, res) => {
     const showAll = req.query.all === 'true';
     const page = parseInt(req.query.page) || 1;
@@ -301,7 +302,7 @@ app.get('/api/homes', (req, res) => {
     
     const whereClause = whereConditions.length > 0 ? 'WHERE ' + whereConditions.join(' AND ') : '';
     
-    // Count
+    // Count first
     db.get(`SELECT COUNT(*) as total FROM homes ${whereClause}`, params, (err, countRow) => {
         if (err) {
             console.error('Count error:', err);
@@ -311,9 +312,9 @@ app.get('/api/homes', (req, res) => {
         const total = countRow.total;
         const totalPages = Math.ceil(total / limit);
         
-        // CRITICAL: Only select columns we need!
+        // CRITICAL: Only select columns needed for list view!
         const query = `
-            SELECT id, slug, name, address, lat, lng, tags
+            SELECT id, slug, name, address, lat, lng, images, tags
             FROM homes 
             ${whereClause}
             ORDER BY name 
@@ -326,6 +327,7 @@ app.get('/api/homes', (req, res) => {
                 return res.status(500).json({ error: 'Database error' });
             }
             
+            // Process and send immediately
             const homes = rows.map(row => rowToHome(row, true));
             
             res.json({
@@ -473,7 +475,7 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`💾 Start RSS: ${Math.round(process.memoryUsage().rss / 1024 / 1024)}MB\n`);
 });
 
-// ULTRA AGGRESSIVE: GC every 20 seconds (was 60)
+// ULTRA AGGRESSIVE: GC every 20 seconds
 setInterval(() => {
     const before = process.memoryUsage();
     
@@ -494,7 +496,7 @@ setInterval(() => {
     console.log(`♻️  RSS: ${rss}MB | Heap: ${heap}MB | Freed: ${freed}MB`);
     
     // Clear tags cache if memory too high
-    if (rss > 600) {
+    if (rss > 1000) {
         tagsCache = null;
         tagsCacheTime = 0;
         recentVisits.clear();
