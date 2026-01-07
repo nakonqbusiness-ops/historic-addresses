@@ -8,9 +8,9 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const DOMAIN = 'https://historyaddress.bg';
 
-// REDUCED from 5mb to 2mb
+// Keep 5mb for admin operations (adding/updating homes with images)
 app.use(cors());
-app.use(express.json({ limit: '2mb' })); 
+app.use(express.json({ limit: '5mb' })); 
 app.use(express.static(path.join(__dirname)));
 
 // Favicon routes
@@ -92,7 +92,7 @@ const db = new sqlite3.Database(DB_FILE, (err) => {
 });
 
 // ULTRA AGGRESSIVE SQLITE SETTINGS
-db.configure('busyTimeout', 3000); // Reduced from 5000
+db.configure('busyTimeout', 3000);
 db.run('PRAGMA journal_mode = DELETE'); // DELETE uses less memory than WAL
 db.run('PRAGMA synchronous = NORMAL');
 db.run('PRAGMA cache_size = 50'); // REDUCED from 500 to 50!
@@ -246,6 +246,10 @@ function rowToHome(row, ultraLean = false) {
 app.get('/robots.txt', (req, res) => {
     res.type('text/plain').send(`User-agent: *
 Allow: /
+Allow: /assets/img/Historyaddress.bg.png
+Allow: /favicon.ico
+Allow: /assets/img/HistAdrLogoOrig.ico
+Allow: /assets/img/Historyaddress.bg2.png
 Disallow: /sys-maintenance-panel-v2.html
 Disallow: /assets/
 Sitemap: ${DOMAIN}/sitemap.xml`);
@@ -267,7 +271,7 @@ app.get('/sitemap.xml', (req, res) => {
             const lastmod = home.updated_at ? new Date(home.updated_at).toISOString().split('T')[0] : '';
             xml += `  <url>\n    <loc>${DOMAIN}/address.html?slug=${encodeURIComponent(home.slug)}</loc>\n`;
             if (lastmod) xml += `    <lastmod>${lastmod}</lastmod>\n`;
-            xml += `    <changefreq>monthly</changefreq>\n    <priority>0.8</priority>\n  </url>\n`;
+            xml += `    <changefreq>monthly</changefreq>\n    <priority>0.6</priority>\n  </url>\n`;
         });
         xml += '</urlset>';
         res.type('application/xml').send(xml);
@@ -278,7 +282,7 @@ app.get('/sitemap.xml', (req, res) => {
 app.get('/api/homes', (req, res) => {
     const showAll = req.query.all === 'true';
     const page = parseInt(req.query.page) || 1;
-    const limit = 6; // Fixed at 6
+    const limit = Math.min(parseInt(req.query.limit) || 6, 10);
     const search = req.query.search || '';
     const tag = req.query.tag || '';
     const searchMode = req.query.searchMode || 'all';
@@ -289,15 +293,28 @@ app.get('/api/homes', (req, res) => {
     
     if (!showAll) whereConditions.push('published = 1');
     
-    // Simplified search
     if (search) {
-        whereConditions.push('LOWER(name) LIKE ?');
-        params.push(`%${search.trim().toLowerCase()}%`);
+        const searchWords = search.trim().split(/\s+/).filter(word => word.length > 0);
+        
+        if (searchMode === 'name') {
+            const nameConditions = searchWords.map(() => 'LOWER(name) LIKE LOWER(?)');
+            whereConditions.push('(' + nameConditions.join(' AND ') + ')');
+            searchWords.forEach(word => params.push(`%${word}%`));
+        } else {
+            const allConditions = searchWords.map(() => 
+                '(LOWER(name) LIKE LOWER(?) OR LOWER(biography) LIKE LOWER(?) OR LOWER(address) LIKE LOWER(?) OR LOWER(sources) LIKE LOWER(?) OR LOWER(tags) LIKE LOWER(?))'
+            );
+            whereConditions.push('(' + allConditions.join(' AND ') + ')');
+            searchWords.forEach(word => {
+                const sp = `%${word}%`;
+                params.push(sp, sp, sp, sp, sp);
+            });
+        }
     }
     
     if (tag) {
-        whereConditions.push('LOWER(tags) LIKE ?');
-        params.push(`%${tag.toLowerCase()}%`);
+        whereConditions.push('LOWER(tags) LIKE LOWER(?)');
+        params.push(`%${tag}%`);
     }
     
     const whereClause = whereConditions.length > 0 ? 'WHERE ' + whereConditions.join(' AND ') : '';
@@ -359,7 +376,7 @@ app.get('/api/homes', (req, res) => {
 });
 
 app.get('/api/homes/map', (req, res) => {
-    db.all('SELECT id, slug, name, lat, lng FROM homes WHERE published = 1 AND lat IS NOT NULL AND lng IS NOT NULL', 
+    db.all('SELECT id, slug, name, lat, lng FROM homes WHERE published = 1 AND lat IS NOT NULL AND lng IS NOT NULL ORDER BY name', 
         [], 
         (err, rows) => {
             if (err) return res.status(500).json({ error: err.message });
@@ -414,9 +431,8 @@ app.get('/api/homes/:slug', (req, res) => {
     db.get('SELECT * FROM homes WHERE slug = ? OR id = ?', [req.params.slug, req.params.slug], (err, row) => {
         if (err) return res.status(500).json({ error: err.message });
         if (!row) return res.status(404).json({ error: 'Home not found' });
-        const home = rowToHome(row, false);
-        res.json(home);
-        if (global.gc) setImmediate(() => global.gc());
+        res.json(rowToHome(row, false));
+        setImmediate(() => { if (global.gc) global.gc(); });
     });
 });
 
@@ -496,7 +512,7 @@ setInterval(() => {
     console.log(`♻️  RSS: ${rss}MB | Heap: ${heap}MB | Freed: ${freed}MB`);
     
     // Clear tags cache if memory too high
-    if (rss > 1000) {
+    if (rss > 1500) {
         tagsCache = null;
         tagsCacheTime = 0;
         recentVisits.clear();
