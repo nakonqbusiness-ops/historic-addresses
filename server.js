@@ -34,36 +34,36 @@ app.get('/assets/img/HistAdrLogoOrig.ico', (req, res) => {
     res.sendFile(path.join(__dirname, 'assets', 'img', 'Historyaddress.bg2.png'));
 });
 
-// CRITICAL FIX: NO DATABASE LOGGING - just console
-const recentVisits = new Map();
+// IMPROVED LOGGING: Track stats but always log API calls
+let requestStats = {
+    total: 0,
+    api: 0,
+    pages: 0,
+    static: 0,
+    lastLog: Date.now()
+};
+
 app.use((req, res, next) => {
-    // Skip static files completely
+    requestStats.total++;
+    
+    // Skip static files completely (no logging, no counting beyond total)
     if (req.originalUrl.startsWith('/assets/') || 
         req.originalUrl.startsWith('/favicon') ||
         req.originalUrl.endsWith('.css') ||
         req.originalUrl.endsWith('.js') ||
         req.originalUrl.endsWith('.png') ||
         req.originalUrl.endsWith('.jpg')) {
+        requestStats.static++;
         return next();
     }
     
-    const ip = req.headers['x-forwarded-for']?.split(',')[0].trim() || req.socket.remoteAddress;
-    
-    // Rate limit: Only log if not seen in last 10 seconds
-    const now = Date.now();
-    const lastLog = recentVisits.get(ip);
-    
-    if (!lastLog || (now - lastLog) > 10000) {
-        console.log(`[${req.method}] ${req.originalUrl.substring(0, 50)} - ${ip.substring(0, 15)}`);
-        recentVisits.set(ip, now);
-    }
-    
-    // Clean old entries every 100 requests
-    if (recentVisits.size > 100) {
-        const cutoff = now - 60000;
-        for (const [key, time] of recentVisits.entries()) {
-            if (time < cutoff) recentVisits.delete(key);
-        }
+    // Always log API calls
+    if (req.originalUrl.startsWith('/api/')) {
+        requestStats.api++;
+        const ip = req.headers['x-forwarded-for']?.split(',')[0].trim() || req.socket.remoteAddress;
+        console.log(`[API] ${req.method} ${req.originalUrl.substring(0, 50)} - ${ip.substring(0, 15)}`);
+    } else {
+        requestStats.pages++;
     }
     
     next();
@@ -491,33 +491,41 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`💾 Start RSS: ${Math.round(process.memoryUsage().rss / 1024 / 1024)}MB\n`);
 });
 
-// ULTRA AGGRESSIVE: GC every 20 seconds
+// AGGRESSIVE MONITORING: Every 20 seconds with request stats
 setInterval(() => {
-    const before = process.memoryUsage();
+    const mem = process.memoryUsage();
+    const rss = Math.round(mem.rss / 1024 / 1024);
+    const heap = Math.round(mem.heapUsed / 1024 / 1024);
+    const external = Math.round(mem.external / 1024 / 1024);
+    
+    // Log request stats
+    console.log(`📊 Requests: ${requestStats.total} total | ${requestStats.api} API | ${requestStats.pages} pages | ${requestStats.static} static`);
+    console.log(`💾 Memory: RSS=${rss}MB | Heap=${heap}MB | External=${external}MB`);
+    
+    // Reset request stats
+    requestStats = { total: 0, api: 0, pages: 0, static: 0, lastLog: Date.now() };
     
     // Run GC 5 TIMES!
     if (global.gc) {
+        const beforeHeap = heap;
         global.gc();
         global.gc();
         global.gc();
         global.gc();
         global.gc();
+        const afterHeap = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
+        const freed = beforeHeap - afterHeap;
+        console.log(`♻️  GC: Freed ${freed}MB (${beforeHeap}MB → ${afterHeap}MB)`);
     }
     
-    const after = process.memoryUsage();
-    const rss = Math.round(after.rss / 1024 / 1024);
-    const heap = Math.round(after.heapUsed / 1024 / 1024);
-    const freed = Math.round((before.heapUsed - after.heapUsed) / 1024 / 1024);
-    
-    console.log(`♻️  RSS: ${rss}MB | Heap: ${heap}MB | Freed: ${freed}MB`);
-    
-    // Clear tags cache if memory too high
+    // Clear caches if memory too high
     if (rss > 1500) {
         tagsCache = null;
         tagsCacheTime = 0;
-        recentVisits.clear();
-        console.log('   🗑️  Cleared all caches (high memory)');
+        console.log('🗑️  Cleared all caches (high memory warning!)');
     }
+    
+    console.log('---');
 }, 20000); // Every 20 seconds!
 
 process.on('SIGINT', () => {
