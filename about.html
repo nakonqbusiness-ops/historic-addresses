@@ -3,23 +3,16 @@
 <head>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
-
-<link rel="icon" type="image/png" href="/assets/img/Historyaddress.bg2.png">
-<link rel="shortcut icon" type="image/png" href="/assets/img/Historyaddress.bg2.png">
-<link rel="apple-touch-icon" href="/assets/img/Historyaddress.bg2.png">
-<meta name="msapplication-TileImage" content="/assets/img/Historyaddress.bg2.png">
-
+	<link rel="icon" type="image/png" href="/assets/img/Historyaddress.bg2.png">
 	<title>Адресът на историята - За Нас</title>
 	<meta name="description" content="Относно проекта „Адресът на историята".">
-	<link rel="icon" href="/assets/img/HistAdrLogoOrig.ico">
 	<script>
-
 		(function() {
 			try {
 				var stored = localStorage.getItem('theme-preference');
 				if (stored === 'system') stored = 'dark';
 				var theme = (stored === 'dark' || stored === 'light') ? stored : 'dark';
-				document.documentElement.setAttribute('data-theme', theme);
+                document.documentElement.setAttribute('data-theme', theme);
 			} catch(e) {}
 		})();
 	</script>
@@ -64,13 +57,17 @@
 
 Присъединете се към нас в това пътуване из живота и домовете на българските личности – за да помним, да се гордеем и да се вдъхновяваме.
 				
+
 Администратор на сайта: Георги Георгиев Петков				
 			</p>
 			
 			<h2 style="color: var(--accent-strong); margin-top: 2rem; margin-bottom: 1rem;">✨ Нашите партньори</h2>
-			<ul style="line-height: 2; margin-bottom: 2rem;">
-				<li><strong>1.</strong> - Предстои! </li>
-			</ul>
+			<div id="partners-preview">
+				<p style="color:#999;">Зареждане...</p>
+			</div>
+			<p style="text-align:center;margin-top:1rem;">
+				<a href="partners.html" style="color: var(--link); text-decoration: underline; font-weight: 600;">Виж всички партньори →</a>
+			</p>
 			
 			<h2 style="color: var(--accent-strong); margin-top: 2rem; margin-bottom: 1rem;">📧 Контакти</h2>
 			<p style="line-height: 1.8; margin-bottom: 1rem;">
@@ -86,6 +83,30 @@
 		<p>© <span id="year"></span> Адресът на историята</p>
 	</footer>
 
-	<script>document.getElementById('year').textContent = new Date().getFullYear();</script>
+	<script>
+	document.getElementById('year').textContent = new Date().getFullYear();
+	
+	// Load partners preview
+	(function() {
+		var apiBase = window.location.origin;
+		fetch(apiBase + '/api/partners')
+			.then(function(res) { return res.json(); })
+			.then(function(partners) {
+				var container = document.getElementById('partners-preview');
+				if (partners.length === 0) {
+					container.innerHTML = '<p style="color:#999;">Предстои!</p>';
+				} else {
+					container.innerHTML = '<ul style="line-height: 2; margin-bottom: 1rem;">' +
+						partners.map(function(p, i) {
+							return '<li><strong>' + (i + 1) + '.</strong> <a href="partners.html#' + p.id + '" style="color: var(--link); text-decoration: underline;">' + p.name + '</a></li>';
+						}).join('') +
+						'</ul>';
+				}
+			})
+			.catch(function() {
+				document.getElementById('partners-preview').innerHTML = '<p style="color:#999;">Предстои!</p>';
+			});
+	})();
+	</script>
 </body>
 </html>
