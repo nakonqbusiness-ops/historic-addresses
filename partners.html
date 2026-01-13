@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="icon" type="image/png" href="/assets/img/Historyaddress.bg2.png">
+	<title>Нашите Партньори - Адресът на историята</title>
+	<meta name="description" content="Партньори на проекта Адресът на историята">
+	<script>
+		(function() {
+			try {
+				var stored = localStorage.getItem('theme-preference');
+				if (stored === 'system') stored = 'dark';
+				var theme = (stored === 'dark' || stored === 'light') ? stored : 'dark';
+				document.documentElement.setAttribute('data-theme', theme);
+			} catch(e) {}
+		})();
+	</script>
+	<link rel="stylesheet" href="assets/css/styles.css">
+	<style>
+		.partner-card {
+			background: var(--card-bg, #1a1a1a);
+			border-radius: 8px;
+			padding: 1.5rem;
+			margin-bottom: 1.5rem;
+			border: 1px solid var(--border-color, #333);
+			transition: transform 0.2s, box-shadow 0.2s;
+		}
+		.partner-card:hover {
+			transform: translateY(-2px);
+			box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+		}
+		.partner-header {
+			display: flex;
+			align-items: center;
+			gap: 1.5rem;
+			margin-bottom: 1rem;
+		}
+		.partner-logo {
+			width: 100px;
+			height: 100px;
+			object-fit: contain;
+			border-radius: 8px;
+			background: #fff;
+			padding: 8px;
+		}
+		.partner-info h2 {
+			margin: 0 0 0.5rem 0;
+			color: var(--accent-strong);
+		}
+		.partner-links {
+			display: flex;
+			gap: 1rem;
+			flex-wrap: wrap;
+			margin-top: 1rem;
+		}
+		.partner-links a {
+			display: inline-flex;
+			align-items: center;
+			gap: 0.5rem;
+			padding: 0.5rem 1rem;
+			background: var(--primary-color, #007bff);
+			color: white;
+			text-decoration: none;
+			border-radius: 4px;
+			transition: background 0.2s;
+		}
+		.partner-links a:hover {
+			background: var(--primary-hover, #0056b3);
+		}
+	</style>
+	<script defer src="assets/js/theme.js"></script>
+	<script defer src="assets/js/transitions.js"></script>
+</head>
+<body>
+	<header class="site-header">
+		<a class="logo-link" href="index.html">
+			<img src="assets/img/HistAdrLogo.png" alt="Адресът на историята" class="header-logo">
+			<span class="logo-text">Адресът на историята</span>
+		</a>
+		<nav class="nav">
+			<a href="index.html">Начало</a>
+			<a href="map.html">Карта</a>
+			<a href="addresses.html">Домове</a>
+			<a href="about.html">За Нас</a>
+		</nav>
+		<button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode"></button>
+	</header>
+
+	<main class="container">
+		<h1 class="page-title gradient-text">🤝 Нашите Партньори</h1>
+		
+		<div id="partners-list" style="max-width: 900px; margin: 0 auto;">
+			<p style="text-align:center;padding:2rem;">Зареждане...</p>
+		</div>
+	</main>
+
+	<footer class="site-footer">
+		<p>© <span id="year"></span> Адресът на историята</p>
+	</footer>
+
+	<script>
+	(function() {
+		var apiBase = window.location.origin;
+		
+		function loadPartners() {
+			fetch(apiBase + '/api/partners')
+				.then(function(res) { return res.json(); })
+				.then(function(partners) {
+					var container = document.getElementById('partners-list');
+					container.innerHTML = '';
+					
+					if (partners.length === 0) {
+						container.innerHTML = '<p style="text-align:center;color:#999;">Скоро ще добавим партньори!</p>';
+						return;
+					}
+					
+					partners.forEach(function(p) {
+						var card = document.createElement('div');
+						card.className = 'partner-card';
+						
+						var header = '<div class="partner-header">';
+						if (p.logo_url) {
+							header += '<img src="' + p.logo_url + '" alt="' + p.name + ' logo" class="partner-logo">';
+						}
+						header += '<div class="partner-info"><h2>' + p.name + '</h2>';
+						if (p.description) {
+							header += '<p style="margin:0;color:var(--text-muted);">' + p.description + '</p>';
+						}
+						header += '</div></div>';
+						
+						var links = '<div class="partner-links">';
+						if (p.website) {
+							links += '<a href="' + p.website + '" target="_blank" rel="noopener">🌐 Уебсайт</a>';
+						}
+						if (p.instagram) {
+							var instaUrl = p.instagram.startsWith('http') ? p.instagram : 'https://instagram.com/' + p.instagram.replace('@', '');
+							links += '<a href="' + instaUrl + '" target="_blank" rel="noopener">📸 Instagram</a>';
+						}
+						if (p.email) {
+							links += '<a href="mailto:' + p.email + '">📧 Email</a>';
+						}
+						links += '</div>';
+						
+						card.innerHTML = header + links;
+						container.appendChild(card);
+					});
+				})
+				.catch(function(err) {
+					console.error('Error loading partners:', err);
+					document.getElementById('partners-list').innerHTML = '<p style="text-align:center;color:#ff6b6b;">Грешка при зареждане.</p>';
+				});
+		}
+		
+		document.getElementById('year').textContent = new Date().getFullYear();
+		loadPartners();
+	})();
+	</script>
+</body>
+</html>
