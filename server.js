@@ -34,36 +34,36 @@ app.get('/assets/img/HistAdrLogoOrig.ico', (req, res) => {
     res.sendFile(path.join(__dirname, 'assets', 'img', 'Historyaddress.bg2.png'));
 });
 
-// IMPROVED LOGGING: Track stats but always log API calls
-let requestStats = {
-    total: 0,
-    api: 0,
-    pages: 0,
-    static: 0,
-    lastLog: Date.now()
-};
-
+// CRITICAL FIX: NO DATABASE LOGGING - just console
+const recentVisits = new Map();
 app.use((req, res, next) => {
-    requestStats.total++;
-    
-    // Skip static files completely (no logging, no counting beyond total)
+    // Skip static files completely
     if (req.originalUrl.startsWith('/assets/') || 
         req.originalUrl.startsWith('/favicon') ||
         req.originalUrl.endsWith('.css') ||
         req.originalUrl.endsWith('.js') ||
         req.originalUrl.endsWith('.png') ||
         req.originalUrl.endsWith('.jpg')) {
-        requestStats.static++;
         return next();
     }
     
-    // Always log API calls
-    if (req.originalUrl.startsWith('/api/')) {
-        requestStats.api++;
-        const ip = req.headers['x-forwarded-for']?.split(',')[0].trim() || req.socket.remoteAddress;
-        console.log(`[API] ${req.method} ${req.originalUrl.substring(0, 50)} - ${ip.substring(0, 15)}`);
-    } else {
-        requestStats.pages++;
+    const ip = req.headers['x-forwarded-for']?.split(',')[0].trim() || req.socket.remoteAddress;
+    
+    // Rate limit: Only log if not seen in last 10 seconds
+    const now = Date.now();
+    const lastLog = recentVisits.get(ip);
+    
+    if (!lastLog || (now - lastLog) > 10000) {
+        console.log(`[${req.method}] ${req.originalUrl.substring(0, 50)} - ${ip.substring(0, 15)}`);
+        recentVisits.set(ip, now);
+    }
+    
+    // Clean old entries every 100 requests
+    if (recentVisits.size > 100) {
+        const cutoff = now - 60000;
+        for (const [key, time] of recentVisits.entries()) {
+            if (time < cutoff) recentVisits.delete(key);
+        }
     }
     
     next();
@@ -88,6 +88,7 @@ const db = new sqlite3.Database(DB_FILE, (err) => {
     } else {
         console.log('Connected to SQLite database');
         initializeDatabase();
+        initializePartnersTable();
     }
 });
 
@@ -129,6 +130,32 @@ function initializeDatabase() {
             db.run('CREATE INDEX IF NOT EXISTS idx_homes_slug ON homes(slug)');
             db.run('CREATE INDEX IF NOT EXISTS idx_homes_name ON homes(name)');
             checkAndMigrateSchema();
+        }
+    });
+}
+
+function initializePartnersTable() {
+    db.run(`
+        CREATE TABLE IF NOT EXISTS partners (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            description TEXT,
+            logo_url TEXT,
+            website TEXT,
+            instagram TEXT,
+            email TEXT,
+            published INTEGER DEFAULT 1,
+            display_order INTEGER DEFAULT 0,
+            created_at TEXT,
+            updated_at TEXT
+        )
+    `, (err) => {
+        if (!err) {
+            console.log('✅ Partners table ready');
+            db.run('CREATE INDEX IF NOT EXISTS idx_partners_published ON partners(published)');
+            db.run('CREATE INDEX IF NOT EXISTS idx_partners_order ON partners(display_order)');
+        } else {
+            console.error('Error creating partners table:', err);
         }
     });
 }
@@ -477,6 +504,84 @@ app.delete('/api/homes/:id', (req, res) => {
     });
 });
 
+// ============================================================================
+// PARTNERS API
+// ============================================================================
+
+app.get('/api/partners', (req, res) => {
+    const showAll = req.query.all === 'true';
+    const whereClause = showAll ? '' : 'WHERE published = 1';
+    
+    db.all(`SELECT * FROM partners ${whereClause} ORDER BY display_order ASC, name ASC`, [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+        if (global.gc) setImmediate(() => global.gc());
+    });
+});
+
+app.get('/api/partners/:id', (req, res) => {
+    db.get('SELECT * FROM partners WHERE id = ?', [req.params.id], (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!row) return res.status(404).json({ error: 'Partner not found' });
+        res.json(row);
+    });
+});
+
+app.post('/api/partners', (req, res) => {
+    const p = req.body;
+    if (!p.name) return res.status(400).json({ error: 'Name is required' });
+    
+    const id = p.id || p.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    const now = new Date().toISOString();
+    
+    const stmt = db.prepare(`
+        INSERT INTO partners (id, name, description, logo_url, website, instagram, email, published, display_order, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    
+    stmt.run(
+        id, p.name, p.description || '', p.logo_url || null, p.website || null,
+        p.instagram || null, p.email || null, p.published !== false ? 1 : 0,
+        p.display_order || 0, now, now,
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.status(201).json({ message: 'Partner created', id: id });
+        }
+    );
+    stmt.finalize();
+});
+
+app.put('/api/partners/:id', (req, res) => {
+    const p = req.body;
+    const now = new Date().toISOString();
+    
+    const stmt = db.prepare(`
+        UPDATE partners 
+        SET name=?, description=?, logo_url=?, website=?, instagram=?, email=?, published=?, display_order=?, updated_at=?
+        WHERE id=?
+    `);
+    
+    stmt.run(
+        p.name, p.description || '', p.logo_url || null, p.website || null,
+        p.instagram || null, p.email || null, p.published !== false ? 1 : 0,
+        p.display_order || 0, now, req.params.id,
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            if (this.changes === 0) return res.status(404).json({ error: 'Partner not found' });
+            res.json({ message: 'Partner updated' });
+        }
+    );
+    stmt.finalize();
+});
+
+app.delete('/api/partners/:id', (req, res) => {
+    db.run('DELETE FROM partners WHERE id = ?', [req.params.id], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        if (this.changes === 0) return res.status(404).json({ error: 'Partner not found' });
+        res.json({ message: 'Partner deleted' });
+    });
+});
+
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 app.get('/:page.html', (req, res) => {
     const filePath = path.join(__dirname, `${req.params.page}.html`);
@@ -491,41 +596,33 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`💾 Start RSS: ${Math.round(process.memoryUsage().rss / 1024 / 1024)}MB\n`);
 });
 
-// AGGRESSIVE MONITORING: Every 20 seconds with request stats
+// ULTRA AGGRESSIVE: GC every 20 seconds
 setInterval(() => {
-    const mem = process.memoryUsage();
-    const rss = Math.round(mem.rss / 1024 / 1024);
-    const heap = Math.round(mem.heapUsed / 1024 / 1024);
-    const external = Math.round(mem.external / 1024 / 1024);
-    
-    // Log request stats
-    console.log(`📊 Requests: ${requestStats.total} total | ${requestStats.api} API | ${requestStats.pages} pages | ${requestStats.static} static`);
-    console.log(`💾 Memory: RSS=${rss}MB | Heap=${heap}MB | External=${external}MB`);
-    
-    // Reset request stats
-    requestStats = { total: 0, api: 0, pages: 0, static: 0, lastLog: Date.now() };
+    const before = process.memoryUsage();
     
     // Run GC 5 TIMES!
     if (global.gc) {
-        const beforeHeap = heap;
         global.gc();
         global.gc();
         global.gc();
         global.gc();
         global.gc();
-        const afterHeap = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
-        const freed = beforeHeap - afterHeap;
-        console.log(`♻️  GC: Freed ${freed}MB (${beforeHeap}MB → ${afterHeap}MB)`);
     }
     
-    // Clear caches if memory too high
-    if (rss > 1500) {
+    const after = process.memoryUsage();
+    const rss = Math.round(after.rss / 1024 / 1024);
+    const heap = Math.round(after.heapUsed / 1024 / 1024);
+    const freed = Math.round((before.heapUsed - after.heapUsed) / 1024 / 1024);
+    
+    console.log(`♻️  RSS: ${rss}MB | Heap: ${heap}MB | Freed: ${freed}MB`);
+    
+    // Clear tags cache if memory too high
+    if (rss > 150) {
         tagsCache = null;
         tagsCacheTime = 0;
-        console.log('🗑️  Cleared all caches (high memory warning!)');
+        recentVisits.clear();
+        console.log('   🗑️  Cleared all caches (high memory)');
     }
-    
-    console.log('---');
 }, 20000); // Every 20 seconds!
 
 process.on('SIGINT', () => {
