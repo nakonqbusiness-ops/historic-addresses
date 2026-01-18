@@ -265,6 +265,11 @@
         document.getElementById('f_name').value = p.name||'';
         document.getElementById('f_slug').value = p.slug || p.id || '';
         fPortraitEl.value = p.portrait_url||'';
+        
+        // ADDED LINES FOR DATES
+        document.getElementById('f_birth_date').value = p.birth_date || '';
+        document.getElementById('f_death_date').value = p.death_date || '';
+        
         renderPortraitPreview();
         document.getElementById('f_bio').value = p.biography||'';
         document.getElementById('f_addr').value = p.address||'';
@@ -290,6 +295,11 @@
         if (!slugInput) slugInput = slugify(p.name);
         p.slug = slugInput || p.slug || p.id || '';
         p.portrait_url = fPortraitEl.value.trim() || null;
+        
+        // ADDED LINES FOR DATES
+        p.birth_date = document.getElementById('f_birth_date').value || null;
+        p.death_date = document.getElementById('f_death_date').value || null;
+
         p.biography = document.getElementById('f_bio').value.trim();
         p.address = document.getElementById('f_addr').value.trim();
         var lat = document.getElementById('f_lat').value.trim();
