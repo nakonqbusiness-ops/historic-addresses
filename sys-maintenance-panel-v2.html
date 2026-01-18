@@ -140,6 +140,7 @@
                 <a href="index.html">Home</a>
                 <a href="map.html">Map</a>
                 <a href="addresses.html">Homes</a>
+                <a href="calendar.html">Calendar</a>
                 <a href="about.html">About</a>
                 <button onclick="logout()" class="theme-toggle" style="background: #dc3545;">Logout</button>
             </nav>
@@ -198,6 +199,10 @@
                             <label><span class="label">Slug (id)</span><input id="f_slug" class="field" placeholder="address-name"></label>
                             <div class="full" style="margin-top:-8px;color:var(--muted);font-size:.85rem;">Lowercase, URL-friendly identifier. If left blank, it will be generated from the name.</div>
                             <label><span class="label">Published</span><span class="row"><input id="f_published" type="checkbox"><span>Visible</span></span></label>
+                            
+                            <!-- DATE FIELDS -->
+                            <label><span class="label">Birth Date</span><input id="f_birth_date" class="field" type="date" placeholder="YYYY-MM-DD"></label>
+                            <label><span class="label">Death Date</span><input id="f_death_date" class="field" type="date" placeholder="YYYY-MM-DD"></label>
                             
                             <label class="full">
                                 <span class="label">Portrait URL</span>
