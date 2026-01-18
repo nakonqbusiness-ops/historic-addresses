@@ -168,15 +168,43 @@ function checkAndMigrateSchema() {
             return;
         }
         const columnNames = columns.map(col => col.name);
+        
+        // Track columns to add
+        const columnsToAdd = [];
+        
         if (!columnNames.includes('portrait_url')) {
-            db.run('ALTER TABLE homes ADD COLUMN portrait_url TEXT', (err) => {
-                if (err) console.error('Migration failed:', err);
-                else console.log('✅ Added portrait_url column');
-                importInitialData();
-            });
-        } else {
-            importInitialData();
+            columnsToAdd.push({ name: 'portrait_url', type: 'TEXT' });
         }
+        
+        if (!columnNames.includes('birth_date')) {
+            columnsToAdd.push({ name: 'birth_date', type: 'TEXT' });
+        }
+        
+        if (!columnNames.includes('death_date')) {
+            columnsToAdd.push({ name: 'death_date', type: 'TEXT' });
+        }
+        
+        // Add columns sequentially
+        if (columnsToAdd.length === 0) {
+            importInitialData();
+            return;
+        }
+        
+        let addedCount = 0;
+        columnsToAdd.forEach((col, index) => {
+            db.run(`ALTER TABLE homes ADD COLUMN ${col.name} ${col.type}`, (err) => {
+                if (err) {
+                    console.error(`Migration failed for ${col.name}:`, err);
+                } else {
+                    console.log(`✅ Added ${col.name} column`);
+                }
+                
+                addedCount++;
+                if (addedCount === columnsToAdd.length) {
+                    importInitialData();
+                }
+            });
+        });
     });
 }
 
@@ -203,8 +231,8 @@ function importInitialData() {
 function insertHome(home) {
     const stmt = db.prepare(`
         INSERT OR REPLACE INTO homes
-        (id, slug, name, biography, address, lat, lng, images, photo_date, sources, tags, published, created_at, updated_at, portrait_url)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (id, slug, name, biography, address, lat, lng, images, photo_date, sources, tags, published, created_at, updated_at, portrait_url, birth_date, death_date)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     const coordinates = home.coordinates || {};
     stmt.run(
@@ -215,7 +243,9 @@ function insertHome(home) {
         home.published !== false ? 1 : 0,
         home.created_at || new Date().toISOString(),
         home.updated_at || new Date().toISOString(),
-        home.portrait_url || null
+        home.portrait_url || null,
+        home.birth_date || null,
+        home.death_date || null
     );
     stmt.finalize();
 }
@@ -266,7 +296,9 @@ function rowToHome(row, ultraLean = false) {
         published: row.published === 1,
         created_at: row.created_at,
         updated_at: row.updated_at,
-        portrait_url: row.portrait_url
+        portrait_url: row.portrait_url,
+        birth_date: row.birth_date,
+        death_date: row.death_date
     };
 }
 
@@ -290,6 +322,7 @@ app.get('/sitemap.xml', (req, res) => {
             { url: '', priority: '1.0', changefreq: 'weekly' },
             { url: 'addresses.html', priority: '0.9', changefreq: 'daily' },
             { url: 'map.html', priority: '0.8', changefreq: 'weekly' },
+            { url: 'calendar.html', priority: '0.8', changefreq: 'daily' },
             { url: 'about.html', priority: '0.7', changefreq: 'monthly' }
         ].forEach(page => {
             xml += `  <url>\n    <loc>${DOMAIN}/${page.url}</loc>\n    <changefreq>${page.changefreq}</changefreq>\n    <priority>${page.priority}</priority>\n  </url>\n`;
@@ -479,12 +512,13 @@ app.put('/api/homes/:id', (req, res) => {
     const home = req.body;
     home.updated_at = new Date().toISOString();
     const coordinates = home.coordinates || {};
-    const stmt = db.prepare(`UPDATE homes SET slug=?, name=?, biography=?, address=?, lat=?, lng=?, images=?, photo_date=?, sources=?, tags=?, published=?, updated_at=?, portrait_url=? WHERE id=?`);
+    const stmt = db.prepare(`UPDATE homes SET slug=?, name=?, biography=?, address=?, lat=?, lng=?, images=?, photo_date=?, sources=?, tags=?, published=?, updated_at=?, portrait_url=?, birth_date=?, death_date=? WHERE id=?`);
     stmt.run(
         home.slug, home.name, home.biography, home.address, coordinates.lat, coordinates.lng,
         JSON.stringify(home.images || []), home.photo_date,
         JSON.stringify(home.sources || []), JSON.stringify(home.tags || []),
-        home.published !== false ? 1 : 0, home.updated_at, home.portrait_url || null, req.params.id,
+        home.published !== false ? 1 : 0, home.updated_at, home.portrait_url || null,
+        home.birth_date || null, home.death_date || null, req.params.id,
         function(err) {
             if (err) return res.status(500).json({ error: err.message });
             if (this.changes === 0) return res.status(404).json({ error: 'Home not found' });
@@ -581,6 +615,123 @@ app.delete('/api/partners/:id', (req, res) => {
         res.json({ message: 'Partner deleted' });
     });
 });
+
+// ============================================================================
+// CALENDAR API (UPDATED FOR SELECTED YEAR)
+// ============================================================================
+
+// Calendar API - updated to use ?year= from query for "years_ago"
+app.get('/api/calendar', (req, res) => {
+    const month = parseInt(req.query.month) || new Date().getMonth() + 1;
+    // CRITICAL: Get year from query (defaults to current year)
+    const viewingYear = parseInt(req.query.year) || new Date().getFullYear();
+    
+    db.all(`
+        SELECT name, slug, birth_date, death_date 
+        FROM homes 
+        WHERE published = 1 
+        AND (birth_date IS NOT NULL OR death_date IS NOT NULL)
+    `, [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        
+        const events = {};
+        
+        rows.forEach(row => {
+            if (row.birth_date) {
+                const date = new Date(row.birth_date);
+                if (date.getMonth() + 1 === month) {
+                    const key = String(month).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0');
+                    if (!events[key]) events[key] = [];
+                    events[key].push({
+                        name: row.name,
+                        slug: row.slug,
+                        type: 'birth',
+                        full_date: row.birth_date,
+                        // Calculation now uses selected year
+                        years_ago: viewingYear - date.getFullYear()
+                    });
+                }
+            }
+            
+            if (row.death_date) {
+                const date = new Date(row.death_date);
+                if (date.getMonth() + 1 === month) {
+                    const key = String(month).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0');
+                    if (!events[key]) events[key] = [];
+                    events[key].push({
+                        name: row.name,
+                        slug: row.slug,
+                        type: 'death',
+                        full_date: row.death_date,
+                        // Calculation now uses selected year
+                        years_ago: viewingYear - date.getFullYear()
+                    });
+                }
+            }
+        });
+        
+        res.json(events);
+        if (global.gc) setImmediate(() => global.gc());
+    });
+});
+
+// Today's events API - updated for selected year
+app.get('/api/calendar/today', (req, res) => {
+    const today = new Date();
+    const month = today.getMonth() + 1;
+    const day = today.getDate();
+    const monthDay = String(month).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+    // CRITICAL: Get year from query (defaults to current year)
+    const viewingYear = parseInt(req.query.year) || today.getFullYear();
+    
+    db.all(`
+        SELECT name, slug, birth_date, death_date 
+        FROM homes 
+        WHERE published = 1 
+        AND (
+            (birth_date IS NOT NULL AND strftime('%m-%d', birth_date) = ?) 
+            OR 
+            (death_date IS NOT NULL AND strftime('%m-%d', death_date) = ?)
+        )
+    `, [monthDay, monthDay], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        
+        const events = [];
+        
+        rows.forEach(row => {
+            if (row.birth_date) {
+                const date = new Date(row.birth_date);
+                if (date.getMonth() + 1 === month && date.getDate() === day) {
+                    events.push({
+                        name: row.name,
+                        slug: row.slug,
+                        type: 'birth',
+                        years_ago: viewingYear - date.getFullYear()
+                    });
+                }
+            }
+            
+            if (row.death_date) {
+                const date = new Date(row.death_date);
+                if (date.getMonth() + 1 === month && date.getDate() === day) {
+                    events.push({
+                        name: row.name,
+                        slug: row.slug,
+                        type: 'death',
+                        years_ago: viewingYear - date.getFullYear()
+                    });
+                }
+            }
+        });
+        
+        res.json(events);
+        if (global.gc) setImmediate(() => global.gc());
+    });
+});
+
+// ============================================================================
+// STATIC PAGES
+// ============================================================================
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 app.get('/:page.html', (req, res) => {
