@@ -19,6 +19,8 @@
 	<link rel="stylesheet" href="assets/css/styles.css">
 	<script src="assets/js/theme.js"></script>
 	<script src="assets/js/transitions.js"></script>
+	<!-- Add this in the <head> section, after the other script tags -->
+<script defer src="assets/js/calendar-popup.js"></script>
 </head>
 <body>
 	<header class="site-header">
@@ -26,12 +28,13 @@
         <img src="assets/img/HistAdrLogo.png" alt="Адресът на историята" class="header-logo">
         <span class="logo-text">Адресът на историята</span>
     </a>
-		<nav class="nav">
-			<a href="index.html">Начало</a>
-			<a href="map.html">Карта</a>
-			<a href="addresses.html">Домове</a>
-			<a href="about.html">За Нас</a>
-		</nav>
+<nav class="nav">
+    <a href="index.html">Начало</a>
+    <a href="map.html">Карта</a>
+    <a href="addresses.html">Домове</a>
+    <a href="calendar.html">Календар</a>
+    <a href="about.html">За Нас</a>
+</nav>
 		<button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode"></button>
 	</header>
 
