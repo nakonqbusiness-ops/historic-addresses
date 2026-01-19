@@ -19,143 +19,261 @@
     <link rel="stylesheet" href="assets/css/styles.css">
     <script defer src="assets/js/theme.js"></script>
     <script defer src="assets/js/transitions.js"></script>
-<style>
-    .calendar-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 1.5rem;
-        flex-wrap: wrap;
-        gap: 1rem;
-    }
-    .calendar-nav {
-        display: flex;
-        gap: 0.5rem;
-        align-items: center;
-    }
-    .calendar-nav button {
-        min-width: 40px;
-        padding: 0.6rem;
-    }
-    .calendar-title {
-        font-size: 1.3rem;
-        font-weight: 700;
-        color: var(--fg);
-        min-width: 140px;
-        text-align: center;
-    }
-    .calendar-grid {
-        display: grid;
-        grid-template-columns: repeat(7, 1fr);
-        gap: 6px; /* Намалено за повече място */
-        margin-bottom: 2rem;
-        width: 100%;
-    }
-    .calendar-day-header {
-        text-align: center;
-        padding: 0.5rem 0;
-        font-weight: 700;
-        color: var(--muted);
-        font-size: 0.75rem;
-        text-transform: uppercase;
-    }
-    .calendar-day {
-        aspect-ratio: 1;
-        background: var(--card);
-        border: 1px solid var(--border);
-        border-radius: 10px;
-        padding: 4px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center; /* Центриране на числото */
-        position: relative;
-        cursor: default;
-        transition: all 0.2s ease;
-        min-height: 50px; /* По-малко за малки екрани */
-    }
-    .calendar-day.other-month {
-        opacity: 0.2;
-    }
-    .calendar-day.today {
-        border: 2px solid var(--accent-strong);
-        background: rgba(205, 133, 63, 0.05);
-    }
-    .calendar-day.has-events {
-        cursor: pointer;
-        background: rgba(205, 133, 63, 0.15);
-    }
-    .calendar-day.has-events:active {
-        transform: scale(0.95);
-    }
-    
-    /* ПО-ГОЛЕМИ ЧИСЛА */
-    .calendar-day-number {
-        font-weight: 800;
-        font-size: 1.3rem; /* Увеличено от 1.1 */
-        color: var(--fg);
-        line-height: 1;
-    }
-
-    .calendar-events-indicator {
-        display: flex;
-        gap: 3px;
-        justify-content: center;
-        position: absolute;
-        bottom: 6px;
-    }
-    .event-dot {
-        width: 5px;
-        height: 5px;
-        border-radius: 50%;
-    }
-    .event-dot.birth { background: #4CAF50; }
-    .event-dot.death { background: #ff4d4d; } /* По-ярък цвят за контраст */
-
-    /* СПЕЦИАЛНИ КОРЕКЦИИ ЗА ТЕЛЕФОН */
-    @media (max-width: 480px) {
-        .container {
-            padding-left: 8px;
-            padding-right: 8px;
+    <style>
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+            gap: 1rem;
         }
-        .calendar-grid {
-            gap: 4px;
+        .calendar-nav {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
         }
-        .calendar-day-number {
-            font-size: 1.15rem; /* Отново голямо, но съобразено с тесния екран */
-        }
-        .calendar-day {
-            border-radius: 6px;
-            min-height: 45px;
+        .calendar-nav button {
+            min-width: 44px;
+            padding: 0.75rem 1rem;
         }
         .calendar-title {
-            font-size: 1.1rem;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--fg);
+        }
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 8px;
+            margin-bottom: 2rem;
         }
         .calendar-day-header {
-            font-size: 0.65rem;
+            text-align: center;
+            padding: 1rem 0.5rem;
+            font-weight: 700;
+            color: var(--muted);
+            font-size: 0.85rem;
+            text-transform: uppercase;
         }
-    }
+        .calendar-day {
+            aspect-ratio: 1;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 0.5rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            position: relative;
+            cursor: default;
+            transition: all 0.3s ease;
+            min-height: 80px;
+        }
+        .calendar-day.other-month {
+            opacity: 0.3;
+        }
+        .calendar-day.today {
+            border: 2px solid var(--accent-strong);
+            box-shadow: 0 0 20px rgba(205, 133, 63, 0.3);
+        }
+        .calendar-day.has-events {
+            cursor: pointer;
+            background: rgba(205, 133, 63, 0.1);
+        }
+        .calendar-day.has-events:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-soft);
+            background: rgba(205, 133, 63, 0.2);
+        }
+        .calendar-day-number {
+            font-weight: 700;
+            font-size: 1.1rem;
+            margin-bottom: 0.25rem;
+            color: var(--fg);
+        }
+        .calendar-events-indicator {
+            display: flex;
+            gap: 4px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 0.25rem;
+        }
+        .event-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--accent-strong);
+        }
+        .event-dot.birth {
+            background: #4CAF50;
+        }
+        .event-dot.death {
+            background: #9E9E9E;
+        }
+        .events-list {
+            margin-top: 2rem;
+        }
+        .event-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            text-decoration: none;
+            color: inherit;
+        }
+        .event-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-soft);
+        }
+        .event-icon {
+            font-size: 2rem;
+            flex-shrink: 0;
+        }
+        .event-content {
+            flex: 1;
+        }
+        .event-name {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--fg);
+            margin-bottom: 0.25rem;
+        }
+        .event-date {
+            color: var(--muted);
+            font-size: 0.9rem;
+        }
+        .event-years {
+            color: var(--accent-soft);
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-top: 0.25rem;
+        }
+        @media (max-width: 768px) {
+            .calendar-grid {
+                gap: 4px;
+            }
+            .calendar-day {
+                min-height: 60px;
+                padding: 0.25rem;
+            }
+            .calendar-day-number {
+                font-size: 0.9rem;
+            }
+            .calendar-day-header {
+                font-size: 0.7rem;
+                padding: 0.5rem 0.25rem;
+            }
+            .event-dot {
+                width: 4px;
+                height: 4px;
+            }
+        }
+        /* Highlight when search result */
+.calendar-day.highlighted {
+    animation: pulse 1.5s ease-in-out 3;
+}
 
-    /* СТИЛ ЗА КАРТИТЕ СЪС СЪБИТИЯ */
-    .events-list { margin-top: 1.5rem; }
-    .event-card {
-        background: var(--card);
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        padding: 1rem;
-        margin-bottom: 0.75rem;
-        display: flex;
-        gap: 1rem;
-        align-items: center;
-        text-decoration: none;
-        color: inherit;
+@keyframes pulse {
+    0%, 100% { 
+        box-shadow: 0 0 0 0 rgba(205, 133, 63, 0.7);
     }
-    .event-icon { font-size: 1.5rem; }
-    .event-name { font-weight: 700; color: var(--fg); }
-    .event-years { color: var(--accent-soft); font-size: 0.85rem; font-weight: 600; }
-</style>
-    <!-- Add this in the <head> section, after the other script tags -->
-<script defer src="assets/js/calendar-popup.js"></script>
+    50% { 
+        box-shadow: 0 0 0 10px rgba(205, 133, 63, 0);
+    }
+}
+
+/* SEARCH RESULTS STYLING */
+.search-result-item {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1rem;
+    margin-bottom: 0.5rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.search-result-item:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-soft);
+    background: rgba(205, 133, 63, 0.1);
+}
+.search-result-name {
+    font-weight: 700;
+    color: var(--fg);
+    margin-bottom: 0.25rem;
+}
+.search-result-dates {
+    font-size: 0.85rem;
+    color: var(--muted);
+}
+.search-result-badge {
+    background: rgba(205, 133, 63, 0.2);
+    padding: 0.25rem 0.75rem;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--accent-strong);
+}/* Highlight when search result */
+.calendar-day.highlighted {
+    animation: pulse 1.5s ease-in-out 3;
+}
+
+@keyframes pulse {
+    0%, 100% { 
+        box-shadow: 0 0 0 0 rgba(205, 133, 63, 0.7);
+    }
+    50% { 
+        box-shadow: 0 0 0 10px rgba(205, 133, 63, 0);
+    }
+}
+
+/* SEARCH RESULTS STYLING */
+.search-result-item {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1rem;
+    margin-bottom: 0.5rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.search-result-item:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-soft);
+    background: rgba(205, 133, 63, 0.1);
+}
+.search-result-name {
+    font-weight: 700;
+    color: var(--fg);
+    margin-bottom: 0.25rem;
+}
+.search-result-dates {
+    font-size: 0.85rem;
+    color: var(--muted);
+}
+.search-result-badge {
+    background: rgba(205, 133, 63, 0.2);
+    padding: 0.25rem 0.75rem;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--accent-strong);
+}
+    </style>
 </head>
 <body>
     <header class="site-header">
@@ -175,6 +293,18 @@
 
     <main class="container">
         <h1 class="page-title gradient-text">📅 Календар на събитията</h1>
+        
+        <!-- SEARCH BAR -->
+        <div style="margin-bottom: 1.5rem;">
+            <input 
+                type="text" 
+                id="searchInput" 
+                class="input" 
+                placeholder="🔍 Търси по име на личност..." 
+                style="width: 100%; max-width: 500px; font-size: 1rem;"
+            >
+            <div id="searchResults" style="margin-top: 0.5rem;"></div>
+        </div>
         
         <div class="calendar-header">
             <div class="calendar-nav">
@@ -207,178 +337,344 @@
         </p>
     </footer>
 
-    <script>
-    (function() {
-        var apiBase = window.location.protocol === 'file:' ? 'http://localhost:3000' : window.location.origin;
-        var currentDate = new Date();
-        var selectedDate = null;
-        var eventsData = {};
-        
-        var monthNames = ['Януари', 'Февруари', 'Март', 'Април', 'Май', 'Юни', 
-                          'Юли', 'Август', 'Септември', 'Октомври', 'Ноември', 'Декември'];
-        var dayNames = ['Нд', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
-        
-        function loadEvents() {
-            var month = currentDate.getMonth() + 1;
-            var year = currentDate.getFullYear();
-            
-            fetch(apiBase + '/api/calendar?month=' + month + '&year=' + year)
-                .then(function(res) { return res.json(); })
-                .then(function(data) {
-                    eventsData = data;
-                    renderCalendar();
-                    if (selectedDate) {
-                        showEventsForDate(selectedDate);
-                    }
-                })
-                .catch(function(err) {
-                    console.error('Error loading events:', err);
-                });
+<script>
+(function() {
+    var apiBase = window.location.protocol === 'file:' ? 'http://localhost:3000' : window.location.origin;
+    
+    // Restore calendar state from sessionStorage
+    var savedState = null;
+    try {
+        var saved = sessionStorage.getItem('calendar-state');
+        if (saved) {
+            savedState = JSON.parse(saved);
         }
-        
-        function renderCalendar() {
-            var grid = document.getElementById('calendarGrid');
-            grid.innerHTML = '';
-            
-            // Day headers
-            dayNames.forEach(function(day) {
-                var header = document.createElement('div');
-                header.className = 'calendar-day-header';
-                header.textContent = day;
-                grid.appendChild(header);
+    } catch(e) {
+        console.error('Error loading calendar state:', e);
+    }
+    
+    var currentDate = savedState && savedState.month && savedState.year 
+        ? new Date(savedState.year, savedState.month - 1, 1)
+        : new Date();
+    var selectedDate = savedState ? savedState.selectedDate : null;
+    var eventsData = {};
+    var allPeopleData = []; // For search
+    var searchTimeout;
+    
+    var monthNames = ['Януари', 'Февруари', 'Март', 'Април', 'Май', 'Юни', 
+                      'Юли', 'Август', 'Септември', 'Октомври', 'Ноември', 'Декември'];
+    var dayNames = ['Нд', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
+    
+    // Save calendar state whenever it changes
+    function saveCalendarState() {
+        try {
+            sessionStorage.setItem('calendar-state', JSON.stringify({
+                month: currentDate.getMonth() + 1,
+                year: currentDate.getFullYear(),
+                selectedDate: selectedDate
+            }));
+        } catch(e) {
+            console.error('Error saving calendar state:', e);
+        }
+    }
+    
+    // Load all people with dates for search
+    function loadAllPeople() {
+        fetch(apiBase + '/api/calendar/all')
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                allPeopleData = data;
+                console.log('Loaded', data.length, 'people for search');
+            })
+            .catch(function(err) {
+                console.error('Error loading people:', err);
             });
-            
-            var year = currentDate.getFullYear();
-            var month = currentDate.getMonth();
-            var firstDay = new Date(year, month, 1).getDay();
-            var daysInMonth = new Date(year, month + 1, 0).getDate();
-            var daysInPrevMonth = new Date(year, month, 0).getDate();
-            
-            var today = new Date();
-            var isCurrentMonth = today.getMonth() === month && today.getFullYear() === year;
-            
-            // Previous month days
-            for (var i = firstDay - 1; i >= 0; i--) {
-                var day = daysInPrevMonth - i;
-                var cell = createDayCell(day, true, false);
-                grid.appendChild(cell);
-            }
-            
-            // Current month days
-            for (var day = 1; day <= daysInMonth; day++) {
-                var isToday = isCurrentMonth && day === today.getDate();
-                var cell = createDayCell(day, false, isToday);
-                grid.appendChild(cell);
-            }
-            
-            // Next month days
-            var totalCells = grid.children.length - 7; // subtract headers
-            var remainingCells = (Math.ceil(totalCells / 7) * 7) - totalCells;
-            for (var day = 1; day <= remainingCells; day++) {
-                var cell = createDayCell(day, true, false);
-                grid.appendChild(cell);
-            }
-            
-            document.getElementById('monthYear').textContent = monthNames[month] + ' ' + year;
+    }
+    
+    // Search functionality
+    document.getElementById('searchInput').addEventListener('input', function(e) {
+        clearTimeout(searchTimeout);
+        var query = e.target.value.trim().toLowerCase();
+        
+        if (query.length < 2) {
+            document.getElementById('searchResults').innerHTML = '';
+            return;
         }
         
-        function createDayCell(day, otherMonth, isToday) {
-            var cell = document.createElement('div');
-            cell.className = 'calendar-day';
-            if (otherMonth) cell.className += ' other-month';
-            if (isToday) cell.className += ' today';
-            
-            var dateKey = formatDateKey(currentDate.getFullYear(), currentDate.getMonth() + (otherMonth ? (day > 15 ? -1 : 1) : 0), day);
-            var events = eventsData[dateKey] || [];
-            
-            if (events.length > 0 && !otherMonth) {
-                cell.className += ' has-events';
-                cell.onclick = function() {
-                    selectedDate = dateKey;
-                    showEventsForDate(dateKey);
-                };
-            }
-            
-            var number = document.createElement('div');
-            number.className = 'calendar-day-number';
-            number.textContent = day;
-            cell.appendChild(number);
-            
-            if (events.length > 0) {
-                var indicator = document.createElement('div');
-                indicator.className = 'calendar-events-indicator';
-                events.forEach(function(event) {
-                    var dot = document.createElement('div');
-                    dot.className = 'event-dot ' + event.type;
-                    indicator.appendChild(dot);
-                });
-                cell.appendChild(indicator);
-            }
-            
-            return cell;
+        searchTimeout = setTimeout(function() {
+            performSearch(query);
+        }, 300);
+    });
+    
+    function performSearch(query) {
+        var words = query.split(/\s+/);
+        var results = allPeopleData.filter(function(person) {
+            var nameLower = person.name.toLowerCase();
+            return words.every(function(word) {
+                return nameLower.includes(word);
+            });
+        });
+        
+        displaySearchResults(results.slice(0, 5)); // Show max 5 results
+    }
+    
+    function displaySearchResults(results) {
+        var container = document.getElementById('searchResults');
+        
+        if (results.length === 0) {
+            container.innerHTML = '<div style="color: var(--muted); font-size: 0.9rem;">Няма резултати</div>';
+            return;
         }
         
-        function formatDateKey(year, month, day) {
-            return String(month + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
-        }
+        var html = '';
+        results.forEach(function(person) {
+            var dates = [];
+            if (person.birth_date) dates.push('🎂 ' + person.birth_date);
+            if (person.death_date) dates.push('🕯️ ' + person.death_date);
+            var datesText = dates.join(' • ');
+            
+            var count = (person.birth_date ? 1 : 0) + (person.death_date ? 1 : 0);
+            var badge = count + ' ' + (count === 1 ? 'дата' : 'дати');
+            
+            html += '<div class="search-result-item" data-birth="' + (person.birth_date || '') + '" data-death="' + (person.death_date || '') + '" data-name="' + person.name + '">';
+            html += '<div>';
+            html += '<div class="search-result-name">' + person.name + '</div>';
+            html += '<div class="search-result-dates">' + datesText + '</div>';
+            html += '</div>';
+            html += '<div class="search-result-badge">' + badge + '</div>';
+            html += '</div>';
+        });
         
-        function showEventsForDate(dateKey) {
-            var events = eventsData[dateKey] || [];
-            var listEl = document.getElementById('eventsList');
-            
-            if (events.length === 0) {
-                listEl.innerHTML = '';
-                return;
-            }
-            
-            var parts = dateKey.split('-');
-            var displayDate = parts[1] + ' ' + monthNames[parseInt(parts[0]) - 1];
-            
-            var html = '<h2 style="margin-bottom: 1rem; color: var(--fg);">Събития на ' + displayDate + '</h2>';
-            
-            events.forEach(function(event) {
-                var icon = event.type === 'birth' ? '🎂' : '🕯️';
-                var typeText = event.type === 'birth' ? 'Роден' : 'Починал';
-                var years = event.years_ago;
-                var yearsText = years === 1 ? 'година' : 'години';
+        container.innerHTML = html;
+        
+        // Add click handlers
+        var items = container.querySelectorAll('.search-result-item');
+        items.forEach(function(item) {
+            item.addEventListener('click', function() {
+                var birthDate = this.dataset.birth;
+                var deathDate = this.dataset.death;
+                var name = this.dataset.name;
                 
-                html += '<a href="address.html?slug=' + encodeURIComponent(event.slug) + '" class="event-card">';
-                html += '<div class="event-icon">' + icon + '</div>';
-                html += '<div class="event-content">';
-                html += '<div class="event-name">' + event.name + '</div>';
-                html += '<div class="event-date">' + typeText + ' на ' + event.full_date + '</div>';
-                html += '<div class="event-years">Преди ' + years + ' ' + yearsText + '</div>';
-                html += '</div></a>';
+                // Jump to first available date
+                var targetDate = birthDate || deathDate;
+                if (targetDate) {
+                    jumpToDate(targetDate, name);
+                }
             });
+        });
+    }
+    
+    function jumpToDate(dateStr, personName) {
+        var date = new Date(dateStr);
+        currentDate = new Date(date.getFullYear(), date.getMonth(), 1);
+        
+        saveCalendarState();
+        loadEvents();
+        
+        // Clear search
+        document.getElementById('searchInput').value = '';
+        document.getElementById('searchResults').innerHTML = '';
+        
+        // After calendar loads, highlight and show the date
+        setTimeout(function() {
+            var dateKey = String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0');
+            selectedDate = dateKey;
+            saveCalendarState();
+            showEventsForDate(dateKey);
             
-            listEl.innerHTML = html;
-            listEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            // Highlight the day with animation
+            highlightDay(date.getDate());
+            
+            // Scroll to events list
+            setTimeout(function() {
+                document.getElementById('eventsList').scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 100);
+        }, 200);
+    }
+    
+    function highlightDay(day) {
+        var cells = document.querySelectorAll('.calendar-day');
+        cells.forEach(function(cell) {
+            var num = cell.querySelector('.calendar-day-number');
+            if (num && parseInt(num.textContent) === day && !cell.classList.contains('other-month')) {
+                cell.classList.add('highlighted');
+                setTimeout(function() {
+                    cell.classList.remove('highlighted');
+                }, 4500); // 3 pulses * 1.5s
+            }
+        });
+    }
+    
+    function loadEvents() {
+        var month = currentDate.getMonth() + 1;
+        var year = currentDate.getFullYear();
+        
+        // Save state when loading new month
+        saveCalendarState();
+        
+        fetch(apiBase + '/api/calendar?month=' + month + '&year=' + year)
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                eventsData = data;
+                renderCalendar();
+                
+                // Restore selected date if it exists
+                if (selectedDate) {
+                    showEventsForDate(selectedDate);
+                }
+            })
+            .catch(function(err) {
+                console.error('Error loading events:', err);
+            });
+    }
+    
+    function renderCalendar() {
+        var grid = document.getElementById('calendarGrid');
+        grid.innerHTML = '';
+        
+        // Day headers
+        dayNames.forEach(function(day) {
+            var header = document.createElement('div');
+            header.className = 'calendar-day-header';
+            header.textContent = day;
+            grid.appendChild(header);
+        });
+        
+        var year = currentDate.getFullYear();
+        var month = currentDate.getMonth();
+        var firstDay = new Date(year, month, 1).getDay();
+        var daysInMonth = new Date(year, month + 1, 0).getDate();
+        var daysInPrevMonth = new Date(year, month, 0).getDate();
+        
+        var today = new Date();
+        var isCurrentMonth = today.getMonth() === month && today.getFullYear() === year;
+        
+        // Previous month days
+        for (var i = firstDay - 1; i >= 0; i--) {
+            var day = daysInPrevMonth - i;
+            var cell = createDayCell(day, true, false);
+            grid.appendChild(cell);
         }
         
-        document.getElementById('prevMonth').addEventListener('click', function() {
-            currentDate.setMonth(currentDate.getMonth() - 1);
-            selectedDate = null;
-            document.getElementById('eventsList').innerHTML = '';
-            loadEvents();
+        // Current month days
+        for (var day = 1; day <= daysInMonth; day++) {
+            var isToday = isCurrentMonth && day === today.getDate();
+            var cell = createDayCell(day, false, isToday);
+            grid.appendChild(cell);
+        }
+        
+        // Next month days
+        var totalCells = grid.children.length - 7; // subtract headers
+        var remainingCells = (Math.ceil(totalCells / 7) * 7) - totalCells;
+        for (var day = 1; day <= remainingCells; day++) {
+            var cell = createDayCell(day, true, false);
+            grid.appendChild(cell);
+        }
+        
+        document.getElementById('monthYear').textContent = monthNames[month] + ' ' + year;
+    }
+    
+    function createDayCell(day, otherMonth, isToday) {
+        var cell = document.createElement('div');
+        cell.className = 'calendar-day';
+        if (otherMonth) cell.className += ' other-month';
+        if (isToday) cell.className += ' today';
+        
+        var dateKey = formatDateKey(currentDate.getFullYear(), currentDate.getMonth() + (otherMonth ? (day > 15 ? -1 : 1) : 0), day);
+        var events = eventsData[dateKey] || [];
+        
+        if (events.length > 0 && !otherMonth) {
+            cell.className += ' has-events';
+            cell.onclick = function() {
+                selectedDate = dateKey;
+                saveCalendarState();
+                showEventsForDate(dateKey);
+            };
+        }
+        
+        var number = document.createElement('div');
+        number.className = 'calendar-day-number';
+        number.textContent = day;
+        cell.appendChild(number);
+        
+        if (events.length > 0) {
+            var indicator = document.createElement('div');
+            indicator.className = 'calendar-events-indicator';
+            events.forEach(function(event) {
+                var dot = document.createElement('div');
+                dot.className = 'event-dot ' + event.type;
+                indicator.appendChild(dot);
+            });
+            cell.appendChild(indicator);
+        }
+        
+        return cell;
+    }
+    
+    function formatDateKey(year, month, day) {
+        return String(month + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+    }
+    
+    function showEventsForDate(dateKey) {
+        var events = eventsData[dateKey] || [];
+        var listEl = document.getElementById('eventsList');
+        
+        if (events.length === 0) {
+            listEl.innerHTML = '';
+            return;
+        }
+        
+        var parts = dateKey.split('-');
+        var displayDate = parts[1] + ' ' + monthNames[parseInt(parts[0]) - 1];
+        
+        var html = '<h2 style="margin-bottom: 1rem; color: var(--fg);">Събития на ' + displayDate + '</h2>';
+        
+        events.forEach(function(event) {
+            var icon = event.type === 'birth' ? '🎂' : '🕯️';
+            var typeText = event.type === 'birth' ? 'Роден' : 'Починал';
+            var years = event.years_ago;
+            var yearsText = years === 1 ? 'година' : 'години';
+            
+            html += '<a href="address.html?slug=' + encodeURIComponent(event.slug) + '" class="event-card">';
+            html += '<div class="event-icon">' + icon + '</div>';
+            html += '<div class="event-content">';
+            html += '<div class="event-name">' + event.name + '</div>';
+            html += '<div class="event-date">' + typeText + ' на ' + event.full_date + '</div>';
+            html += '<div class="event-years">Преди ' + years + ' ' + yearsText + '</div>';
+            html += '</div></a>';
         });
         
-        document.getElementById('nextMonth').addEventListener('click', function() {
-            currentDate.setMonth(currentDate.getMonth() + 1);
-            selectedDate = null;
-            document.getElementById('eventsList').innerHTML = '';
-            loadEvents();
-        });
-        
-        document.getElementById('todayBtn').addEventListener('click', function() {
-            currentDate = new Date();
-            selectedDate = null;
-            document.getElementById('eventsList').innerHTML = '';
-            loadEvents();
-        });
-        
-        document.getElementById('year').textContent = new Date().getFullYear();
+        listEl.innerHTML = html;
+        listEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+    
+    document.getElementById('prevMonth').addEventListener('click', function() {
+        currentDate.setMonth(currentDate.getMonth() - 1);
+        selectedDate = null;
+        document.getElementById('eventsList').innerHTML = '';
+        saveCalendarState();
         loadEvents();
-    })();
-    </script>
+    });
+    
+    document.getElementById('nextMonth').addEventListener('click', function() {
+        currentDate.setMonth(currentDate.getMonth() + 1);
+        selectedDate = null;
+        document.getElementById('eventsList').innerHTML = '';
+        saveCalendarState();
+        loadEvents();
+    });
+    
+    document.getElementById('todayBtn').addEventListener('click', function() {
+        currentDate = new Date();
+        selectedDate = null;
+        document.getElementById('eventsList').innerHTML = '';
+        saveCalendarState();
+        loadEvents();
+    });
+    
+    document.getElementById('year').textContent = new Date().getFullYear();
+    loadEvents();
+    loadAllPeople(); // Load search data
+})();
+</script>
 </body>
 </html>
