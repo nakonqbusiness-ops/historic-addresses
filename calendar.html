@@ -19,164 +19,143 @@
     <link rel="stylesheet" href="assets/css/styles.css">
     <script defer src="assets/js/theme.js"></script>
     <script defer src="assets/js/transitions.js"></script>
-    <style>
-        .calendar-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 2rem;
-            flex-wrap: wrap;
-            gap: 1rem;
-        }
-        .calendar-nav {
-            display: flex;
-            gap: 1rem;
-            align-items: center;
-        }
-        .calendar-nav button {
-            min-width: 44px;
-            padding: 0.75rem 1rem;
-        }
-        .calendar-title {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: var(--fg);
+<style>
+    .calendar-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+    .calendar-nav {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+    }
+    .calendar-nav button {
+        min-width: 40px;
+        padding: 0.6rem;
+    }
+    .calendar-title {
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: var(--fg);
+        min-width: 140px;
+        text-align: center;
+    }
+    .calendar-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 6px; /* Намалено за повече място */
+        margin-bottom: 2rem;
+        width: 100%;
+    }
+    .calendar-day-header {
+        text-align: center;
+        padding: 0.5rem 0;
+        font-weight: 700;
+        color: var(--muted);
+        font-size: 0.75rem;
+        text-transform: uppercase;
+    }
+    .calendar-day {
+        aspect-ratio: 1;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 4px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center; /* Центриране на числото */
+        position: relative;
+        cursor: default;
+        transition: all 0.2s ease;
+        min-height: 50px; /* По-малко за малки екрани */
+    }
+    .calendar-day.other-month {
+        opacity: 0.2;
+    }
+    .calendar-day.today {
+        border: 2px solid var(--accent-strong);
+        background: rgba(205, 133, 63, 0.05);
+    }
+    .calendar-day.has-events {
+        cursor: pointer;
+        background: rgba(205, 133, 63, 0.15);
+    }
+    .calendar-day.has-events:active {
+        transform: scale(0.95);
+    }
+    
+    /* ПО-ГОЛЕМИ ЧИСЛА */
+    .calendar-day-number {
+        font-weight: 800;
+        font-size: 1.3rem; /* Увеличено от 1.1 */
+        color: var(--fg);
+        line-height: 1;
+    }
+
+    .calendar-events-indicator {
+        display: flex;
+        gap: 3px;
+        justify-content: center;
+        position: absolute;
+        bottom: 6px;
+    }
+    .event-dot {
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+    }
+    .event-dot.birth { background: #4CAF50; }
+    .event-dot.death { background: #ff4d4d; } /* По-ярък цвят за контраст */
+
+    /* СПЕЦИАЛНИ КОРЕКЦИИ ЗА ТЕЛЕФОН */
+    @media (max-width: 480px) {
+        .container {
+            padding-left: 8px;
+            padding-right: 8px;
         }
         .calendar-grid {
-            display: grid;
-            grid-template-columns: repeat(7, 1fr);
-            gap: 8px;
-            margin-bottom: 2rem;
-        }
-        .calendar-day-header {
-            text-align: center;
-            padding: 1rem 0.5rem;
-            font-weight: 700;
-            color: var(--muted);
-            font-size: 0.85rem;
-            text-transform: uppercase;
-        }
-        .calendar-day {
-            aspect-ratio: 1;
-            background: var(--card);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 0.5rem;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: flex-start;
-            position: relative;
-            cursor: default;
-            transition: all 0.3s ease;
-            min-height: 80px;
-        }
-        .calendar-day.other-month {
-            opacity: 0.3;
-        }
-        .calendar-day.today {
-            border: 2px solid var(--accent-strong);
-            box-shadow: 0 0 20px rgba(205, 133, 63, 0.3);
-        }
-        .calendar-day.has-events {
-            cursor: pointer;
-            background: rgba(205, 133, 63, 0.1);
-        }
-        .calendar-day.has-events:hover {
-            transform: translateY(-4px);
-            box-shadow: var(--shadow-soft);
-            background: rgba(205, 133, 63, 0.2);
+            gap: 4px;
         }
         .calendar-day-number {
-            font-weight: 700;
+            font-size: 1.15rem; /* Отново голямо, но съобразено с тесния екран */
+        }
+        .calendar-day {
+            border-radius: 6px;
+            min-height: 45px;
+        }
+        .calendar-title {
             font-size: 1.1rem;
-            margin-bottom: 0.25rem;
-            color: var(--fg);
         }
-        .calendar-events-indicator {
-            display: flex;
-            gap: 4px;
-            flex-wrap: wrap;
-            justify-content: center;
-            margin-top: 0.25rem;
+        .calendar-day-header {
+            font-size: 0.65rem;
         }
-        .event-dot {
-            width: 6px;
-            height: 6px;
-            border-radius: 50%;
-            background: var(--accent-strong);
-        }
-        .event-dot.birth {
-            background: #4CAF50;
-        }
-        .event-dot.death {
-            background: #9E9E9E;
-        }
-        .events-list {
-            margin-top: 2rem;
-        }
-        .event-card {
-            background: var(--card);
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            padding: 1.5rem;
-            margin-bottom: 1rem;
-            display: flex;
-            gap: 1rem;
-            align-items: center;
-            transition: all 0.3s ease;
-            cursor: pointer;
-            text-decoration: none;
-            color: inherit;
-        }
-        .event-card:hover {
-            transform: translateY(-4px);
-            box-shadow: var(--shadow-soft);
-        }
-        .event-icon {
-            font-size: 2rem;
-            flex-shrink: 0;
-        }
-        .event-content {
-            flex: 1;
-        }
-        .event-name {
-            font-size: 1.2rem;
-            font-weight: 700;
-            color: var(--fg);
-            margin-bottom: 0.25rem;
-        }
-        .event-date {
-            color: var(--muted);
-            font-size: 0.9rem;
-        }
-        .event-years {
-            color: var(--accent-soft);
-            font-size: 0.85rem;
-            font-weight: 600;
-            margin-top: 0.25rem;
-        }
-        @media (max-width: 768px) {
-            .calendar-grid {
-                gap: 4px;
-            }
-            .calendar-day {
-                min-height: 60px;
-                padding: 0.25rem;
-            }
-            .calendar-day-number {
-                font-size: 0.9rem;
-            }
-            .calendar-day-header {
-                font-size: 0.7rem;
-                padding: 0.5rem 0.25rem;
-            }
-            .event-dot {
-                width: 4px;
-                height: 4px;
-            }
-        }
-    </style>
+    }
+
+    /* СТИЛ ЗА КАРТИТЕ СЪС СЪБИТИЯ */
+    .events-list { margin-top: 1.5rem; }
+    .event-card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 1rem;
+        margin-bottom: 0.75rem;
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+        text-decoration: none;
+        color: inherit;
+    }
+    .event-icon { font-size: 1.5rem; }
+    .event-name { font-weight: 700; color: var(--fg); }
+    .event-years { color: var(--accent-soft); font-size: 0.85rem; font-weight: 600; }
+</style>
+    <!-- Add this in the <head> section, after the other script tags -->
+<script defer src="assets/js/calendar-popup.js"></script>
 </head>
 <body>
     <header class="site-header">
@@ -231,55 +210,23 @@
     <script>
     (function() {
         var apiBase = window.location.protocol === 'file:' ? 'http://localhost:3000' : window.location.origin;
-        
-        // Restore calendar state from sessionStorage
-        var savedState = null;
-        try {
-            var saved = sessionStorage.getItem('calendar-state');
-            if (saved) {
-                savedState = JSON.parse(saved);
-            }
-        } catch(e) {
-            console.error('Error loading calendar state:', e);
-        }
-        
-        var currentDate = savedState && savedState.month && savedState.year 
-            ? new Date(savedState.year, savedState.month - 1, 1)
-            : new Date();
-        var selectedDate = savedState ? savedState.selectedDate : null;
+        var currentDate = new Date();
+        var selectedDate = null;
         var eventsData = {};
         
         var monthNames = ['Януари', 'Февруари', 'Март', 'Април', 'Май', 'Юни', 
                           'Юли', 'Август', 'Септември', 'Октомври', 'Ноември', 'Декември'];
         var dayNames = ['Нд', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
         
-        // Save calendar state whenever it changes
-        function saveCalendarState() {
-            try {
-                sessionStorage.setItem('calendar-state', JSON.stringify({
-                    month: currentDate.getMonth() + 1,
-                    year: currentDate.getFullYear(),
-                    selectedDate: selectedDate
-                }));
-            } catch(e) {
-                console.error('Error saving calendar state:', e);
-            }
-        }
-        
         function loadEvents() {
             var month = currentDate.getMonth() + 1;
             var year = currentDate.getFullYear();
-            
-            // Save state when loading new month
-            saveCalendarState();
             
             fetch(apiBase + '/api/calendar?month=' + month + '&year=' + year)
                 .then(function(res) { return res.json(); })
                 .then(function(data) {
                     eventsData = data;
                     renderCalendar();
-                    
-                    // Restore selected date if it exists
                     if (selectedDate) {
                         showEventsForDate(selectedDate);
                     }
@@ -348,7 +295,6 @@
                 cell.className += ' has-events';
                 cell.onclick = function() {
                     selectedDate = dateKey;
-                    saveCalendarState();
                     showEventsForDate(dateKey);
                 };
             }
@@ -413,7 +359,6 @@
             currentDate.setMonth(currentDate.getMonth() - 1);
             selectedDate = null;
             document.getElementById('eventsList').innerHTML = '';
-            saveCalendarState();
             loadEvents();
         });
         
@@ -421,7 +366,6 @@
             currentDate.setMonth(currentDate.getMonth() + 1);
             selectedDate = null;
             document.getElementById('eventsList').innerHTML = '';
-            saveCalendarState();
             loadEvents();
         });
         
@@ -429,7 +373,6 @@
             currentDate = new Date();
             selectedDate = null;
             document.getElementById('eventsList').innerHTML = '';
-            saveCalendarState();
             loadEvents();
         });
         
