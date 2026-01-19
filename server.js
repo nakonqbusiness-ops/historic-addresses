@@ -452,6 +452,11 @@ app.get('/api/homes/map', (req, res) => {
 
 let tagsCache = null;
 let tagsCacheTime = 0;
+let todayCache = null;
+let todayCacheTime = 0;
+// 1. Нова кеш променлива
+let allPeopleCache = null;
+let allPeopleCacheTime = 0;
 
 app.get('/api/tags', (req, res) => {
     const now = Date.now();
@@ -495,6 +500,9 @@ app.post('/api/homes', (req, res) => {
     home.updated_at = new Date().toISOString();
     insertHome(home);
     tagsCache = null; 
+    todayCache = null;
+    // 3. Изчистване на кеша при добавяне
+    allPeopleCache = null;
     res.status(201).json({ message: 'Home created', id: home.id });
 });
 
@@ -513,6 +521,9 @@ app.put('/api/homes/:id', (req, res) => {
             if (err) return res.status(500).json({ error: err.message });
             if (this.changes === 0) return res.status(404).json({ error: 'Home not found' });
             tagsCache = null;
+            todayCache = null;
+            // 4. Изчистване на кеша при промяна
+            allPeopleCache = null;
             res.json({ message: 'Home updated' });
         }
     );
@@ -524,6 +535,9 @@ app.delete('/api/homes/:id', (req, res) => {
         if (err) return res.status(500).json({ error: err.message });
         if (this.changes === 0) return res.status(404).json({ error: 'Home not found' });
         tagsCache = null;
+        todayCache = null;
+        // 5. Изчистване на кеша при триене
+        allPeopleCache = null;
         res.json({ message: 'Home deleted' });
     });
 });
@@ -708,6 +722,36 @@ app.get('/api/calendar/today', (req, res) => {
     });
 });
 
+// 2. Нов API ендпоинт за търсачката в календара
+// All people with dates - for calendar search (with 30min cache)
+app.get('/api/calendar/all', (req, res) => {
+    const now = Date.now();
+    
+    // Check cache (30 min TTL)
+    if (allPeopleCache && (now - allPeopleCacheTime) < 1800000) {
+        return res.json(allPeopleCache);
+    }
+    
+    db.all(`
+        SELECT name, birth_date, death_date 
+        FROM homes 
+        WHERE published = 1 
+        AND (birth_date IS NOT NULL OR death_date IS NOT NULL)
+        ORDER BY name
+    `, [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        
+        // Cache it!
+        allPeopleCache = rows;
+        allPeopleCacheTime = now;
+        
+        res.json(rows);
+        
+        // Cleanup
+        if (global.gc) setImmediate(() => global.gc());
+    });
+});
+
 // ============================================================================
 // STATIC PAGES
 // ============================================================================
@@ -750,8 +794,13 @@ setInterval(() => {
     if (rss > 150) {
         tagsCache = null;
         tagsCacheTime = 0;
+        todayCache = null;
+        todayCacheTime = 0;
+        // 6. Пълно изчистване на новия кеш при висока памет
+        allPeopleCache = null;
+        allPeopleCacheTime = 0;
         recentVisits.clear();
-        console.log('   🗑️  Cleared all caches (high memory)');
+        console.log('    🗑️  Cleared all caches (high memory)');
     }
 }, 20000); // Every 20 seconds!
 
