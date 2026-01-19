@@ -94,13 +94,13 @@ const db = new sqlite3.Database(DB_FILE, (err) => {
 
 // ULTRA AGGRESSIVE SQLITE SETTINGS
 db.configure('busyTimeout', 3000);
-db.run('PRAGMA journal_mode = DELETE'); // DELETE uses less memory than WAL
+db.run('PRAGMA journal_mode = DELETE'); 
 db.run('PRAGMA synchronous = NORMAL');
-db.run('PRAGMA cache_size = 50'); // REDUCED from 500 to 50!
+db.run('PRAGMA cache_size = 50'); 
 db.run('PRAGMA temp_store = MEMORY');
 db.run('PRAGMA mmap_size = 0');
-db.run('PRAGMA page_size = 1024'); // Smaller pages = less memory
-db.run('PRAGMA locking_mode = NORMAL'); // Release locks faster
+db.run('PRAGMA page_size = 1024'); 
+db.run('PRAGMA locking_mode = NORMAL'); 
 
 function initializeDatabase() {
     db.run(`
@@ -129,6 +129,8 @@ function initializeDatabase() {
             db.run('CREATE INDEX IF NOT EXISTS idx_homes_published ON homes(published)');
             db.run('CREATE INDEX IF NOT EXISTS idx_homes_slug ON homes(slug)');
             db.run('CREATE INDEX IF NOT EXISTS idx_homes_name ON homes(name)');
+            // ВАЖНО ЗА СКОРОСТТА НА КАЛЕНДАРА:
+            db.run('CREATE INDEX IF NOT EXISTS idx_homes_dates ON homes(birth_date, death_date)');
             checkAndMigrateSchema();
         }
     });
@@ -169,7 +171,6 @@ function checkAndMigrateSchema() {
         }
         const columnNames = columns.map(col => col.name);
         
-        // Track columns to add
         const columnsToAdd = [];
         
         if (!columnNames.includes('portrait_url')) {
@@ -184,7 +185,6 @@ function checkAndMigrateSchema() {
             columnsToAdd.push({ name: 'death_date', type: 'TEXT' });
         }
         
-        // Add columns sequentially
         if (columnsToAdd.length === 0) {
             importInitialData();
             return;
@@ -250,10 +250,8 @@ function insertHome(home) {
     stmt.finalize();
 }
 
-// CRITICAL: Minimal parsing for list view
 function rowToHome(row, ultraLean = false) {
     if (ultraLean) {
-        // Only parse first image for list view
         let firstImage = null;
         try {
             const images = JSON.parse(row.images || '[]');
@@ -281,7 +279,6 @@ function rowToHome(row, ultraLean = false) {
         };
     }
     
-    // Full view for detail page
     return {
         id: row.id,
         slug: row.slug,
@@ -338,7 +335,6 @@ app.get('/sitemap.xml', (req, res) => {
     });
 });
 
-// ULTRA LEAN API - Only select what we need!
 app.get('/api/homes', (req, res) => {
     const showAll = req.query.all === 'true';
     const page = parseInt(req.query.page) || 1;
@@ -379,7 +375,6 @@ app.get('/api/homes', (req, res) => {
     
     const whereClause = whereConditions.length > 0 ? 'WHERE ' + whereConditions.join(' AND ') : '';
     
-    // Count first
     db.get(`SELECT COUNT(*) as total FROM homes ${whereClause}`, params, (err, countRow) => {
         if (err) {
             console.error('Count error:', err);
@@ -389,7 +384,6 @@ app.get('/api/homes', (req, res) => {
         const total = countRow.total;
         const totalPages = Math.ceil(total / limit);
         
-        // CRITICAL: Only select columns needed for list view!
         const query = `
             SELECT id, slug, name, address, lat, lng, images, tags
             FROM homes 
@@ -404,7 +398,6 @@ app.get('/api/homes', (req, res) => {
                 return res.status(500).json({ error: 'Database error' });
             }
             
-            // Process and send immediately
             const homes = rows.map(row => rowToHome(row, true));
             
             res.json({
@@ -419,11 +412,9 @@ app.get('/api/homes', (req, res) => {
                 }
             });
             
-            // CRITICAL: Immediate cleanup
             rows.length = 0;
             homes.length = 0;
             
-            // Triple GC
             if (global.gc) {
                 setImmediate(() => {
                     global.gc();
@@ -459,7 +450,6 @@ app.get('/api/homes/map', (req, res) => {
     );
 });
 
-// Tags with 5min cache
 let tagsCache = null;
 let tagsCacheTime = 0;
 
@@ -617,56 +607,55 @@ app.delete('/api/partners/:id', (req, res) => {
 });
 
 // ============================================================================
-// CALENDAR API (UPDATED FOR SELECTED YEAR)
+// CALENDAR API - ОПТИМИЗИРАН ЗА СКОРОСТ
 // ============================================================================
 
-// Calendar API - updated to use ?year= from query for "years_ago"
 app.get('/api/calendar', (req, res) => {
     const month = parseInt(req.query.month) || new Date().getMonth() + 1;
-    // CRITICAL: Get year from query (defaults to current year)
     const viewingYear = parseInt(req.query.year) || new Date().getFullYear();
-    
-    db.all(`
+    const monthStr = String(month).padStart(2, '0');
+
+    // Оптимизация: Използваме SQL strftime, за да изтеглим само нужния месец
+    const query = `
         SELECT name, slug, birth_date, death_date 
         FROM homes 
         WHERE published = 1 
-        AND (birth_date IS NOT NULL OR death_date IS NOT NULL)
-    `, [], (err, rows) => {
+        AND (
+            strftime('%m', birth_date) = ? 
+            OR strftime('%m', death_date) = ?
+        )
+    `;
+
+    db.all(query, [monthStr, monthStr], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         
         const events = {};
-        
         rows.forEach(row => {
-            if (row.birth_date) {
+            // Обработка на раждания
+            if (row.birth_date && row.birth_date.includes(`-${monthStr}-`)) {
                 const date = new Date(row.birth_date);
-                if (date.getMonth() + 1 === month) {
-                    const key = String(month).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0');
-                    if (!events[key]) events[key] = [];
-                    events[key].push({
-                        name: row.name,
-                        slug: row.slug,
-                        type: 'birth',
-                        full_date: row.birth_date,
-                        // Calculation now uses selected year
-                        years_ago: viewingYear - date.getFullYear()
-                    });
-                }
+                const key = monthStr + '-' + String(date.getDate()).padStart(2, '0');
+                if (!events[key]) events[key] = [];
+                events[key].push({
+                    name: row.name,
+                    slug: row.slug,
+                    type: 'birth',
+                    full_date: row.birth_date,
+                    years_ago: viewingYear - date.getFullYear()
+                });
             }
-            
-            if (row.death_date) {
+            // Обработка на починали
+            if (row.death_date && row.death_date.includes(`-${monthStr}-`)) {
                 const date = new Date(row.death_date);
-                if (date.getMonth() + 1 === month) {
-                    const key = String(month).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0');
-                    if (!events[key]) events[key] = [];
-                    events[key].push({
-                        name: row.name,
-                        slug: row.slug,
-                        type: 'death',
-                        full_date: row.death_date,
-                        // Calculation now uses selected year
-                        years_ago: viewingYear - date.getFullYear()
-                    });
-                }
+                const key = monthStr + '-' + String(date.getDate()).padStart(2, '0');
+                if (!events[key]) events[key] = [];
+                events[key].push({
+                    name: row.name,
+                    slug: row.slug,
+                    type: 'death',
+                    full_date: row.death_date,
+                    years_ago: viewingYear - date.getFullYear()
+                });
             }
         });
         
@@ -675,52 +664,42 @@ app.get('/api/calendar', (req, res) => {
     });
 });
 
-// Today's events API - updated for selected year
 app.get('/api/calendar/today', (req, res) => {
     const today = new Date();
-    const month = today.getMonth() + 1;
-    const day = today.getDate();
-    const monthDay = String(month).padStart(2, '0') + '-' + String(day).padStart(2, '0');
-    // CRITICAL: Get year from query (defaults to current year)
+    const monthDay = String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
     const viewingYear = parseInt(req.query.year) || today.getFullYear();
     
-    db.all(`
+    // Оптимизация: Търсим само събития за днешната дата в SQL
+    const query = `
         SELECT name, slug, birth_date, death_date 
         FROM homes 
         WHERE published = 1 
         AND (
-            (birth_date IS NOT NULL AND strftime('%m-%d', birth_date) = ?) 
-            OR 
-            (death_date IS NOT NULL AND strftime('%m-%d', death_date) = ?)
+            strftime('%m-%d', birth_date) = ? 
+            OR strftime('%m-%d', death_date) = ?
         )
-    `, [monthDay, monthDay], (err, rows) => {
+    `;
+
+    db.all(query, [monthDay, monthDay], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         
         const events = [];
-        
         rows.forEach(row => {
-            if (row.birth_date) {
-                const date = new Date(row.birth_date);
-                if (date.getMonth() + 1 === month && date.getDate() === day) {
-                    events.push({
-                        name: row.name,
-                        slug: row.slug,
-                        type: 'birth',
-                        years_ago: viewingYear - date.getFullYear()
-                    });
-                }
+            if (row.birth_date && row.birth_date.endsWith(monthDay)) {
+                events.push({
+                    name: row.name,
+                    slug: row.slug,
+                    type: 'birth',
+                    years_ago: viewingYear - new Date(row.birth_date).getFullYear()
+                });
             }
-            
-            if (row.death_date) {
-                const date = new Date(row.death_date);
-                if (date.getMonth() + 1 === month && date.getDate() === day) {
-                    events.push({
-                        name: row.name,
-                        slug: row.slug,
-                        type: 'death',
-                        years_ago: viewingYear - date.getFullYear()
-                    });
-                }
+            if (row.death_date && row.death_date.endsWith(monthDay)) {
+                events.push({
+                    name: row.name,
+                    slug: row.slug,
+                    type: 'death',
+                    years_ago: viewingYear - new Date(row.death_date).getFullYear()
+                });
             }
         });
         
@@ -744,7 +723,7 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`\n🏛️ Historic Addresses Server - ULTRA AGGRESSIVE MEMORY MODE`);
     console.log(`✅ Running on port ${PORT}`);
     console.log(`📊 DB: ${DB_FILE}`);
-    console.log(`💾 Start RSS: ${Math.round(process.memoryUsage().rss / 1024 / 1024)}MB\n`);
+     console.log(`💾 Start RSS: ${Math.round(process.memoryUsage().rss / 1024 / 1024)}MB\n`);
 });
 
 // ULTRA AGGRESSIVE: GC every 20 seconds
