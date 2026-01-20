@@ -19,6 +19,7 @@
     <link rel="stylesheet" href="assets/css/styles.css">
     <script defer src="assets/js/theme.js"></script>
     <script defer src="assets/js/transitions.js"></script>
+    <script defer src="assets/js/calendar-popup.js"></script>
     <style>
         .calendar-header {
             display: flex;
@@ -47,6 +48,7 @@
             grid-template-columns: repeat(7, 1fr);
             gap: 8px;
             margin-bottom: 2rem;
+            width: 100%;
         }
         .calendar-day-header {
             text-align: center;
@@ -201,6 +203,73 @@
             font-weight: 600;
             color: var(--accent-strong);
         }
+
+        @media (max-width: 768px) {
+            .container {
+                padding-left: 0.5rem;
+                padding-right: 0.5rem;
+            }
+            
+            .calendar-grid {
+                gap: 3px;
+                width: 100%;
+                max-width: 100vw;
+                overflow: visible;
+            }
+            
+            .calendar-day {
+                min-height: 60px;
+                padding: 0.25rem;
+            }
+            .calendar-day-number {
+                font-size: 0.9rem;
+            }
+            .calendar-day-header {
+                font-size: 0.7rem;
+                padding: 0.5rem 0.25rem;
+            }
+            .event-dot {
+                width: 4px;
+                height: 4px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding-left: 0.25rem;
+                padding-right: 0.25rem;
+            }
+            
+            .calendar-grid {
+                gap: 2px;
+            }
+            
+            .calendar-day {
+                min-height: 50px;
+                padding: 0.2rem;
+                border-radius: 8px;
+            }
+            
+            .calendar-day-number {
+                font-size: 0.85rem;
+            }
+            
+            .calendar-day-header {
+                font-size: 0.6rem;
+                padding: 0.3rem 0;
+            }
+            
+            .event-dot {
+                width: 3px;
+                height: 3px;
+            }
+            
+            .search-result-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.5rem;
+            }
+        }
     </style>
 </head>
 <body>
@@ -333,7 +402,6 @@
             var count = (person.birth_date ? 1 : 0) + (person.death_date ? 1 : 0);
             var badge = count + ' ' + (count === 1 ? 'дата' : 'дати');
             
-            // Заменено с onclick="showPersonDates(...)"
             html += '<div class="search-result-item" onclick="showPersonDates(\'' + (person.birth_date || '') + '\', \'' + (person.death_date || '') + '\', \'' + person.name.replace(/'/g, "\\'") + '\')">';
             html += '<div>';
             html += '<div class="search-result-name">' + person.name + '</div>';
@@ -345,7 +413,6 @@
         container.innerHTML = html;
     }
 
-    // НОВА ФУНКЦИЯ ПРЕДИ jumpToDate
     window.showPersonDates = function(birthDate, deathDate, personName) {
         var container = document.getElementById('searchResults');
         var html = '<div style="background: var(--card); border: 2px solid var(--accent-strong); border-radius: 12px; padding: 1rem; margin-bottom: 0.5rem;">';
@@ -488,9 +555,9 @@
         listEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
     
-    document.getElementById('prevMonth').addEventListener('click', function() { currentDate.setMonth(currentDate.getMonth() - 1); selectedDate = null; loadEvents(); });
-    document.getElementById('nextMonth').addEventListener('click', function() { currentDate.setMonth(currentDate.getMonth() + 1); selectedDate = null; loadEvents(); });
-    document.getElementById('todayBtn').addEventListener('click', function() { currentDate = new Date(); selectedDate = null; loadEvents(); });
+    document.getElementById('prevMonth').addEventListener('click', function() { currentDate.setMonth(currentDate.getMonth() - 1); selectedDate = null; document.getElementById('eventsList').innerHTML = ''; saveCalendarState(); loadEvents(); });
+    document.getElementById('nextMonth').addEventListener('click', function() { currentDate.setMonth(currentDate.getMonth() + 1); selectedDate = null; document.getElementById('eventsList').innerHTML = ''; saveCalendarState(); loadEvents(); });
+    document.getElementById('todayBtn').addEventListener('click', function() { currentDate = new Date(); selectedDate = null; document.getElementById('eventsList').innerHTML = ''; saveCalendarState(); loadEvents(); });
     
     document.getElementById('year').textContent = new Date().getFullYear();
     loadEvents();
