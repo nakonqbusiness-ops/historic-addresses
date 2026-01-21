@@ -236,12 +236,12 @@
 
         @media (max-width: 480px) {
             .container {
-                padding-left: 0.15rem;
-                padding-right: 0.15rem;
+                padding-left: 0.25rem;
+                padding-right: 0.25rem;
             }
             
             .calendar-grid {
-                gap: 1px;
+                gap: 2px;
             }
             
             .calendar-day {
@@ -270,24 +270,23 @@
                 gap: 0.5rem;
             }
         }
-
-        @media (max-width: 360px) {
-            .container {
-                padding-left: 0;
-                padding-right: 0;
-            }
-            
-            .calendar-grid {
-                gap: 1px;
-                padding: 0 0.1rem;
-            }
-            
-            .calendar-day-number {
-                font-size: 0.8rem;
-            }
-        }
     </style>
 </head>
+<body>
+    <header class="site-header">
+        <a class="logo-link" href="index.html">
+            <img src="assets/img/HistAdrLogo.png" alt="Адресът на историята" class="header-logo">
+            <span class="logo-text">Адресът на историята</span>
+        </a>
+        <nav class="nav">
+            <a href="index.html">Начало</a>
+            <a href="map.html">Карта</a>
+            <a href="addresses.html">Домове</a>
+            <a href="calendar.html">Календар</a>
+            <a href="about.html">За Нас</a>
+        </nav>
+        <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode"></button>
+    </header>
 
     <main class="container">
         <h1 class="page-title gradient-text">📅 Календар на събитията</h1>
@@ -320,7 +319,9 @@
         <p>© <span id="year"></span> Адресът на историята</p>
         <div class="footer-social">
             <a href="https://instagram.com/historyaddress.bg" target="_blank" rel="noopener noreferrer" class="social-link">📷 Instagram</a>
-            <a href="mailto:historyaddressbg@gmail.com" class="social-link">📧 Email</a>
+            <a href="https://mail.google.com/mail/?view=cm&fs=1&to=historyaddressbg@gmail.com" target="_blank" rel="noopener noreferrer" class="social-link">
+    📧 Email
+</a>
         </div>
         <p class="footer-links">
             <a href="privacy.html">Поверителност</a> | 
