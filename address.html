@@ -3,34 +3,30 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="index, follow">
 
-<link rel="icon" type="image/png" href="/assets/img/Historyaddress.bg2.png">
-<link rel="shortcut icon" type="image/png" href="/assets/img/Historyaddress.bg2.png">
-<link rel="apple-touch-icon" href="/assets/img/Historyaddress.bg2.png">
-<meta name="msapplication-TileImage" content="/assets/img/Historyaddress.bg2.png">
-    
+    <link rel="icon" type="image/x-icon" href="/assets/img/HistAdrLogoOrig2.ico">
+    <link rel="icon" type="image/png" sizes="192x192" href="/assets/img/Historyaddress.bg2.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/img/apple-touch-icon.png">
+    <meta name="msapplication-TileImage" content="/assets/img/Historyaddress.bg2.png">
 
     <title>Адресът на историята</title>
     <meta name="description" content="Исторически адреси и домове в България">
     <link rel="canonical" href="https://historyaddress.bg/address.html">
-    
 
     <meta property="og:type" content="article">
     <meta property="og:url" content="https://historyaddress.bg/address.html">
     <meta property="og:title" content="Адресът на историята">
     <meta property="og:description" content="Исторически адреси и домове в България">
     <meta property="og:image" content="https://historyaddress.bg/assets/img/HistAdrLogo.png">
-    
 
     <meta property="twitter:card" content="summary_large_image">
     <meta property="twitter:url" content="https://historyaddress.bg/address.html">
     <meta property="twitter:title" content="Адресът на историята">
     <meta property="twitter:description" content="Исторически адреси и домове в България">
     <meta property="twitter:image" content="https://historyaddress.bg/assets/img/HistAdrLogo.png">
-    
-    <link rel="icon" href="/assets/img/HistAdrLogoOrig.ico">
-    <script>
 
+    <script>
         (function() {
             try {
                 var stored = localStorage.getItem('theme-preference');
@@ -43,8 +39,7 @@
     <link rel="stylesheet" href="assets/css/styles.css">
     <script defer src="assets/js/theme.js"></script>
     <script defer src="assets/js/transitions.js"></script>
-    <!-- Add this in the <head> section, after the other script tags -->
-<script defer src="assets/js/calendar-popup.js"></script>
+    <script defer src="assets/js/calendar-popup.js"></script>
 </head>
 <body>
   <header class="site-header">
@@ -52,38 +47,38 @@
         <img src="assets/img/HistAdrLogo.png" alt="Адресът на историята" class="header-logo">
         <span class="logo-text">Адресът на историята</span>
     </a>
-<nav class="nav">
-    <a href="index.html">Начало</a>
-    <a href="map.html">Карта</a>
-    <a href="addresses.html">Домове</a>
-    <a href="calendar.html">Календар</a>
-    <a href="about.html">За Нас</a>
-</nav>
+    <nav class="nav">
+        <a href="index.html">Начало</a>
+        <a href="map.html">Карта</a>
+        <a href="addresses.html">Домове</a>
+        <a href="calendar.html">Календар</a>
+        <a href="about.html">За Нас</a>
+    </nav>
     <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode"></button>
 </header>
 
     <main class="container">
         <div id="detail" class="detail">
-            <p>Loading...</p>
+            <p>Зареждане...</p>
         </div>
     </main>
 
-	<footer class="site-footer">
-		<p>© <span id="year"></span> Адресът на историята</p>
-		<div class="footer-social">
-			<a href="https://instagram.com/historyaddress.bg" target="_blank" rel="noopener noreferrer" class="social-link">
-				📷 Instagram
-			</a>
-			<a href="https://mail.google.com/mail/?view=cm&fs=1&to=historyaddressbg@gmail.com" target="_blank" rel="noopener noreferrer" class="social-link">
-    📧 Email
-</a>
-		</div>
-		<p class="footer-links">
-			<a href="privacy.html">Поверителност</a> | 
-			<a href="terms.html">Условия</a> | 
-			<a href="copyright.html">Авторски права</a>
-		</p>
-	</footer>
+    <footer class="site-footer">
+        <p>© <span id="year"></span> Адресът на историята</p>
+        <div class="footer-social">
+            <a href="https://instagram.com/historyaddress.bg" target="_blank" rel="noopener noreferrer" class="social-link">
+                📷 Instagram
+            </a>
+            <a href="https://mail.google.com/mail/?view=cm&fs=1&to=historyaddressbg@gmail.com" target="_blank" rel="noopener noreferrer" class="social-link">
+                📧 Email
+            </a>
+        </div>
+        <p class="footer-links">
+            <a href="privacy.html">Поверителност</a> | 
+            <a href="terms.html">Условия</a> | 
+            <a href="copyright.html">Авторски права</a>
+        </p>
+    </footer>
 
     <div id="lightbox" class="lightbox-backdrop" style="display:none;">
         <div class="lightbox-content">
@@ -94,7 +89,6 @@
 
     <script>
     (function() {
-
         function q(name) {
             var url = window.location.href;
             name = name.replace(/[\[\]]/g, '\\$&');
@@ -110,19 +104,18 @@
         var ph = 'assets/img/placeholder.svg';
 
         if (!slug) {
-            root.innerHTML = '<p>No home specified.</p>';
+            root.innerHTML = '<p>Не е посочен адрес.</p>';
             return;
         }
         
         var apiBase = window.location.protocol === 'file:' ? 'http://localhost:3000' : window.location.origin;
         var API_URL = apiBase + '/api/homes/' + encodeURIComponent(slug);
-        
 
         fetch(API_URL)
             .then(function(res){
                 if (!res.ok) {
-                    if (res.status === 404) throw new Error('Home not found');
-                    throw new Error('Server error');
+                    if (res.status === 404) throw new Error('Адресът не е намерен');
+                    throw new Error('Сървърна грешка');
                 }
                 return res.json();
             })
@@ -133,9 +126,8 @@
             })
             .catch(function(err){
                 console.error('Error loading home:', err);
-                root.innerHTML = '<p>Error: ' + err.message + '. Please check the URL or server status.</p>';
+                root.innerHTML = '<p>Грешка: ' + err.message + '. Моля, проверете връзката.</p>';
             });
-        
 
         function updateMetaTags(person) {
             var pageUrl = 'https://historyaddress.bg/address.html?slug=' + encodeURIComponent(slug);
@@ -143,19 +135,16 @@
             var imageUrl = (person.images && person.images[0] && person.images[0].path) 
                 ? 'https://historyaddress.bg/' + person.images[0].path 
                 : 'https://historyaddress.bg/assets/img/HistAdrLogo.png';
-            
 
-            document.title = person.name + ' — Historic Addresses';
-            
+            // Title на Български
+            document.title = person.name + ' — Адресът на историята';
 
             var metaDesc = document.querySelector('meta[name="description"]');
             if (metaDesc) metaDesc.setAttribute('content', description);
-            
 
             var canonical = document.querySelector('link[rel="canonical"]');
             if (canonical) canonical.setAttribute('href', pageUrl);
             
-            // Update Open Graph
             var ogUrl = document.querySelector('meta[property="og:url"]');
             if (ogUrl) ogUrl.setAttribute('content', pageUrl);
             
@@ -167,7 +156,6 @@
             
             var ogImage = document.querySelector('meta[property="og:image"]');
             if (ogImage) ogImage.setAttribute('content', imageUrl);
-            
 
             var twitterUrl = document.querySelector('meta[property="twitter:url"]');
             if (twitterUrl) twitterUrl.setAttribute('content', pageUrl);
@@ -181,12 +169,10 @@
             var twitterImage = document.querySelector('meta[property="twitter:image"]');
             if (twitterImage) twitterImage.setAttribute('content', imageUrl);
         }
-        
 
         function addStructuredData(person) {
             var script = document.createElement('script');
             script.type = 'application/ld+json';
-            
             var structuredData = {
                 "@context": "https://schema.org",
                 "@type": "Place",
@@ -198,7 +184,6 @@
                     "addressCountry": "BG"
                 }
             };
-            
             if (person.coordinates && person.coordinates.lat && person.coordinates.lng) {
                 structuredData.geo = {
                     "@type": "GeoCoordinates",
@@ -206,35 +191,32 @@
                     "longitude": person.coordinates.lng
                 };
             }
-            
             if (person.images && person.images[0] && person.images[0].path) {
                 structuredData.image = 'https://historyaddress.bg/' + person.images[0].path;
             }
-            
             script.textContent = JSON.stringify(structuredData);
             document.head.appendChild(script);
         }
         
         function renderHome(person) {
-            document.title = person.name + ' — Historic Addresses';
+            // Title на Български
+            document.title = person.name + ' — Адресът на историята';
             
             var portraitHtml = '';
             if (person.portrait_url) {
-                portraitHtml = '<div class="portrait-container slide-in-left"><img class="portrait-image" alt="Portrait of ' + person.name + '" src="' + person.portrait_url + '" loading="lazy"></div>';
+                portraitHtml = '<div class="portrait-container slide-in-left"><img class="portrait-image" alt="Портрет на ' + person.name + '" src="' + person.portrait_url + '" loading="lazy"></div>';
             }
             
             var gallery = (person.images||[]);
             var hero = gallery[0] || null;
-            
             var imgHtml = hero ? 
-                '<img class="zoomable-image" alt="'+((hero && hero.alt) || ('Facade of '+person.name))+'" loading="lazy" src="'+((hero && hero.path) || ph)+'" onerror="this.onerror=null;this.src=\''+ph+'\';">' :
-                '';
+                '<img class="zoomable-image" alt="'+((hero && hero.alt) || ('Фасада на '+person.name))+'" loading="lazy" src="'+((hero && hero.path) || ph)+'" onerror="this.onerror=null;this.src=\''+ph+'\';">' : '';
 
             var galleryHtml = '';
             if ((gallery||[]).length > 1) {
                 galleryHtml = '<div class="gallery slide-up">' + gallery.slice(1).map(function(i){ 
                     var s = (i && i.path) || ph; 
-                    var a = (i && i.alt) || ('Facade of '+person.name); 
+                    var a = (i && i.alt) || ('Фасада на '+person.name); 
                     return '<img class="zoomable-image" alt="'+a+'" loading="lazy" src="'+s+'" onerror="this.onerror=null;this.src=\''+ph+'\';">'; 
                 }).join('') + '</div>';
             }
@@ -251,17 +233,15 @@
                 (imgHtml ? ('<p class="fade-in">'+imgHtml+'</p>') : '') +
                 galleryHtml +
                 '<h1 class="gradient-text slide-up">'+person.name+'</h1>'+
-                '<p class="meta slide-up">Address: '+(person.address||'')+(mapLink ? ' — <a href="'+mapLink+'">View on map</a>' : '')+'</p>'+
-                
+                '<p class="meta slide-up">Адрес: '+(person.address||'')+(mapLink ? ' — <a href="'+mapLink+'">Виж на картата</a>' : '')+'</p>'+
                 '<div class="content-split">'+
                     portraitHtml +
                     '<div class="biography-text slide-up">'+
                         '<p>'+ (person.biography||'') +'</p>'+
                     '</div>'+
                 '</div>'+
-                
-                (person.photo_date ? ('<p class="meta slide-up">Photo date: '+person.photo_date+'</p>') : '')+
-                (sources ? ('<h3 class="slide-up">Sources</h3><ul class="slide-up">'+sources+'</ul>') : '')+
+                (person.photo_date ? ('<p class="meta slide-up">Дата на снимката: '+person.photo_date+'</p>') : '')+
+                (sources ? ('<h3 class="slide-up">Източници</h3><ul class="slide-up">'+sources+'</ul>') : '')+
                 (tags ? ('<p class="tags slide-up">'+tags+'</p>') : '');
             
             document.getElementById('year').textContent = new Date().getFullYear();
@@ -295,19 +275,13 @@
         });
 
         closeLightbox.addEventListener('click', closeLightboxModal);
-        
         lightbox.addEventListener('click', function(e) {
-            if (e.target.id === 'lightbox') {
-                closeLightboxModal();
-            }
+            if (e.target.id === 'lightbox') closeLightboxModal();
         });
 
         document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape' && lightbox.style.display === 'flex') {
-                closeLightboxModal();
-            }
+            if (e.key === 'Escape' && lightbox.style.display === 'flex') closeLightboxModal();
         });
-
     })();
     </script>
 </body>
