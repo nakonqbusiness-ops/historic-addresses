@@ -60,6 +60,85 @@
 <link rel="canonical" href="https://historyaddress.bg/copyright.html">
 <meta name="robots" content="index, follow">
 </head>
+<script>
+function handleEmailClick(event) {
+    // On mobile (screen width < 768px), let mailto work normally
+    if (window.innerWidth <= 768) {
+        return; // Don't prevent default, let mailto: work
+    }
+    
+    // On desktop, show modal
+    event.preventDefault();
+    showEmailModal();
+}
+
+function showEmailModal() {
+    var modal = document.getElementById('emailModal');
+    if (!modal) {
+        // Create modal if it doesn't exist
+        modal = document.createElement('div');
+        modal.id = 'emailModal';
+        modal.className = 'email-modal';
+        modal.innerHTML = `
+            <div class="email-modal-content">
+                <h3>📧 Свържете се с нас</h3>
+                <div class="email-address-display" id="emailDisplay">historyaddressbg@gmail.com</div>
+                <div class="email-modal-buttons">
+                    <button class="btn-copy" onclick="copyEmail()">
+                        <span id="copyText">📋 Копирай Email</span>
+                    </button>
+                    <button class="btn-close" onclick="closeEmailModal()">✕ Затвори</button>
+                </div>
+                <p>Можете да ни пишете за въпроси или подкрепа</p>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        
+        // Close on backdrop click
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                closeEmailModal();
+            }
+        });
+    }
+    
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+}
+
+function closeEmailModal() {
+    var modal = document.getElementById('emailModal');
+    if (modal) {
+        modal.style.display = 'none';
+        document.body.style.overflow = '';
+    }
+}
+
+function copyEmail() {
+    var email = 'historyaddressbg@gmail.com';
+    navigator.clipboard.writeText(email).then(function() {
+        var btn = document.querySelector('.btn-copy');
+        var text = document.getElementById('copyText');
+        
+        btn.classList.add('copied');
+        text.textContent = '✓ Копирано!';
+        
+        setTimeout(function() {
+            btn.classList.remove('copied');
+            text.textContent = '📋 Копирай Email';
+        }, 2000);
+    }).catch(function(err) {
+        alert('Email: ' + email);
+    });
+}
+
+// Close modal on ESC key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeEmailModal();
+    }
+});
+</script>
 <body>
 	<header class="site-header">
 		<a class="logo-link" href="index.html">
@@ -185,7 +264,7 @@
 		<div class="footer-social">
 			<a href="https://instagram.com/historyaddress.bg" target="_blank" rel="noopener noreferrer" class="social-link">
 				📷 Instagram
-			<a href="https://mail.google.com/mail/?view=cm&fs=1&to=historyaddressbg@gmail.com" target="_blank" rel="noopener noreferrer" class="social-link">
+			<a href="mailto:historyaddressbg@gmail.com" class="social-link" onclick="handleEmailClick(event)">
     📧 Email
 </a>
 		</div>
