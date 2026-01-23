@@ -11,7 +11,12 @@ const DOMAIN = 'https://historyaddress.bg';
 // Keep 5mb for admin operations (adding/updating homes with images)
 app.use(cors());
 app.use(express.json({ limit: '5mb' })); 
-app.use(express.static(path.join(__dirname)));
+
+// ОПТИМИЗАЦИЯ 1: Добавено кеширане на статични файлове (1 ден), за да не товарят процесора
+app.use(express.static(path.join(__dirname), {
+    maxAge: '1d',
+    etag: true
+}));
 
 // Favicon routes
 app.get('/favicon.ico', (req, res) => {
@@ -92,14 +97,15 @@ const db = new sqlite3.Database(DB_FILE, (err) => {
     }
 });
 
-// ULTRA AGGRESSIVE SQLITE SETTINGS
-db.configure('busyTimeout', 3000);
-db.run('PRAGMA journal_mode = DELETE'); 
+// ULTRA AGGRESSIVE SQLITE SETTINGS (OPTIMIZED FOR STABILITY)
+// Променени за по-добра работа с малко RAM
+db.configure('busyTimeout', 5000); // Увеличено време за изчакване при заключена база
+db.run('PRAGMA journal_mode = WAL'); // Write-Ahead Logging е по-бърз и по-малко чуплив от DELETE
 db.run('PRAGMA synchronous = NORMAL');
-db.run('PRAGMA cache_size = 50'); 
+db.run('PRAGMA cache_size = -2000'); // Ограничава кеша до ~2MB (отрицателното число е в килобайти)
 db.run('PRAGMA temp_store = MEMORY');
-db.run('PRAGMA mmap_size = 0');
-db.run('PRAGMA page_size = 1024'); 
+db.run('PRAGMA mmap_size = 0'); // Критично: 0 предотвратява мемори лийкове в Node.js
+db.run('PRAGMA page_size = 4096'); 
 db.run('PRAGMA locking_mode = NORMAL'); 
 
 function initializeDatabase() {
@@ -129,7 +135,6 @@ function initializeDatabase() {
             db.run('CREATE INDEX IF NOT EXISTS idx_homes_published ON homes(published)');
             db.run('CREATE INDEX IF NOT EXISTS idx_homes_slug ON homes(slug)');
             db.run('CREATE INDEX IF NOT EXISTS idx_homes_name ON homes(name)');
-            // ВАЖНО ЗА СКОРОСТТА НА КАЛЕНДАРА:
             db.run('CREATE INDEX IF NOT EXISTS idx_homes_dates ON homes(birth_date, death_date)');
             checkAndMigrateSchema();
         }
