@@ -12,8 +12,8 @@ const DOMAIN = 'https://historyaddress.bg';
 // ============================================================================
 // SYSTEM INTELLIGENCE (Auto-Scaling)
 // ============================================================================
-const TOTAL_RAM_MB = Math.round(os.totalmem() / 1024 / 1024);
-const IS_LOW_SPEC = TOTAL_RAM_MB < 1000; // True if under 1GB RAM
+const TOTAL_RAM_MB = 512; 
+const IS_LOW_SPEC = true;
 
 console.log(`\n🖥️  System Detected: ${TOTAL_RAM_MB}MB RAM`);
 console.log(`🚀  Mode: ${IS_LOW_SPEC ? 'ULTRA LEAN (Low RAM Optimization)' : 'PERFORMANCE (High RAM Available)'}`);
