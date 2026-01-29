@@ -132,23 +132,36 @@ app.get('/assets/img/HistAdrLogoOrig.ico', sendFavicon);
 // DATABASE SETUP & OPTIMIZATION
 // ============================================================================
 
-// Ensure database directory exists
-if (process.env.RENDER && !fs.existsSync(DB_DIR)) {
+// Ensure database directory exists BEFORE opening connection
+const dbDirectory = path.dirname(DB_FILE);
+if (!fs.existsSync(dbDirectory)) {
     try {
-        fs.mkdirSync(DB_DIR, { recursive: true });
-        console.log('✅ Created database directory:', DB_DIR);
+        fs.mkdirSync(dbDirectory, { recursive: true });
+        console.log('✅ Created database directory:', dbDirectory);
     } catch (e) {
         console.error('❌ CRITICAL: Cannot create DB directory:', e);
+        console.error('Path attempted:', dbDirectory);
         process.exit(1);
     }
+}
+
+// Verify directory is writable
+try {
+    fs.accessSync(dbDirectory, fs.constants.W_OK);
+    console.log('✅ Database directory is writable');
+} catch (e) {
+    console.error('❌ CRITICAL: Database directory not writable:', dbDirectory);
+    process.exit(1);
 }
 
 const db = new sqlite3.Database(DB_FILE, (err) => {
     if (err) {
         console.error('❌ Database connection error:', err);
+        console.error('DB File Path:', DB_FILE);
+        console.error('DB Directory:', dbDirectory);
         process.exit(1);
     } else {
-        console.log('✅ SQLite Connected');
+        console.log('✅ SQLite Connected:', DB_FILE);
         initializeDatabase();
         initializePartnersTable();
     }
