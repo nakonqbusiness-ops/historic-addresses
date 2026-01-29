@@ -999,9 +999,8 @@ app.get('/api/calendar', (req, res) => {
         rows.forEach(row => {
             // Process birth date
             if (row.birth_date && row.birth_date.includes(`-${month}-`)) {
-                const dateParts = row.birth_date.split('-');
-                const day = dateParts[2];
-                const birthYear = parseInt(dateParts[0]);
+                const date = new Date(row.birth_date);
+                const day = String(date.getDate()).padStart(2, '0');
                 const key = `${month}-${day}`;
                 
                 if (!events[key]) events[key] = [];
@@ -1010,17 +1009,15 @@ app.get('/api/calendar', (req, res) => {
                     name: row.name,
                     slug: row.slug,
                     type: 'birth',
-                    date: row.birth_date,
-                    year: birthYear,
-                    years_ago: year - birthYear
+                    full_date: row.birth_date,
+                    years_ago: year - date.getFullYear()
                 });
             }
             
             // Process death date
             if (row.death_date && row.death_date.includes(`-${month}-`)) {
-                const dateParts = row.death_date.split('-');
-                const day = dateParts[2];
-                const deathYear = parseInt(dateParts[0]);
+                const date = new Date(row.death_date);
+                const day = String(date.getDate()).padStart(2, '0');
                 const key = `${month}-${day}`;
                 
                 if (!events[key]) events[key] = [];
@@ -1029,9 +1026,8 @@ app.get('/api/calendar', (req, res) => {
                     name: row.name,
                     slug: row.slug,
                     type: 'death',
-                    date: row.death_date,
-                    year: deathYear,
-                    years_ago: year - deathYear
+                    full_date: row.death_date,
+                    years_ago: year - date.getFullYear()
                 });
             }
         });
