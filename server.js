@@ -13,8 +13,31 @@ const app = express();
 const PORT = process.env.PORT || 10000;
 const NODE_ENV = process.env.NODE_ENV || 'production';
 const DOMAIN = 'https://historyaddress.bg';
-const DB_DIR = process.env.RENDER ? '/data' : '.';
-const DB_FILE = process.env.DB_PATH || path.join(DB_DIR, 'database.db');
+
+// Try to find existing database in multiple locations
+const possiblePaths = [
+    process.env.DB_PATH,
+    '/data/database.db',
+    '/opt/render/project/src/database.db',
+    path.join(__dirname, 'database.db'),
+    './database.db'
+].filter(Boolean);
+
+let DB_FILE = null;
+for (const dbPath of possiblePaths) {
+    if (fs.existsSync(dbPath)) {
+        DB_FILE = dbPath;
+        console.log('✅ Found existing database at:', dbPath);
+        break;
+    }
+}
+
+// If no database found, use default location
+if (!DB_FILE) {
+    const DB_DIR = process.env.RENDER ? '/data' : '.';
+    DB_FILE = path.join(DB_DIR, 'database.db');
+    console.log('⚠️  No existing database found, will create new at:', DB_FILE);
+}
 
 // RAM DETECTION: Force 512MB mode for Render, but auto-detect for future upgrades
 const TOTAL_RAM_MB = process.env.RENDER ? 512 : Math.round(os.totalmem() / 1024 / 1024);
