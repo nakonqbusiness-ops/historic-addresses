@@ -999,7 +999,9 @@ app.get('/api/calendar', (req, res) => {
         rows.forEach(row => {
             // Process birth date
             if (row.birth_date && row.birth_date.includes(`-${month}-`)) {
-                const day = row.birth_date.split('-')[2];
+                const dateParts = row.birth_date.split('-');
+                const day = dateParts[2];
+                const birthYear = parseInt(dateParts[0]);
                 const key = `${month}-${day}`;
                 
                 if (!events[key]) events[key] = [];
@@ -1008,13 +1010,17 @@ app.get('/api/calendar', (req, res) => {
                     name: row.name,
                     slug: row.slug,
                     type: 'birth',
-                    years_ago: year - parseInt(row.birth_date.split('-')[0])
+                    date: row.birth_date,
+                    year: birthYear,
+                    years_ago: year - birthYear
                 });
             }
             
             // Process death date
             if (row.death_date && row.death_date.includes(`-${month}-`)) {
-                const day = row.death_date.split('-')[2];
+                const dateParts = row.death_date.split('-');
+                const day = dateParts[2];
+                const deathYear = parseInt(dateParts[0]);
                 const key = `${month}-${day}`;
                 
                 if (!events[key]) events[key] = [];
@@ -1023,7 +1029,9 @@ app.get('/api/calendar', (req, res) => {
                     name: row.name,
                     slug: row.slug,
                     type: 'death',
-                    years_ago: year - parseInt(row.death_date.split('-')[0])
+                    date: row.death_date,
+                    year: deathYear,
+                    years_ago: year - deathYear
                 });
             }
         });
