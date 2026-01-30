@@ -1038,6 +1038,79 @@ app.get('/api/calendar', (req, res) => {
 });
 
 // ============================================================================
+// CALENDAR API - TODAY'S EVENTS (FOR POPUP)
+// ============================================================================
+
+app.get('/api/calendar/today', (req, res) => {
+    const today = new Date();
+    const monthDay = String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+    const viewingYear = parseInt(req.query.year) || today.getFullYear();
+    
+    const cacheKey = 'calendar_today';
+    const cached = apiCache.get(cacheKey);
+    if (cached) {
+        return res.json(cached);
+    }
+    
+    // Optimization: Search only for today's date in SQL
+    const query = `
+        SELECT name, slug, birth_date, death_date 
+        FROM homes 
+        WHERE published = 1 
+        AND (
+            strftime('%m-%d', birth_date) = ? 
+            OR strftime('%m-%d', death_date) = ?
+        )
+    `;
+
+    db.all(query, [monthDay, monthDay], (err, rows) => {
+        if (err) {
+            console.error('Calendar today error:', err);
+            return res.status(500).json({ error: 'Database error' });
+        }
+        
+        const events = [];
+        
+        rows.forEach(row => {
+            // Check birth date
+            if (row.birth_date) {
+                const birthMonthDay = row.birth_date.substring(5); // Get MM-DD from YYYY-MM-DD
+                if (birthMonthDay === monthDay) {
+                    events.push({
+                        name: row.name,
+                        slug: row.slug,
+                        type: 'birth',
+                        full_date: row.birth_date,
+                        years_ago: viewingYear - new Date(row.birth_date).getFullYear()
+                    });
+                }
+            }
+            
+            // Check death date
+            if (row.death_date) {
+                const deathMonthDay = row.death_date.substring(5); // Get MM-DD from YYYY-MM-DD
+                if (deathMonthDay === monthDay) {
+                    events.push({
+                        name: row.name,
+                        slug: row.slug,
+                        type: 'death',
+                        full_date: row.death_date,
+                        years_ago: viewingYear - new Date(row.death_date).getFullYear()
+                    });
+                }
+            }
+        });
+        
+        apiCache.set(cacheKey, events, 300); // Cache for 5 minutes
+        res.json(events);
+        
+        if (IS_LOW_SPEC && global.gc) {
+            setImmediate(() => global.gc());
+        }
+    });
+});
+
+// ============================================================================
 // CALENDAR API - ALL DATES
 // ============================================================================
 
