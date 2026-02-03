@@ -1,217 +1,411 @@
 <!doctype html>
 <html lang="bg" data-theme="dark">
 <head>
-	<meta charset="utf-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
 
-	<link rel="icon" type="image/png" href="/assets/img/favicon-96x96.png" sizes="96x96" />
-<link rel="icon" type="image/svg+xml" href="/assets/img/favicon.svg" />
-<link rel="shortcut icon" href="/assets/img/favicon.ico" />
-<link rel="apple-touch-icon" sizes="180x180" href="/assets/img/apple-touch-icon.png" />
-<link rel="manifest" href="/assets/img/site.webmanifest" />
+    <link rel="icon" type="image/png" href="/assets/img/favicon-96x96.png" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="/assets/img/favicon.svg" />
+    <link rel="shortcut icon" href="/assets/img/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/img/apple-touch-icon.png" />
+    <link rel="manifest" href="/assets/img/site.webmanifest" />
 
-	<title>Адресът на историята - Начало</title>
-	<meta name="description" content="Дигитален каталог на домовете, в които са живели значими български личности. Открийте адреси, снимки и истории.">
-	
-	<!-- Open Graph / Facebook -->
-	<meta property="og:type" content="website">
-	<meta property="og:url" content="https://historyaddress.bg/">
-	<meta property="og:title" content="Адресът на историята">
-	<meta property="og:description" content="Дигитален каталог на домовете, в които са живели значими български личности">
-	<meta property="og:image" content="https://historyaddress.bg/assets/img/HistAdrLogo.png">
-	
-	<!-- Twitter -->
-	<meta property="twitter:card" content="summary_large_image">
-	<meta property="twitter:url" content="https://historyaddress.bg/">
-	<meta property="twitter:title" content="Адресът на историята">
-	<meta property="twitter:description" content="Дигитален каталог на домовете, в които са живели значими български личности">
-	<meta property="twitter:image" content="https://historyaddress.bg/assets/img/HistAdrLogo.png">
-	
-	<script>
-		(function() {
-			try {
-				var stored = localStorage.getItem('theme-preference');
-				if (stored === 'system') stored = 'dark';
-				var theme = (stored === 'dark' || stored === 'light') ? stored : 'dark';
-				document.documentElement.setAttribute('data-theme', theme);
-			} catch(e) {}
-		})();
-	</script>
-	<link rel="stylesheet" href="assets/css/styles.css">
-	<script src="assets/js/theme.js"></script>
-	<script src="assets/js/transitions.js"></script>
-	<script defer src="assets/js/calendar-popup.js"></script>
-	<link rel="canonical" href="https://historyaddress.bg/index.html">
-	<meta name="robots" content="index, follow">
+    <title>Адресът на историята - Начало</title>
+    <meta name="description" content="Дигитален каталог на домовете, в които са живели значими български личности. Открийте адреси, снимки и истории.">
+
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://historyaddress.bg/">
+    <meta property="og:title" content="Адресът на историята">
+    <meta property="og:description" content="Дигитален каталог на домовете, в които са живели значими български личности">
+    <meta property="og:image" content="https://historyaddress.bg/assets/img/HistAdrLogo.png">
+
+    <script>
+        (function() {
+            try {
+                var stored = localStorage.getItem('theme-preference');
+                var theme = (stored === 'dark' || stored === 'light') ? stored : 'dark';
+                document.documentElement.setAttribute('data-theme', theme);
+            } catch(e) {}
+        })();
+    </script>
+
+    <link rel="stylesheet" href="assets/css/styles.css">
+
+    <script src="assets/js/theme.js"></script>
+    <script src="assets/js/transitions.js"></script>
+    <script defer src="assets/js/calendar-popup.js"></script>
+
+    <link rel="canonical" href="https://historyaddress.bg/index.html">
+    <meta name="robots" content="index, follow">
+
+    <style>
+        /* 1. RESET STYLES */
+        .hero { background: none !important; border: none !important; border-radius: 0 !important; box-shadow: none !important; backdrop-filter: none !important; }
+        .hero::after { content: none !important; }
+        .cards-grid .card::after { content: none !important; }
+        .nav a::after { content: none !important; }
+
+        /* 2. HEADER - match about.html sizes */
+        .logo-link {
+            display: flex; align-items: center; gap: 0.8rem;
+            text-decoration: none; color: var(--fg);
+        }
+        .logo-link:hover { color: var(--accent-soft); }
+
+        .header-logo {
+            height: 48px; 
+            width: auto; object-fit: contain;
+        }
+
+        .logo-text {
+            font-family: "Baskerville", "Garamond", Georgia, serif;
+            font-size: 1.3rem; 
+            color: var(--fg); font-weight: 600;
+        }
+
+        /* Nav links - match about.html (no overrides, let styles.css handle it) */
+        .nav a { 
+            color: var(--fg); opacity: 0.85;
+        }
+        .nav a:hover, .nav a.active { color: var(--accent-strong) !important; opacity: 1; }
+
+        /* 3. HERO SECTION */
+        .hero {
+            position: relative; 
+            padding: 1.5rem 2rem 3rem !important;
+            text-align: center; overflow: hidden;
+        }
+
+        .hero::before {
+            content: ''; position: absolute;
+            top: -120px; left: 50%; transform: translateX(-50%);
+            width: 800px; height: 500px;
+            background: radial-gradient(ellipse at center, rgba(205,133,63,0.15) 0%, transparent 70%);
+            pointer-events: none;
+        }
+
+        .hero-logo {
+            position: relative; display: block;
+            width: 160px; height: 160px; 
+            object-fit: contain; 
+            margin: 0 auto 1rem !important;
+            filter: drop-shadow(0 4px 15px rgba(0,0,0,0.4));
+            animation: idx-fadeDown 0.8s cubic-bezier(.4,0,.2,1) both;
+        }
+
+        .hero h1 {
+            font-family: "Baskerville", "Garamond", Georgia, serif;
+            font-size: clamp(2.5rem, 6vw, 4.5rem) !important; 
+            font-weight: 400 !important; line-height: 1.1;
+            margin: 0 auto 0.8rem !important;
+            background: linear-gradient(135deg, var(--accent-strong) 0%, #e0c98a 40%, var(--accent-strong) 100%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+            animation: idx-fadeDown 0.8s 0.1s cubic-bezier(.4,0,.2,1) both;
+        }
+
+        .hero-divider {
+            width: 80px; height: 2px;
+            background: var(--accent-strong);
+            margin: 0 auto 1.5rem !important;
+            opacity: 0.6; border-radius: 1px;
+            animation: idx-fadeIn 0.7s 0.3s ease both;
+        }
+
+        .hero-description {
+            position: relative; max-width: 700px;
+            margin: 0 auto 2rem !important;
+            text-align: center !important;
+            color: var(--muted) !important;
+            font-size: 1.3rem !important; 
+            line-height: 1.7; opacity: 0.9 !important; 
+            animation: idx-fadeUp 0.8s 0.3s cubic-bezier(.4,0,.2,1) both;
+        }
+
+        .stats-badge {
+            display: inline-flex; align-items: center; gap: 0.6rem;
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: 999px; padding: 0.6rem 1.6rem;
+            font-size: 1rem; color: var(--fg);
+            box-shadow: var(--shadow-soft);
+            animation: idx-fadeUp 0.8s 0.4s cubic-bezier(.4,0,.2,1) both;
+        }
+        .stats-badge .stats-icon { width: 20px; height: 20px; color: var(--accent-strong); }
+        .stats-badge .stats-count { font-weight: 700; color: var(--accent-strong); font-size: 1.1rem; }
+
+        /* 4. CARDS SECTION */
+        .cards-section {
+            padding: 0 2rem 6rem; max-width: 1200px; 
+            margin: 0 auto; width: 100%;
+        }
+
+        .cards-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 2rem;
+        }
+
+        .cards-grid .card {
+            display: flex; flex-direction: column;
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: 12px; padding: 2.5rem 2rem; 
+            text-decoration: none; color: var(--fg);
+            box-shadow: var(--shadow-soft);
+            position: relative;
+            transition: transform 0.35s ease, box-shadow 0.35s ease, border-color 0.35s ease;
+        }
+
+        .cards-grid .card::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0;
+            height: 3px; background: var(--accent-gradient);
+            transform: scaleX(0); transform-origin: left;
+            transition: transform 0.4s cubic-bezier(.4,0,.2,1);
+        }
+        .cards-grid .card:hover::before { transform: scaleX(1); }
+
+        .cards-grid .card:hover {
+            transform: translateY(-8px);
+            border-color: var(--accent-strong);
+            box-shadow: var(--shadow);
+        }
+
+        .card-icon {
+            width: 54px; height: 54px; border-radius: 12px;
+            background: rgba(205,133,63,0.14);
+            display: flex; align-items: center; justify-content: center;
+            margin-bottom: 1.5rem;
+        }
+        .card-icon svg {
+            width: 28px; height: 28px; stroke: var(--accent-strong);
+            fill: none; stroke-width: 1.5;
+        }
+
+        .cards-grid .card h2 {
+            font-family: "Baskerville", "Garamond", Georgia, serif;
+            font-size: 1.6rem; 
+            font-weight: 600; margin: 0 0 0.8rem; color: var(--fg);
+        }
+
+        .cards-grid .card p {
+            font-size: 1.1rem; 
+            color: var(--muted); line-height: 1.6;
+            flex: 1; margin: 0; opacity: 0.9;
+        }
+
+        .card-arrow {
+            display: block; margin-top: 1.5rem;
+            color: var(--accent-strong); font-size: 0.95rem;
+            font-weight: 600; letter-spacing: 0.02em;
+            transition: transform 0.3s ease;
+        }
+        .cards-grid .card:hover .card-arrow { transform: translateX(8px); }
+
+        .cards-grid .card:nth-child(1) { animation: idx-fadeUp 0.6s 0.5s cubic-bezier(.4,0,.2,1) both; }
+        .cards-grid .card:nth-child(2) { animation: idx-fadeUp 0.6s 0.6s cubic-bezier(.4,0,.2,1) both; }
+        .cards-grid .card:nth-child(3) { animation: idx-fadeUp 0.6s 0.7s cubic-bezier(.4,0,.2,1) both; }
+
+        /* 5. FOOTER */
+        .site-footer {
+            padding: 3rem 2rem 2rem !important;
+            background: var(--card) !important;
+            border-top: 1px solid var(--border) !important;
+        }
+        .footer-inner { max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; align-items: center; gap: 1rem; }
+        
+        .social-link {
+            display: inline-flex !important; align-items: center; gap: 0.5rem;
+            text-decoration: none; color: var(--fg) !important;
+            font-size: 0.95rem; padding: 0.6rem 1.2rem;
+            border: 1px solid var(--border); border-radius: 30px;
+            background: rgba(205,133,63,0.1);
+            transition: all 0.3s ease;
+        }
+        .social-link:hover {
+            border-color: var(--accent-strong);
+            background: rgba(205,133,63,0.25);
+            transform: translateY(-2px);
+        }
+
+        /* 6. ANIMATIONS */
+        @keyframes idx-fadeDown { from { opacity: 0; transform: translateY(-25px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes idx-fadeUp { from { opacity: 0; transform: translateY(25px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes idx-fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        @media (max-width: 850px) {
+            .hero-logo { width: 120px; height: 120px; }
+            .cards-grid { grid-template-columns: 1fr; gap: 1.5rem; }
+        }
+    </style>
 </head>
+<body>
+
+<header class="site-header">
+    <a class="logo-link" href="index.html">
+        <img src="assets/img/HistAdrLogo.png" alt="Адресът на историята" class="header-logo">
+        <span class="logo-text">Адресът на историята</span>
+    </a>
+
+    <nav class="nav">
+        <a href="index.html" class="active">Начало</a>
+        <a href="map.html">Карта</a>
+        <a href="addresses.html">Домове</a>
+        <a href="calendar.html">Календар</a>
+        <a href="about.html">За Нас</a>
+    </nav>
+
+    <!-- Let theme.js handle this, no custom listener needed -->
+    <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode">
+        <span class="theme-icon sun">☀️</span>
+        <span class="theme-icon moon">🌙</span>
+    </button>
+</header>
+
+<div class="page-wrapper">
+
+    <section class="hero">
+        <img src="assets/img/HistAdrLogoOrig.png" alt="Лого" class="hero-logo">
+
+        <h1>Адресът на историята</h1>
+
+        <div class="hero-divider"></div>
+
+        <p class="hero-description">
+           „Адресът на историята" е дигитален каталог на домовете, в които са живели значими български личности.
+Сайтът събира на едно място адреси, снимки и кратка информация за хора, оставили следа в културата, науката, политиката и обществения живот..
+        </p>
+
+        <div class="stats-badge" id="stats">
+            <svg class="stats-icon" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor">
+                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-1H2z"/>
+                <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-1h7z"/>
+            </svg>
+            <span>Зареждане на архива…</span>
+        </div>
+    </section>
+
+    <section class="cards-section">
+        <div class="cards-grid">
+            <a class="card" href="addresses.html">
+                <div class="card-icon">
+                    <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                </div>
+                <h2>Списък на адресите</h2>
+                <p>Прегледайте списъка с обектите, отворете страниците им и научете повече за личностите и местата, които са обитавали.</p>
+                <span class="card-arrow">Вижте повече →</span>
+            </a>
+
+            <a class="card" href="map.html">
+                <div class="card-icon">
+                    <svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                </div>
+                <h2>Карта</h2>
+                <p>На картата ще намерите всички въведени адреси, отбелязани според местоположението им. Всеки маркер води към отделна страница.</p>
+                <span class="card-arrow">Вижте повече →</span>
+            </a>
+
+            <a class="card" href="about.html">
+                <div class="card-icon">
+                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                </div>
+                <h2>За Нас</h2>
+                <p>Открийте нашата мисия за опазване на архитектурното наследство и научете за проекта „Адресът на Историята".</p>
+                <span class="card-arrow">Вижте повече →</span>
+            </a>
+        </div>
+    </section>
+</div>
+
+<footer class="site-footer">
+    <div class="footer-inner">
+        <div class="footer-social">
+            <a href="https://instagram.com/historyaddress.bg" target="_blank" rel="noopener noreferrer" class="social-link">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
+                Instagram
+            </a>
+            <a href="mailto:historyaddressbg@gmail.com" class="social-link" onclick="handleEmailClick(event)">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                Email
+            </a>
+        </div>
+
+        <p class="footer-links">
+            <a href="privacy.html">Поверителност</a>
+            <span>•</span>
+            <a href="terms.html">Условия</a>
+            <span>•</span>
+            <a href="copyright.html">Авторски права</a>
+        </p>
+
+        <p class="footer-copy">© <span id="year"></span> Адресът на историята</p>
+    </div>
+</footer>
+
+<div id="emailModal" class="email-modal">
+    <div class="email-modal-content">
+        <h3>Свържете се с нас</h3>
+        <div class="email-address-display">historyaddressbg@gmail.com</div>
+        <div class="email-modal-buttons">
+            <button class="btn-copy" onclick="copyEmail()">
+                <span id="copyText">📋 Копирай Email</span>
+            </button>
+            <button class="btn-close" onclick="closeEmailModal()">✕ Затвори</button>
+        </div>
+        <p>Можете да ни пишете за въпроси или подкрепа</p>
+    </div>
+</div>
+
 <script>
+(function() {
+    var stats = document.getElementById('stats');
+    var apiBase = window.location.protocol === 'file:' ? 'http://localhost:3000' : window.location.origin;
+
+    // NO custom toggle listener here - theme.js handles it
+
+    fetch(apiBase + '/api/homes?page=1&limit=1')
+        .then(function(res){
+            if (!res.ok) throw new Error('Server error');
+            return res.json();
+        })
+        .then(function(response){
+            var count = response.pagination ? response.pagination.total : 0;
+            if (stats) {
+                stats.innerHTML =
+                    '<svg class="stats-icon" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor">' +
+                        '<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-1H2z"/>' +
+                        '<path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-1h7z"/>' +
+                    '</svg>' +
+                    '<span class="stats-count">' + count + '</span> Архивирани Адреса';
+            }
+        })
+        .catch(function(err){
+            if (stats) stats.innerHTML = '<span>Архивирани Адреса</span>';
+        });
+
+    document.getElementById('year').textContent = new Date().getFullYear();
+})();
+
 function handleEmailClick(event) {
-    // On mobile (screen width < 768px), let mailto work normally
-    if (window.innerWidth <= 768) {
-        return; // Don't prevent default, let mailto: work
-    }
-    
-    // On desktop, show modal
+    if (window.innerWidth <= 768) return;
     event.preventDefault();
     showEmailModal();
 }
-
 function showEmailModal() {
     var modal = document.getElementById('emailModal');
-    if (!modal) {
-        // Create modal if it doesn't exist
-        modal = document.createElement('div');
-        modal.id = 'emailModal';
-        modal.className = 'email-modal';
-        modal.innerHTML = `
-            <div class="email-modal-content">
-                <h3>📧 Свържете се с нас</h3>
-                <div class="email-address-display" id="emailDisplay">historyaddressbg@gmail.com</div>
-                <div class="email-modal-buttons">
-                    <button class="btn-copy" onclick="copyEmail()">
-                        <span id="copyText">📋 Копирай Email</span>
-                    </button>
-                    <button class="btn-close" onclick="closeEmailModal()">✕ Затвори</button>
-                </div>
-                <p>Можете да ни пишете за въпроси или подкрепа</p>
-            </div>
-        `;
-        document.body.appendChild(modal);
-        
-        // Close on backdrop click
-        modal.addEventListener('click', function(e) {
-            if (e.target === modal) {
-                closeEmailModal();
-            }
-        });
-    }
-    
-    modal.style.display = 'flex';
-    document.body.style.overflow = 'hidden';
+    if (modal) { modal.style.display = 'flex'; document.body.style.overflow = 'hidden'; }
 }
-
 function closeEmailModal() {
     var modal = document.getElementById('emailModal');
-    if (modal) {
-        modal.style.display = 'none';
-        document.body.style.overflow = '';
-    }
+    if (modal) { modal.style.display = 'none'; document.body.style.overflow = ''; }
 }
-
 function copyEmail() {
-    var email = 'historyaddressbg@gmail.com';
-    navigator.clipboard.writeText(email).then(function() {
+    navigator.clipboard.writeText('historyaddressbg@gmail.com').then(function() {
         var btn = document.querySelector('.btn-copy');
         var text = document.getElementById('copyText');
-        
         btn.classList.add('copied');
         text.textContent = '✓ Копирано!';
-        
-        setTimeout(function() {
-            btn.classList.remove('copied');
-            text.textContent = '📋 Копирай Email';
-        }, 2000);
-    }).catch(function(err) {
-        alert('Email: ' + email);
-    });
+        setTimeout(function() { btn.classList.remove('copied'); text.textContent = '📋 Копирай Email'; }, 2000);
+    }).catch(function() { alert('Email: historyaddressbg@gmail.com'); });
 }
-
-// Close modal on ESC key
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') {
-        closeEmailModal();
-    }
-});
+document.getElementById('emailModal').addEventListener('click', function(e) { if (e.target === this) closeEmailModal(); });
+document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeEmailModal(); });
 </script>
-<body>
-	<header class="site-header">
-		<a class="logo-link" href="index.html">
-			<img src="assets/img/HistAdrLogo.png" alt="Адресът на историята" class="header-logo">
-			<span class="logo-text">Адресът на историята</span>
-		</a>
-<nav class="nav">
-    <a href="index.html">Начало</a>
-    <a href="map.html">Карта</a>
-    <a href="addresses.html">Домове</a>
-    <a href="calendar.html">Календар</a>
-    <a href="about.html">За Нас</a>
-</nav>
-		<button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode"></button>
-	</header>
 
-	<main class="container">
-		<section class="hero">
-			<h1 class="gradient-text">Адресът на историята</h1>
-			
-			<img src="assets/img/HistAdrLogoOrig.png" alt="Лого на Адресът на историята" style="float: left; margin-right: 1.5rem; margin-bottom: 1rem; width: 120px; height: auto; border-radius: 0.5rem; box-shadow: var(--shadow-small);">
-			
-			<p>„Адресът на историята" е дигитален каталог на домовете, в които са живели значими български личности.
-Сайтът събира на едно място адреси, снимки и кратка информация за хора, оставили следа в културата, науката, политиката и обществения живот.</p>
-			
-			<div style="clear: both;"></div>
-			
-			<div class="stats" id="stats">📚 Зареждане...</div>
-		</section>
-
-		<section class="quick-links">
-			<a class="card" href="addresses.html">
-				<h2>🏠 Списък на адресите</h2>
-				<p>Прегледайте списъка с обектите, отворете страниците им и научете повече за личностите и местата, които са обитавали.</p>
-			</a>
-			<a class="card" href="map.html">
-				<h2>🗺️ Карта</h2>
-				<p>На картата ще намерите всички въведени адреси, отбелязани според местоположението им.
-Всеки маркер води към отделна страница с подробна информация.</p>
-			</a>
-			<a class="card" href="about.html">
-				<h2>📖 За Нас</h2>
-				<p>Открийте нашата мисия за опазване на архитектурното наследство и научете за проекта „Адресът на Историята".</p>
-			</a>
-		</section>
-	</main>
-
-	<footer class="site-footer">
-		<p>© <span id="year"></span> Адресът на историята</p>
-		<div class="footer-social">
-			<a href="https://instagram.com/historyaddress.bg" target="_blank" rel="noopener noreferrer" class="social-link">
-				📷 Instagram
-			</a>
-			<a href="mailto:historyaddressbg@gmail.com" class="social-link" onclick="handleEmailClick(event)">
-    📧 Email
-</a>
-		</div>
-		<p class="footer-links">
-			<a href="privacy.html">Поверителност</a> | 
-			<a href="terms.html">Условия</a> | 
-			<a href="copyright.html">Авторски права</a>
-		</p>
-	</footer>
-
-	<script>
-		(function() {
-			var stats = document.getElementById('stats');
-			var apiBase = window.location.protocol === 'file:' ? 'http://localhost:3000' : window.location.origin;
-			
-			fetch(apiBase + '/api/homes?page=1&limit=1')
-				.then(function(res){ 
-					if (!res.ok) throw new Error('Server error');
-					return res.json(); 
-				})
-				.then(function(response){
-					var count = response.pagination ? response.pagination.total : 0;
-					if (stats) { 
-						stats.textContent = '📚 ' + count + ' Архивирани Адреса'; 
-					}
-				})
-				.catch(function(err){
-					console.error('Error loading stats:', err);
-					if (stats) { 
-						stats.textContent = '📚 History Homes Collection'; 
-					}
-				});
-			
-			document.getElementById('year').textContent = new Date().getFullYear();
-		})();
-	</script>
 </body>
 </html>
