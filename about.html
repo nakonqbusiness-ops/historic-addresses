@@ -1,214 +1,258 @@
 <!doctype html>
-<html lang="en" data-theme="dark">
+<html lang="bg" data-theme="dark">
 <head>
-	<meta charset="utf-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<link rel="icon" type="image/png" href="/assets/img/favicon-96x96.png" sizes="96x96" />
-<link rel="icon" type="image/svg+xml" href="/assets/img/favicon.svg" />
-<link rel="shortcut icon" href="/assets/img/favicon.ico" />
-<link rel="apple-touch-icon" sizes="180x180" href="/assets/img/apple-touch-icon.png" />
-<link rel="manifest" href="/assets/img/site.webmanifest" />
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    
+    <link rel="icon" type="image/png" href="/assets/img/favicon-96x96.png" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="/assets/img/favicon.svg" />
+    <link rel="shortcut icon" href="/assets/img/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/img/apple-touch-icon.png" />
+    <link rel="manifest" href="/assets/img/site.webmanifest" />
 
-	<title>Адресът на историята - За Нас</title>
-	<meta name="description" content="Относно проекта „Адресът на историята".">
-	<script>
-		(function() {
-			try {
-				var stored = localStorage.getItem('theme-preference');
-				if (stored === 'system') stored = 'dark';
-				var theme = (stored === 'dark' || stored === 'light') ? stored : 'dark';
+    <title>Адресът на историята - За Нас</title>
+    <meta name="description" content="Относно проекта „Адресът на историята".">
+
+    <script>
+        (function() {
+            try {
+                var stored = localStorage.getItem('theme-preference');
+                var theme = (stored === 'dark' || stored === 'light') ? stored : 'dark';
                 document.documentElement.setAttribute('data-theme', theme);
-			} catch(e) {}
-		})();
-	</script>
-	<link rel="stylesheet" href="assets/css/styles.css">
-	<script src="assets/js/theme.js"></script>
-	<script src="assets/js/transitions.js"></script>
-	<!-- Add this in the <head> section, after the other script tags -->
-<script defer src="assets/js/calendar-popup.js"></script>
-<link rel="canonical" href="https://historyaddress.bg/about.html">
-<meta name="robots" content="index, follow">
+            } catch(e) {}
+        })();
+    </script>
+
+    <link rel="stylesheet" href="assets/css/styles.css">
+    <script src="assets/js/theme.js"></script>
+    <script src="assets/js/transitions.js"></script>
+    <script defer src="assets/js/calendar-popup.js"></script>
+
+    <style>
+        /* 1. LAYOUT & SPACE FIXES */
+        .page-wrapper {
+            padding: 2rem 2rem 5rem;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .about-hero {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .about-logo {
+            width: 120px;
+            height: auto;
+            margin-bottom: 1rem;
+            filter: drop-shadow(0 4px 10px rgba(0,0,0,0.2));
+        }
+
+        /* 3. CONTENT STYLING */
+        .content-block {
+            line-height: 1.8;
+            font-size: 1.1rem;
+            color: var(--fg);
+        }
+
+        .mission-box {
+            background: var(--card);
+            border-left: 4px solid var(--accent-strong);
+            padding: 2rem;
+            margin: 2rem 0;
+            border-radius: 0 12px 12px 0;
+            box-shadow: var(--shadow-soft);
+        }
+
+        .section-heading {
+            font-family: "Baskerville", serif;
+            color: var(--accent-strong);
+            font-size: 1.8rem;
+            margin: 2.5rem 0 1rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .admin-tag {
+            margin-top: 2rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid var(--border);
+            font-style: italic;
+            color: var(--muted);
+        }
+
+        .admin-name {
+            color: var(--fg);
+            font-weight: 600;
+            font-family: "Baskerville", serif;
+            font-size: 1.2rem;
+        }
+
+        /* Partners Preview Box */
+        #partners-preview {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+        }
+
+        .contact-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+
+        .contact-item {
+            padding: 1rem;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            text-decoration: none;
+            color: var(--fg);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .contact-item:hover {
+            border-color: var(--accent-strong);
+            background: rgba(205,133,63,0.05);
+        }
+
+        @media (max-width: 600px) {
+            .contact-grid { grid-template-columns: 1fr; }
+        }
+    </style>
 </head>
-<script>
-function handleEmailClick(event) {
-    // On mobile (screen width < 768px), let mailto work normally
-    if (window.innerWidth <= 768) {
-        return; // Don't prevent default, let mailto: work
-    }
-    
-    // On desktop, show modal
-    event.preventDefault();
-    showEmailModal();
-}
-
-function showEmailModal() {
-    var modal = document.getElementById('emailModal');
-    if (!modal) {
-        // Create modal if it doesn't exist
-        modal = document.createElement('div');
-        modal.id = 'emailModal';
-        modal.className = 'email-modal';
-        modal.innerHTML = `
-            <div class="email-modal-content">
-                <h3>📧 Свържете се с нас</h3>
-                <div class="email-address-display" id="emailDisplay">historyaddressbg@gmail.com</div>
-                <div class="email-modal-buttons">
-                    <button class="btn-copy" onclick="copyEmail()">
-                        <span id="copyText">📋 Копирай Email</span>
-                    </button>
-                    <button class="btn-close" onclick="closeEmailModal()">✕ Затвори</button>
-                </div>
-                <p>Можете да ни пишете за въпроси или подкрепа</p>
-            </div>
-        `;
-        document.body.appendChild(modal);
-        
-        // Close on backdrop click
-        modal.addEventListener('click', function(e) {
-            if (e.target === modal) {
-                closeEmailModal();
-            }
-        });
-    }
-    
-    modal.style.display = 'flex';
-    document.body.style.overflow = 'hidden';
-}
-
-function closeEmailModal() {
-    var modal = document.getElementById('emailModal');
-    if (modal) {
-        modal.style.display = 'none';
-        document.body.style.overflow = '';
-    }
-}
-
-function copyEmail() {
-    var email = 'historyaddressbg@gmail.com';
-    navigator.clipboard.writeText(email).then(function() {
-        var btn = document.querySelector('.btn-copy');
-        var text = document.getElementById('copyText');
-        
-        btn.classList.add('copied');
-        text.textContent = '✓ Копирано!';
-        
-        setTimeout(function() {
-            btn.classList.remove('copied');
-            text.textContent = '📋 Копирай Email';
-        }, 2000);
-    }).catch(function(err) {
-        alert('Email: ' + email);
-    });
-}
-
-// Close modal on ESC key
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') {
-        closeEmailModal();
-    }
-});
-</script>
 <body>
-	<header class="site-header">
-		<a class="logo-link" href="index.html">
+
+<header class="site-header">
+    <a class="logo-link" href="index.html">
         <img src="assets/img/HistAdrLogo.png" alt="Адресът на историята" class="header-logo">
         <span class="logo-text">Адресът на историята</span>
     </a>
-<nav class="nav">
-    <a href="index.html">Начало</a>
-    <a href="map.html">Карта</a>
-    <a href="addresses.html">Домове</a>
-    <a href="calendar.html">Календар</a>
-    <a href="about.html">За Нас</a>
-</nav>
-		<button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode"></button>
-	</header>
+    <nav class="nav">
+        <a href="index.html">Начало</a>
+        <a href="map.html">Карта</a>
+        <a href="addresses.html">Домове</a>
+        <a href="calendar.html">Календар</a>
+        <a href="about.html" class="active">За Нас</a>
+    </nav>
+    <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode">
+        <span class="theme-icon sun">☀️</span>
+        <span class="theme-icon moon">🌙</span>
+    </button>
+</header>
 
-	<main class="container">
-		<h1 class="page-title gradient-text">📖 За „Адресът на историята"</h1>
-		<div style="max-width: 800px; margin: 0 auto;">
-			
-			<img src="assets/img/HistAdrLogoOrig.png" alt="Лого на Адресът на историята" style="float: left; margin-right: 1.5rem; margin-bottom: 1rem; width: 150px; height: auto; border-radius: 0.5rem; box-shadow: var(--shadow-small);">
-			
-			<p style="font-size: 1.1rem; line-height: 1.8; margin-bottom: 2rem;">
-				Добре дошли в „Адресът на историята", дигитален архив, съхраняващ историите и местоположенията на легендарни домове и дейци от цяла България . 
-			</p>
-			
-			<div style="clear: both;"></div> 
+<main class="page-wrapper">
+    <section class="about-hero">
+        <img src="assets/img/HistAdrLogoOrig.png" alt="Logo" class="about-logo">
+        <h1 class="page-title">За „Адресът на историята"</h1>
+        <p style="font-size: 1.2rem; opacity: 0.9;">
+            Дигитален архив, съхраняващ паметта за легендарните домове и дейци на България.
+        </p>
+    </section>
 
-			<h2 style="color: var(--accent-strong); margin-top: 2rem; margin-bottom: 1rem;"> Нашата Мисия</h2>
-			<p style="line-height: 1.8; margin-bottom: 2rem;">
-				Ние сме група ученици от Първа английска езикова гимназия, обединени от любовта към България и желанието да съхраним спомена за нашите забележителни личности. Нашият проект цели да документира адресите на домовете на хора, които с делата, таланта и идеите си са оставили следа в българската история и култура.
+    <article class="content-block">
+        <div class="mission-box">
+            <h2 class="section-heading" style="margin-top:0;">Нашата Мисия</h2>
+            Ние сме група ученици от <strong>Първа английска езикова гимназия</strong>, обединени от любовта към България и желанието да съхраним спомена за нашите забележителни личности. Нашият проект цели да документира адресите на домовете на хора, които с делата, таланта и идеите си са оставили следа в българската история и култура.
+        </div>
 
-С този сайт искаме не само да запазим паметта за великите българи, но и да вдъхновим нашите връстници да се гордеят със своето наследство и да се стремят към лични постижения. Вярваме, че знанието за миналото и за хората, които са изградили страната ни, е основа за силна и осъзната нация.
+        <p>
+            С този сайт искаме не само да запазим паметта за великите българин, но и да вдъхновим нашите връстници да се гордеят със своето наследство и да се стремят към лични постижения. Вярваме, че знанието за миналото е основа за силна и осъзната нация.
+        </p>
 
-Проектът ни е изграден върху ученическа инициатива, любопитство и страст към историята. Всеки адрес, всяка история, която публикуваме, е малък мост между миналото и настоящето, напомнящ ни, че всеки от нас може да допринесе за бъдещето на България.
+        <p>
+            Всеки адрес и всяка история, която публикуваме, е малък мост между миналото и настоящето. Присъединете се към нас в това пътуване – за да помним, да се гордеем и да се вдъхновяваме.
+        </p>
 
-Присъединете се към нас в това пътуване из живота и домовете на българските личности – за да помним, да се гордеем и да се вдъхновяваме.
-				
+        <div class="admin-tag">
+            Администратор на проекта: <br>
+            <span class="admin-name">Георги Георгиев Петков</span>
+        </div>
 
-</p> Администратор на сайта: Георги Георгиев Петков				
-			</p>
-			
-			<h2 style="color: var(--accent-strong); margin-top: 2rem; margin-bottom: 1rem;">✨ Нашите партньори</h2>
-			<div id="partners-preview">
-				<p style="color:#999;">Зареждане...</p>
-			</div>
-			<p style="text-align:center;margin-top:1rem;">
-				<a href="partners.html" style="color: var(--link); text-decoration: underline; font-weight: 600;">Виж всички партньори →</a>
-			</p>
-			
-			<h2 style="color: var(--accent-strong); margin-top: 2rem; margin-bottom: 1rem;">📧 Контакти</h2>
-			<p style="line-height: 1.8; margin-bottom: 1rem;">
-				Имате адрес, който да предложите, информация, която да споделите, или пък искате да ни покрепите? Изпратете ни имейл на <a href="mailto:historyaddressbg@gmail.com" style="color: var(--link); text-decoration: underline;">historyaddressbg@gmail.com</a>
-			</p>
-			<p style="line-height: 1.8;">
-				Последвайте ни в Instagram: <a href="https://www.instagram.com/historyaddress.bg/" target="_blank" rel="noopener noreferrer" style="color: var(--link); text-decoration: underline;">@historyaddress.bg</a>
-			</p>
-		</div>
-	</main>
+        <h2 class="section-heading">✨ Нашите партньори</h2>
+        <div id="partners-preview">
+            <p style="color:var(--muted);">Зареждане на партньорската мрежа...</p>
+        </div>
+        <p style="text-align:right;">
+            <a href="partners.html" style="color: var(--accent-strong); font-weight: 600; text-decoration: none;">Всички партньори →</a>
+        </p>
 
-	<footer class="site-footer">
-		<p>© <span id="year"></span> Адресът на историята</p>
-		<div class="footer-social">
-			<a href="https://instagram.com/historyaddress.bg" target="_blank" rel="noopener noreferrer" class="social-link">
-				📷 Instagram
-			</a>
-			<a href="mailto:historyaddressbg@gmail.com" class="social-link" onclick="handleEmailClick(event)">
-    📧 Email
-</a>
-		</div>
-		<p class="footer-links">
-			<a href="privacy.html">Поверителност</a> | 
-			<a href="terms.html">Условия</a> | 
-			<a href="copyright.html">Авторски права</a>
-		</p>
-	</footer>
+        <h2 class="section-heading">📧 Контакти</h2>
+        <p>Имате информация за споделяне или искате да подкрепите проекта? Свържете се с нас:</p>
+        
+        <div class="contact-grid">
+            <a href="mailto:historyaddressbg@gmail.com" class="contact-item" onclick="handleEmailClick(event)">
+                <span>📧</span> historyaddressbg@gmail.com
+            </a>
+            <a href="https://www.instagram.com/historyaddress.bg/" target="_blank" class="contact-item">
+                <span>📷</span> @historyaddress.bg
+            </a>
+        </div>
+    </article>
+</main>
 
-	<script>
-	document.getElementById('year').textContent = new Date().getFullYear();
-	
-	// Load partners preview
-	(function() {
-		var apiBase = window.location.origin;
-		fetch(apiBase + '/api/partners')
-			.then(function(res) { return res.json(); })
-			.then(function(partners) {
-				var container = document.getElementById('partners-preview');
-				if (partners.length === 0) {
-					container.innerHTML = '<p style="color:#999;">Предстои!</p>';
-				} else {
-					container.innerHTML = '<ul style="line-height: 2; margin-bottom: 1rem;">' +
-						partners.map(function(p, i) {
-							return '<li><strong>' + (i + 1) + '.</strong> <a href="partners.html#' + p.id + '" style="color: var(--link); text-decoration: underline;">' + p.name + '</a></li>';
-						}).join('') +
-						'</ul>';
-				}
-			})
-			.catch(function() {
-				document.getElementById('partners-preview').innerHTML = '<p style="color:#999;">Предстои!</p>';
-			});
-	})();
-	</script>
+<footer class="site-footer">
+    <div class="footer-inner" style="max-width: 900px; margin: 0 auto; text-align: center;">
+        <p>© <span id="year"></span> Адресът на историята</p>
+        <p class="footer-links" style="margin: 1rem 0;">
+            <a href="privacy.html">Поверителност</a> | 
+            <a href="terms.html">Условия</a> | 
+            <a href="copyright.html">Авторски права</a>
+        </p>
+    </div>
+</footer>
+
+<div id="emailModal" class="email-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:1000; align-items:center; justify-content:center;">
+    <div class="email-modal-content" style="background:var(--card); padding:2rem; border-radius:15px; text-align:center; border:1px solid var(--accent-strong); max-width:400px; width:90%;">
+        <h3>📧 Свържете се с нас</h3>
+        <p id="emailDisplay" style="margin:1.5rem 0; font-weight:bold; font-size:1.1rem;">historyaddressbg@gmail.com</p>
+        <div style="display:flex; gap:10px; justify-content:center;">
+            <button class="btn-copy" onclick="copyEmail()" style="padding:0.6rem 1rem; border-radius:8px; cursor:pointer; background:var(--accent-strong); color:white; border:none;">Копирай Email</button>
+            <button onclick="closeEmailModal()" style="padding:0.6rem 1rem; border-radius:8px; cursor:pointer; background:transparent; color:var(--fg); border:1px solid var(--border);">Затвори</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+
+    // Email Logic
+    function handleEmailClick(e) {
+        if (window.innerWidth > 768) {
+            e.preventDefault();
+            document.getElementById('emailModal').style.display = 'flex';
+        }
+    }
+    function closeEmailModal() { document.getElementById('emailModal').style.display = 'none'; }
+    function copyEmail() {
+        navigator.clipboard.writeText('historyaddressbg@gmail.com');
+        alert('Email-ът е копиран!');
+    }
+
+    // Load partners
+    (function() {
+        fetch(window.location.origin + '/api/partners')
+            .then(res => res.json())
+            .then(partners => {
+                const container = document.getElementById('partners-preview');
+                if (!partners || partners.length === 0) {
+                    container.innerHTML = '<p style="opacity:0.6;">Предстои обявяване на официалните партньори.</p>';
+                } else {
+                    container.innerHTML = '<ul style="list-style:none; padding:0;">' + 
+                        partners.slice(0, 3).map(p => `<li style="margin-bottom:0.5rem;">• ${p.name}</li>`).join('') + 
+                        '</ul>';
+                }
+            })
+            .catch(() => {
+                document.getElementById('partners-preview').innerHTML = '<p style="opacity:0.6;">Предстои обявяване на официалните партньори.</p>';
+            });
+    })();
+</script>
 </body>
 </html>
