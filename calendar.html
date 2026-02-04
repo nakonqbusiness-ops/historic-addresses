@@ -4,10 +4,10 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="icon" type="image/png" href="/assets/img/favicon-96x96.png" sizes="96x96" />
-<link rel="icon" type="image/svg+xml" href="/assets/img/favicon.svg" />
-<link rel="shortcut icon" href="/assets/img/favicon.ico" />
-<link rel="apple-touch-icon" sizes="180x180" href="/assets/img/apple-touch-icon.png" />
-<link rel="manifest" href="/assets/img/site.webmanifest" />
+    <link rel="icon" type="image/svg+xml" href="/assets/img/favicon.svg" />
+    <link rel="shortcut icon" href="/assets/img/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/img/apple-touch-icon.png" />
+    <link rel="manifest" href="/assets/img/site.webmanifest" />
 
     <title>Календар - Адресът на историята</title>
     <meta name="description" content="Вижте рождени дни и годишнини от живота на значими български личности.">
@@ -15,7 +15,6 @@
         (function() {
             try {
                 var stored = localStorage.getItem('theme-preference');
-                if (stored === 'system') stored = 'dark';
                 var theme = (stored === 'dark' || stored === 'light') ? stored : 'dark';
                 document.documentElement.setAttribute('data-theme', theme);
             } catch(e) {}
@@ -24,8 +23,40 @@
     <link rel="stylesheet" href="assets/css/styles.css">
     <script defer src="assets/js/theme.js"></script>
     <script defer src="assets/js/transitions.js"></script>
-    <script defer src="assets/js/calendar-popup.js"></script>
     <style>
+        /* LEGEND SECTION */
+        .calendar-legend {
+            display: flex;
+            gap: 1.5rem;
+            justify-content: center;
+            margin-bottom: 1.5rem;
+            padding: 1rem;
+            background: var(--card);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            flex-wrap: wrap;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.95rem;
+        }
+        .legend-badge {
+            padding: 0.25rem 0.6rem;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+        .legend-badge.birth {
+            background: rgba(76, 175, 80, 0.2);
+            color: #4CAF50;
+        }
+        .legend-badge.death {
+            background: rgba(158, 158, 158, 0.2);
+            color: #9E9E9E;
+        }
+
         .calendar-header {
             display: flex;
             justify-content: space-between;
@@ -51,7 +82,7 @@
         .calendar-grid {
             display: grid;
             grid-template-columns: repeat(7, 1fr);
-            gap: 8px;
+            gap: 10px;
             margin-bottom: 2rem;
             width: 100%;
         }
@@ -60,65 +91,113 @@
             padding: 1rem 0.5rem;
             font-weight: 700;
             color: var(--muted);
-            font-size: 0.85rem;
+            font-size: 0.9rem;
             text-transform: uppercase;
         }
+        
+        /* REDESIGNED DAY CELLS */
         .calendar-day {
             aspect-ratio: 1;
             background: var(--card);
-            border: 1px solid var(--border);
+            border: 2px solid var(--border);
             border-radius: 12px;
             padding: 0.5rem;
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: flex-start;
+            justify-content: center;
             position: relative;
             cursor: default;
             transition: all 0.3s ease;
-            min-height: 80px;
+            min-height: 90px;
         }
+        
         .calendar-day.other-month {
-            opacity: 0.3;
+            opacity: 0.25;
+            background: transparent;
         }
+        
         .calendar-day.today {
-            border: 2px solid var(--accent-strong);
-            box-shadow: 0 0 20px rgba(205, 133, 63, 0.3);
+            border: 3px solid var(--accent-strong);
+            box-shadow: 0 0 20px rgba(205, 133, 63, 0.4);
+            background: rgba(205, 133, 63, 0.08);
         }
+        
         .calendar-day.has-events {
             cursor: pointer;
-            background: rgba(205, 133, 63, 0.1);
+            border-color: var(--accent-strong);
+            background: linear-gradient(135deg, rgba(205, 133, 63, 0.15) 0%, rgba(205, 133, 63, 0.05) 100%);
         }
+        
         .calendar-day.has-events:hover {
-            transform: translateY(-4px);
-            box-shadow: var(--shadow-soft);
-            background: rgba(205, 133, 63, 0.2);
+            transform: translateY(-6px) scale(1.02);
+            box-shadow: 0 8px 24px rgba(205, 133, 63, 0.3);
+            border-color: var(--accent-soft);
+            background: linear-gradient(135deg, rgba(205, 133, 63, 0.25) 0%, rgba(205, 133, 63, 0.15) 100%);
         }
+        
+        /* BIG, BOLD DATE NUMBER */
         .calendar-day-number {
-            font-weight: 700;
-            font-size: 1.1rem;
-            margin-bottom: 0.25rem;
+            font-weight: 800;
+            font-size: 1.8rem;
             color: var(--fg);
+            line-height: 1;
+            margin-bottom: 0.4rem;
         }
-        .calendar-events-indicator {
+        
+        .calendar-day.has-events .calendar-day-number {
+            color: var(--accent-strong);
+        }
+        
+        /* EVENT BADGES - Clear and Readable */
+        .calendar-events-badges {
             display: flex;
             gap: 4px;
             flex-wrap: wrap;
             justify-content: center;
-            margin-top: 0.25rem;
+            align-items: center;
         }
-        .event-dot {
-            width: 6px;
-            height: 6px;
-            border-radius: 50%;
+        
+        .event-badge {
+            font-size: 1.3rem;
+            line-height: 1;
+        }
+        
+        .event-badge.birth {
+            filter: drop-shadow(0 2px 4px rgba(76, 175, 80, 0.5));
+        }
+        
+        .event-badge.death {
+            filter: drop-shadow(0 2px 4px rgba(158, 158, 158, 0.5));
+        }
+        
+        /* Event count indicator */
+        .event-count {
+            position: absolute;
+            top: 6px;
+            right: 6px;
             background: var(--accent-strong);
+            color: white;
+            border-radius: 50%;
+            width: 22px;
+            height: 22px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: 700;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
         }
-        .event-dot.birth {
-            background: #4CAF50;
+
+        .calendar-day.highlighted {
+            animation: pulse 1.5s ease-in-out 3;
         }
-        .event-dot.death {
-            background: #9E9E9E;
+
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(205, 133, 63, 0.7); }
+            50% { box-shadow: 0 0 0 15px rgba(205, 133, 63, 0); }
         }
+
         .events-list {
             margin-top: 2rem;
         }
@@ -139,9 +218,10 @@
         .event-card:hover {
             transform: translateY(-4px);
             box-shadow: var(--shadow-soft);
+            border-color: var(--accent-strong);
         }
         .event-icon {
-            font-size: 2rem;
+            font-size: 2.5rem;
             flex-shrink: 0;
         }
         .event-content {
@@ -164,16 +244,7 @@
             margin-top: 0.25rem;
         }
 
-        .calendar-day.highlighted {
-            animation: pulse 1.5s ease-in-out 3;
-        }
-
-        @keyframes pulse {
-            0%, 100% { box-shadow: 0 0 0 0 rgba(205, 133, 63, 0.7); }
-            50% { box-shadow: 0 0 0 10px rgba(205, 133, 63, 0); }
-        }
-
-        /* SEARCH RESULTS STYLING */
+        /* SEARCH */
         .search-result-item {
             background: var(--card);
             border: 1px solid var(--border);
@@ -190,6 +261,7 @@
             transform: translateY(-2px);
             box-shadow: var(--shadow-soft);
             background: rgba(205, 133, 63, 0.1);
+            border-color: var(--accent-strong);
         }
         .search-result-name {
             font-weight: 700;
@@ -210,170 +282,43 @@
         }
 
         @media (max-width: 768px) {
-            .container {
-                padding-left: 0.5rem;
-                padding-right: 0.5rem;
-            }
-            
             .calendar-grid {
-                gap: 3px;
-                width: 100%;
-                max-width: 100vw;
-                overflow: visible;
+                gap: 6px;
             }
-            
+            .calendar-day {
+                min-height: 70px;
+                padding: 0.3rem;
+            }
+            .calendar-day-number {
+                font-size: 1.4rem;
+            }
+            .event-badge {
+                font-size: 1.1rem;
+            }
+            .event-count {
+                width: 18px;
+                height: 18px;
+                font-size: 0.7rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .calendar-grid {
+                gap: 4px;
+            }
             .calendar-day {
                 min-height: 60px;
                 padding: 0.25rem;
             }
             .calendar-day-number {
-                font-size: 0.9rem;
+                font-size: 1.2rem;
             }
-            .calendar-day-header {
-                font-size: 0.7rem;
-                padding: 0.5rem 0.25rem;
-            }
-            .event-dot {
-                width: 4px;
-                height: 4px;
-            }
-        }
-
-        @media (max-width: 480px) {
-            .container {
-                padding-left: 0.15rem;
-                padding-right: 0.15rem;
-            }
-            
-            .calendar-grid {
-                gap: 1px;
-            }
-            
-            .calendar-day {
-                min-height: 50px;
-                padding: 0.2rem;
-                border-radius: 8px;
-            }
-            
-            .calendar-day-number {
-                font-size: 0.85rem;
-            }
-            
-            .calendar-day-header {
-                font-size: 0.6rem;
-                padding: 0.3rem 0;
-            }
-            
-            .event-dot {
-                width: 3px;
-                height: 3px;
-            }
-            
-            .search-result-item {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 0.5rem;
-            }
-        }
-
-        @media (max-width: 360px) {
-            .container {
-                padding-left: 0;
-                padding-right: 0;
-            }
-            
-            .calendar-grid {
-                gap: 1px;
-                padding: 0 0.1rem;
-            }
-            
-            .calendar-day-number {
-                font-size: 0.8rem;
+            .event-badge {
+                font-size: 0.95rem;
             }
         }
     </style>
-    <link rel="canonical" href="https://historyaddress.bg/calendar.html">
-    <meta name="robots" content="index, follow">
 </head>
-<script>
-function handleEmailClick(event) {
-    // On mobile (screen width < 768px), let mailto work normally
-    if (window.innerWidth <= 768) {
-        return; // Don't prevent default, let mailto: work
-    }
-    
-    // On desktop, show modal
-    event.preventDefault();
-    showEmailModal();
-}
-
-function showEmailModal() {
-    var modal = document.getElementById('emailModal');
-    if (!modal) {
-        // Create modal if it doesn't exist
-        modal = document.createElement('div');
-        modal.id = 'emailModal';
-        modal.className = 'email-modal';
-        modal.innerHTML = `
-            <div class="email-modal-content">
-                <h3>📧 Свържете се с нас</h3>
-                <div class="email-address-display" id="emailDisplay">historyaddressbg@gmail.com</div>
-                <div class="email-modal-buttons">
-                    <button class="btn-copy" onclick="copyEmail()">
-                        <span id="copyText">📋 Копирай Email</span>
-                    </button>
-                    <button class="btn-close" onclick="closeEmailModal()">✕ Затвори</button>
-                </div>
-                <p>Можете да ни пишете за въпроси или подкрепа</p>
-            </div>
-        `;
-        document.body.appendChild(modal);
-        
-        // Close on backdrop click
-        modal.addEventListener('click', function(e) {
-            if (e.target === modal) {
-                closeEmailModal();
-            }
-        });
-    }
-    
-    modal.style.display = 'flex';
-    document.body.style.overflow = 'hidden';
-}
-
-function closeEmailModal() {
-    var modal = document.getElementById('emailModal');
-    if (modal) {
-        modal.style.display = 'none';
-        document.body.style.overflow = '';
-    }
-}
-
-function copyEmail() {
-    var email = 'historyaddressbg@gmail.com';
-    navigator.clipboard.writeText(email).then(function() {
-        var btn = document.querySelector('.btn-copy');
-        var text = document.getElementById('copyText');
-        
-        btn.classList.add('copied');
-        text.textContent = '✓ Копирано!';
-        
-        setTimeout(function() {
-            btn.classList.remove('copied');
-            text.textContent = '📋 Копирай Email';
-        }, 2000);
-    }).catch(function(err) {
-        alert('Email: ' + email);
-    });
-}
-
-// Close modal on ESC key
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') {
-        closeEmailModal();
-    }
-});
-</script>
 <body>
     <header class="site-header">
         <a class="logo-link" href="index.html">
@@ -393,6 +338,21 @@ document.addEventListener('keydown', function(e) {
     <main class="container">
         <h1 class="page-title gradient-text">📅 Календар на събитията</h1>
         
+        <!-- LEGEND -->
+        <div class="calendar-legend">
+            <div class="legend-item">
+                <span style="font-size: 1.3rem;">🎂</span>
+                <span class="legend-badge birth">Рожден ден</span>
+            </div>
+            <div class="legend-item">
+                <span style="font-size: 1.3rem;">🕯️</span>
+                <span class="legend-badge death">Годишнина от смъртта</span>
+            </div>
+            <div class="legend-item" style="color: var(--muted); font-size: 0.9rem;">
+                💡 Кликнете върху датите със събития
+            </div>
+        </div>
+        
         <div style="margin-bottom: 1.5rem;">
             <input 
                 type="text" 
@@ -407,7 +367,7 @@ document.addEventListener('keydown', function(e) {
         <div class="calendar-header">
             <div class="calendar-nav">
                 <button id="prevMonth" class="theme-toggle">◀</button>
-                <span class="calendar-title" id="monthYear">Зареждане... Моля изчакайте</span>
+                <span class="calendar-title" id="monthYear">Зареждане...</span>
                 <button id="nextMonth" class="theme-toggle">▶</button>
             </div>
             <button id="todayBtn" class="theme-toggle">Днес</button>
@@ -418,18 +378,14 @@ document.addEventListener('keydown', function(e) {
     </main>
 
     <footer class="site-footer">
-        <p>© <span id="year"></span> Адресът на историята</p>
-        <div class="footer-social">
-            <a href="https://instagram.com/historyaddress.bg" target="_blank" rel="noopener noreferrer" class="social-link">📷 Instagram</a>
-           <a href="mailto:historyaddressbg@gmail.com" class="social-link" onclick="handleEmailClick(event)">
-    📧 Email
-</a>
+        <div class="footer-inner" style="max-width: 900px; margin: 0 auto; text-align: center;">
+            <p>© <span id="year"></span> Адресът на историята</p>
+            <p class="footer-links" style="margin: 1rem 0;">
+                <a href="privacy.html">Поверителност</a> | 
+                <a href="terms.html">Условия</a> | 
+                <a href="copyright.html">Авторски права</a>
+            </p>
         </div>
-        <p class="footer-links">
-            <a href="privacy.html">Поверителност</a> | 
-            <a href="terms.html">Условия</a> | 
-            <a href="copyright.html">Авторски права</a>
-        </p>
     </footer>
 
 <script>
@@ -621,23 +577,34 @@ document.addEventListener('keydown', function(e) {
         cell.className = 'calendar-day' + (otherMonth ? ' other-month' : '') + (isToday ? ' today' : '');
         var dateKey = String(currentDate.getMonth() + (otherMonth ? (day > 15 ? 0 : 2) : 1)).padStart(2, '0') + '-' + String(day).padStart(2, '0');
         var events = eventsData[dateKey] || [];
+        
         if (events.length > 0 && !otherMonth) {
             cell.className += ' has-events';
             cell.onclick = function() { selectedDate = dateKey; saveCalendarState(); showEventsForDate(dateKey); };
         }
+        
         var number = document.createElement('div');
         number.className = 'calendar-day-number';
         number.textContent = day;
         cell.appendChild(number);
+        
         if (events.length > 0) {
-            var indicator = document.createElement('div');
-            indicator.className = 'calendar-events-indicator';
+            // Show event count badge
+            var count = document.createElement('div');
+            count.className = 'event-count';
+            count.textContent = events.length;
+            cell.appendChild(count);
+            
+            // Show emoji badges
+            var badges = document.createElement('div');
+            badges.className = 'calendar-events-badges';
             events.forEach(function(event) {
-                var dot = document.createElement('div');
-                dot.className = 'event-dot ' + event.type;
-                indicator.appendChild(dot);
+                var badge = document.createElement('span');
+                badge.className = 'event-badge ' + event.type;
+                badge.textContent = event.type === 'birth' ? '🎂' : '🕯️';
+                badges.appendChild(badge);
             });
-            cell.appendChild(indicator);
+            cell.appendChild(badges);
         }
         return cell;
     }
