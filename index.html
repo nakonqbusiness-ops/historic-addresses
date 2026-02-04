@@ -74,6 +74,9 @@
             position: relative; 
             padding: 1.5rem 2rem 3rem !important;
             text-align: center; overflow: hidden;
+            /* Added min-height to ensure scrolling feels necessary/good */
+            min-height: 85vh;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
         }
 
         .hero::before {
@@ -121,6 +124,7 @@
             animation: idx-fadeUp 0.8s 0.3s cubic-bezier(.4,0,.2,1) both;
         }
 
+        /* Updated Stats Badge to look clickable */
         .stats-badge {
             display: inline-flex; align-items: center; gap: 0.6rem;
             background: var(--card); border: 1px solid var(--border);
@@ -128,9 +132,36 @@
             font-size: 1rem; color: var(--fg);
             box-shadow: var(--shadow-soft);
             animation: idx-fadeUp 0.8s 0.4s cubic-bezier(.4,0,.2,1) both;
+            text-decoration: none; /* Because it's an anchor now */
+            transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+        .stats-badge:hover {
+            transform: translateY(-3px);
+            border-color: var(--accent-strong);
+            box-shadow: var(--shadow);
+            cursor: pointer;
         }
         .stats-badge .stats-icon { width: 20px; height: 20px; color: var(--accent-strong); }
         .stats-badge .stats-count { font-weight: 700; color: var(--accent-strong); font-size: 1.1rem; }
+
+        /* New Scroll Down Button */
+        .scroll-down-btn {
+            background: none;
+            border: none;
+            color: var(--accent-strong);
+            margin-top: 3rem;
+            cursor: pointer;
+            opacity: 0.7;
+            transition: opacity 0.3s ease;
+            animation: idx-fadeUp 0.8s 0.5s cubic-bezier(.4,0,.2,1) both, bounce 2s infinite 1.5s;
+        }
+        .scroll-down-btn:hover {
+            opacity: 1;
+        }
+        .scroll-down-btn svg {
+            width: 32px; height: 32px;
+            stroke-width: 2;
+        }
 
         /* 4. CARDS SECTION */
         .cards-section {
@@ -227,10 +258,17 @@
         @keyframes idx-fadeDown { from { opacity: 0; transform: translateY(-25px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes idx-fadeUp { from { opacity: 0; transform: translateY(25px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes idx-fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {transform: translateY(0);}
+            40% {transform: translateY(-10px);}
+            60% {transform: translateY(-5px);}
+        }
 
         @media (max-width: 850px) {
             .hero-logo { width: 120px; height: 120px; }
             .cards-grid { grid-template-columns: 1fr; gap: 1.5rem; }
+            .hero { min-height: auto; }
         }
     </style>
 </head>
@@ -250,7 +288,6 @@
         <a href="about.html">За Нас</a>
     </nav>
 
-    <!-- Let theme.js handle this, no custom listener needed -->
     <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode">
         <span class="theme-icon sun">☀️</span>
         <span class="theme-icon moon">🌙</span>
@@ -271,16 +308,22 @@
 Сайтът събира на едно място адреси, снимки и кратка информация за хора, оставили следа в културата, науката, политиката и обществения живот..
         </p>
 
-        <div class="stats-badge" id="stats">
+        <a href="addresses.html" class="stats-badge" id="stats" title="Към архива">
             <svg class="stats-icon" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor">
                 <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-1H2z"/>
                 <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-1h7z"/>
             </svg>
             <span>Зареждане на архива…</span>
-        </div>
+        </a>
+
+        <button class="scroll-down-btn" onclick="scrollToContent()" aria-label="Превърти надолу">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+        </button>
     </section>
 
-    <section class="cards-section">
+    <section class="cards-section" id="main-content">
         <div class="cards-grid">
             <a class="card" href="addresses.html">
                 <div class="card-icon">
@@ -380,6 +423,13 @@
 
     document.getElementById('year').textContent = new Date().getFullYear();
 })();
+
+function scrollToContent() {
+    var content = document.getElementById('main-content');
+    if (content) {
+        content.scrollIntoView({ behavior: 'smooth' });
+    }
+}
 
 function handleEmailClick(event) {
     if (window.innerWidth <= 768) return;
