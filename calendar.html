@@ -24,29 +24,41 @@
     <script defer src="assets/js/theme.js"></script>
     <script defer src="assets/js/transitions.js"></script>
     <style>
-        /* LEGEND SECTION */
+        /* OVERRIDE .container padding on mobile - styles.css adds huge padding that breaks mobile */
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem 0.5rem !important;
+            }
+        }
+        @media (max-width: 480px) {
+            .container {
+                padding: 0.8rem 0.3rem !important;
+            }
+        }
+
+        /* LEGEND - compact, just 2 badges */
         .calendar-legend {
             display: flex;
-            gap: 1.5rem;
+            gap: 1rem;
             justify-content: center;
-            margin-bottom: 1.5rem;
-            padding: 1rem;
+            margin-bottom: 1rem;
+            padding: 0.75rem;
             background: var(--card);
-            border-radius: 12px;
+            border-radius: 10px;
             border: 1px solid var(--border);
             flex-wrap: wrap;
         }
         .legend-item {
             display: flex;
             align-items: center;
-            gap: 0.5rem;
-            font-size: 0.95rem;
+            gap: 0.4rem;
+            font-size: 0.9rem;
         }
         .legend-badge {
-            padding: 0.25rem 0.6rem;
-            border-radius: 6px;
+            padding: 0.2rem 0.5rem;
+            border-radius: 5px;
             font-weight: 600;
-            font-size: 0.85rem;
+            font-size: 0.8rem;
         }
         .legend-badge.birth {
             background: rgba(76, 175, 80, 0.2);
@@ -57,51 +69,62 @@
             color: #9E9E9E;
         }
 
+        /* hint below calendar */
+        .calendar-hint {
+            text-align: center;
+            color: var(--muted);
+            font-size: 0.75rem;
+            margin-top: 0.5rem;
+            opacity: 0.6;
+        }
+
         .calendar-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 2rem;
+            margin-bottom: 1.5rem;
             flex-wrap: wrap;
-            gap: 1rem;
+            gap: 0.8rem;
         }
         .calendar-nav {
             display: flex;
-            gap: 1rem;
+            gap: 0.8rem;
             align-items: center;
         }
         .calendar-nav button {
             min-width: 44px;
-            padding: 0.75rem 1rem;
+            padding: 0.6rem 0.9rem;
         }
         .calendar-title {
-            font-size: 1.5rem;
+            font-size: 1.3rem;
             font-weight: 700;
             color: var(--fg);
         }
+        
+        /* CALENDAR GRID - AGGRESSIVE MOBILE FIXES */
         .calendar-grid {
             display: grid;
             grid-template-columns: repeat(7, 1fr);
-            gap: 10px;
-            margin-bottom: 2rem;
+            gap: 8px;
+            margin-bottom: 0.5rem;
             width: 100%;
         }
         .calendar-day-header {
             text-align: center;
-            padding: 1rem 0.5rem;
+            padding: 0.8rem 0.3rem;
             font-weight: 700;
             color: var(--muted);
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             text-transform: uppercase;
         }
         
-        /* REDESIGNED DAY CELLS */
+        /* DAY CELLS */
         .calendar-day {
             aspect-ratio: 1;
             background: var(--card);
             border: 2px solid var(--border);
-            border-radius: 12px;
-            padding: 0.5rem;
+            border-radius: 10px;
+            padding: 0.4rem;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -109,84 +132,84 @@
             position: relative;
             cursor: default;
             transition: all 0.3s ease;
-            min-height: 90px;
+            min-height: 75px;
         }
         
         .calendar-day.other-month {
-            opacity: 0.25;
+            opacity: 0.2;
             background: transparent;
         }
         
         .calendar-day.today {
-            border: 3px solid var(--accent-strong);
-            box-shadow: 0 0 20px rgba(205, 133, 63, 0.4);
+            border: 2px solid var(--accent-strong);
+            box-shadow: 0 0 15px rgba(205, 133, 63, 0.3);
             background: rgba(205, 133, 63, 0.08);
         }
         
         .calendar-day.has-events {
             cursor: pointer;
             border-color: var(--accent-strong);
-            background: linear-gradient(135deg, rgba(205, 133, 63, 0.15) 0%, rgba(205, 133, 63, 0.05) 100%);
+            background: linear-gradient(135deg, rgba(205, 133, 63, 0.12) 0%, rgba(205, 133, 63, 0.04) 100%);
         }
         
         .calendar-day.has-events:hover {
-            transform: translateY(-6px) scale(1.02);
-            box-shadow: 0 8px 24px rgba(205, 133, 63, 0.3);
+            transform: translateY(-4px) scale(1.01);
+            box-shadow: 0 6px 20px rgba(205, 133, 63, 0.25);
             border-color: var(--accent-soft);
-            background: linear-gradient(135deg, rgba(205, 133, 63, 0.25) 0%, rgba(205, 133, 63, 0.15) 100%);
+            background: linear-gradient(135deg, rgba(205, 133, 63, 0.2) 0%, rgba(205, 133, 63, 0.1) 100%);
         }
         
-        /* BIG, BOLD DATE NUMBER */
+        /* DATE NUMBER */
         .calendar-day-number {
             font-weight: 800;
-            font-size: 1.8rem;
+            font-size: 1.6rem;
             color: var(--fg);
             line-height: 1;
-            margin-bottom: 0.4rem;
+            margin-bottom: 0.3rem;
         }
         
         .calendar-day.has-events .calendar-day-number {
             color: var(--accent-strong);
         }
         
-        /* EVENT BADGES - Clear and Readable */
+        /* EVENT BADGES */
         .calendar-events-badges {
             display: flex;
-            gap: 4px;
+            gap: 3px;
             flex-wrap: wrap;
             justify-content: center;
             align-items: center;
         }
         
         .event-badge {
-            font-size: 1.3rem;
+            font-size: 1.2rem;
             line-height: 1;
         }
         
         .event-badge.birth {
-            filter: drop-shadow(0 2px 4px rgba(76, 175, 80, 0.5));
+            filter: drop-shadow(0 1px 3px rgba(76, 175, 80, 0.4));
         }
         
         .event-badge.death {
-            filter: drop-shadow(0 2px 4px rgba(158, 158, 158, 0.5));
+            filter: drop-shadow(0 1px 3px rgba(158, 158, 158, 0.4));
         }
         
-        /* Event count indicator */
+        /* Event count badge */
         .event-count {
             position: absolute;
-            top: 6px;
-            right: 6px;
+            top: 4px;
+            right: 4px;
             background: var(--accent-strong);
             color: white;
             border-radius: 50%;
-            width: 22px;
-            height: 22px;
+            width: 20px;
+            height: 20px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             font-weight: 700;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.25);
         }
 
         .calendar-day.highlighted {
@@ -194,21 +217,21 @@
         }
 
         @keyframes pulse {
-            0%, 100% { box-shadow: 0 0 0 0 rgba(205, 133, 63, 0.7); }
-            50% { box-shadow: 0 0 0 15px rgba(205, 133, 63, 0); }
+            0%, 100% { box-shadow: 0 0 0 0 rgba(205, 133, 63, 0.6); }
+            50% { box-shadow: 0 0 0 12px rgba(205, 133, 63, 0); }
         }
 
         .events-list {
-            margin-top: 2rem;
+            margin-top: 1.5rem;
         }
         .event-card {
             background: var(--card);
             border: 1px solid var(--border);
-            border-radius: 16px;
-            padding: 1.5rem;
-            margin-bottom: 1rem;
+            border-radius: 14px;
+            padding: 1.2rem;
+            margin-bottom: 0.8rem;
             display: flex;
-            gap: 1rem;
+            gap: 0.9rem;
             align-items: center;
             transition: all 0.3s ease;
             cursor: pointer;
@@ -216,41 +239,41 @@
             color: inherit;
         }
         .event-card:hover {
-            transform: translateY(-4px);
+            transform: translateY(-3px);
             box-shadow: var(--shadow-soft);
             border-color: var(--accent-strong);
         }
         .event-icon {
-            font-size: 2.5rem;
+            font-size: 2.2rem;
             flex-shrink: 0;
         }
         .event-content {
             flex: 1;
         }
         .event-name {
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             font-weight: 700;
             color: var(--fg);
-            margin-bottom: 0.25rem;
+            margin-bottom: 0.2rem;
         }
         .event-date {
             color: var(--muted);
-            font-size: 0.9rem;
+            font-size: 0.85rem;
         }
         .event-years {
             color: var(--accent-soft);
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             font-weight: 600;
-            margin-top: 0.25rem;
+            margin-top: 0.2rem;
         }
 
         /* SEARCH */
         .search-result-item {
             background: var(--card);
             border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 1rem;
-            margin-bottom: 0.5rem;
+            border-radius: 10px;
+            padding: 0.9rem;
+            margin-bottom: 0.4rem;
             cursor: pointer;
             transition: all 0.3s ease;
             display: flex;
@@ -260,60 +283,68 @@
         .search-result-item:hover {
             transform: translateY(-2px);
             box-shadow: var(--shadow-soft);
-            background: rgba(205, 133, 63, 0.1);
+            background: rgba(205, 133, 63, 0.08);
             border-color: var(--accent-strong);
         }
         .search-result-name {
             font-weight: 700;
             color: var(--fg);
-            margin-bottom: 0.25rem;
+            margin-bottom: 0.2rem;
         }
         .search-result-dates {
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             color: var(--muted);
         }
         .search-result-badge {
-            background: rgba(205, 133, 63, 0.2);
-            padding: 0.25rem 0.75rem;
+            background: rgba(205, 133, 63, 0.18);
+            padding: 0.2rem 0.6rem;
             border-radius: 999px;
-            font-size: 0.8rem;
+            font-size: 0.75rem;
             font-weight: 600;
             color: var(--accent-strong);
         }
 
-        /* MOBILE HOTFIX - DRASTICALLY SMALLER CELLS */
+        /* === MOBILE HOTFIX === */
         @media (max-width: 768px) {
             .calendar-grid {
-                gap: 4px;
+                gap: 3px;
             }
             .calendar-day {
-                min-height: 48px;
-                padding: 0.15rem;
+                min-height: 50px;
+                padding: 0.2rem;
                 border-width: 1px;
             }
             .calendar-day-number {
-                font-size: 1rem;
+                font-size: 1.1rem;
                 margin-bottom: 0.15rem;
             }
             .event-badge {
-                font-size: 0.85rem;
+                font-size: 0.9rem;
             }
             .event-count {
-                width: 15px;
-                height: 15px;
+                width: 16px;
+                height: 16px;
                 font-size: 0.6rem;
                 top: 2px;
                 right: 2px;
             }
             .calendar-day-header {
-                padding: 0.6rem 0.25rem;
-                font-size: 0.75rem;
+                padding: 0.5rem 0.2rem;
+                font-size: 0.7rem;
             }
             .calendar-nav button {
-                padding: 0.6rem 0.9rem;
+                padding: 0.5rem 0.8rem;
+                font-size: 0.9rem;
             }
             .calendar-title {
-                font-size: 1.2rem;
+                font-size: 1.1rem;
+            }
+            .calendar-legend {
+                padding: 0.6rem;
+                gap: 0.7rem;
+            }
+            .legend-item {
+                font-size: 0.8rem;
             }
         }
 
@@ -322,34 +353,38 @@
                 gap: 2px;
             }
             .calendar-day {
-                min-height: 40px;
-                padding: 0.1rem;
+                min-height: 42px;
+                padding: 0.15rem;
                 border-radius: 6px;
             }
             .calendar-day-number {
-                font-size: 0.85rem;
-                margin-bottom: 0;
+                font-size: 0.95rem;
+                margin-bottom: 0.1rem;
             }
             .event-badge {
-                font-size: 0.7rem;
+                font-size: 0.75rem;
             }
             .event-count {
-                width: 13px;
-                height: 13px;
+                width: 14px;
+                height: 14px;
                 font-size: 0.55rem;
                 top: 1px;
                 right: 1px;
             }
             .calendar-day-header {
-                padding: 0.4rem 0.15rem;
-                font-size: 0.7rem;
+                padding: 0.4rem 0.1rem;
+                font-size: 0.65rem;
             }
             .calendar-legend {
-                padding: 0.7rem;
-                gap: 0.8rem;
+                padding: 0.5rem;
+                gap: 0.5rem;
             }
             .legend-item {
-                font-size: 0.8rem;
+                font-size: 0.75rem;
+            }
+            .legend-badge {
+                font-size: 0.7rem;
+                padding: 0.15rem 0.4rem;
             }
         }
     </style>
@@ -367,36 +402,36 @@
             <a href="calendar.html">Календар</a>
             <a href="about.html">За Нас</a>
         </nav>
-        <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode"></button>
+        <button id="theme-toggle" aria-label="Toggle dark mode">
+            <span class="theme-icon sun">☀️</span>
+            <span class="theme-icon moon">🌙</span>
+        </button>
     </header>
 
     <main class="container">
         <h1 class="page-title gradient-text">📅 Календар на събитията</h1>
         
-        <!-- LEGEND -->
+        <!-- LEGEND - compact, just badges -->
         <div class="calendar-legend">
             <div class="legend-item">
-                <span style="font-size: 1.3rem;">🎂</span>
+                <span style="font-size: 1.2rem;">🎂</span>
                 <span class="legend-badge birth">Рожден ден</span>
             </div>
             <div class="legend-item">
-                <span style="font-size: 1.3rem;">🕯️</span>
-                <span class="legend-badge death">Годишнина от смъртта</span>
-            </div>
-            <div class="legend-item" style="color: var(--muted); font-size: 0.9rem;">
-                💡 Кликнете върху датите със събития
+                <span style="font-size: 1.2rem;">🕯️</span>
+                <span class="legend-badge death">Годишнина</span>
             </div>
         </div>
         
-        <div style="margin-bottom: 1.5rem;">
+        <div style="margin-bottom: 1.2rem;">
             <input 
                 type="text" 
                 id="searchInput" 
                 class="input" 
                 placeholder="🔍 Търси по име на личност..." 
-                style="width: 100%; max-width: 500px; font-size: 1rem;"
+                style="width: 100%; max-width: 500px; font-size: 0.95rem;"
             >
-            <div id="searchResults" style="margin-top: 0.5rem;"></div>
+            <div id="searchResults" style="margin-top: 0.4rem;"></div>
         </div>
         
         <div class="calendar-header">
@@ -409,6 +444,10 @@
         </div>
 
         <div class="calendar-grid" id="calendarGrid"></div>
+        
+        <!-- Hint below calendar -->
+        <div class="calendar-hint">💡 Кликнете върху датите със събития</div>
+        
         <div class="events-list" id="eventsList"></div>
     </main>
 
@@ -483,7 +522,7 @@
     function displaySearchResults(results) {
         var container = document.getElementById('searchResults');
         if (results.length === 0) {
-            container.innerHTML = '<div style="color: var(--muted); font-size: 0.9rem;">Няма резултати</div>';
+            container.innerHTML = '<div style="color: var(--muted); font-size: 0.85rem;">Няма резултати</div>';
             return;
         }
         
@@ -510,11 +549,11 @@
 
     window.showPersonDates = function(birthDate, deathDate, personName) {
         var container = document.getElementById('searchResults');
-        var html = '<div style="background: var(--card); border: 2px solid var(--accent-strong); border-radius: 12px; padding: 1rem; margin-bottom: 0.5rem;">';
-        html += '<div style="font-weight: 700; margin-bottom: 0.75rem; font-size: 1.1rem;">' + personName + '</div>';
+        var html = '<div style="background: var(--card); border: 2px solid var(--accent-strong); border-radius: 10px; padding: 0.9rem; margin-bottom: 0.4rem;">';
+        html += '<div style="font-weight: 700; margin-bottom: 0.6rem; font-size: 1rem;">' + personName + '</div>';
         
         if (birthDate) {
-            html += '<div class="search-result-item" style="margin-bottom: 0.5rem;" onclick="jumpToDate(\'' + birthDate + '\', \'' + personName.replace(/'/g, "\\'") + '\')">';
+            html += '<div class="search-result-item" style="margin-bottom: 0.4rem;" onclick="jumpToDate(\'' + birthDate + '\', \'' + personName.replace(/'/g, "\\'") + '\')">';
             html += '<div><div class="search-result-name">🎂 Рожден ден</div>';
             html += '<div class="search-result-dates">' + birthDate + '</div></div>';
             html += '<div class="search-result-badge">Виж</div></div>';
@@ -527,7 +566,7 @@
             html += '<div class="search-result-badge">Виж</div></div>';
         }
         
-        html += '<button onclick="performSearch(document.getElementById(\'searchInput\').value)" style="margin-top: 0.75rem; padding: 0.5rem 1rem; background: var(--muted); border: none; border-radius: 8px; cursor: pointer; width: 100%; color: var(--fg); font-weight: 600;">← Назад към резултатите</button>';
+        html += '<button onclick="performSearch(document.getElementById(\'searchInput\').value)" style="margin-top: 0.6rem; padding: 0.45rem 0.9rem; background: var(--muted); border: none; border-radius: 7px; cursor: pointer; width: 100%; color: var(--fg); font-weight: 600; font-size: 0.85rem;">← Назад</button>';
         html += '</div>';
         
         container.innerHTML = html;
@@ -624,13 +663,11 @@
         cell.appendChild(number);
         
         if (events.length > 0) {
-            // Show event count badge
             var count = document.createElement('div');
             count.className = 'event-count';
             count.textContent = events.length;
             cell.appendChild(count);
             
-            // Show emoji badges
             var badges = document.createElement('div');
             badges.className = 'calendar-events-badges';
             events.forEach(function(event) {
@@ -649,7 +686,7 @@
         var listEl = document.getElementById('eventsList');
         if (events.length === 0) { listEl.innerHTML = ''; return; }
         var parts = dateKey.split('-');
-        var html = '<h2 style="margin-bottom: 1rem; color: var(--fg);">Събития на ' + parts[1] + ' ' + monthNames[parseInt(parts[0]) - 1] + '</h2>';
+        var html = '<h2 style="margin-bottom: 0.9rem; color: var(--fg); font-size: 1.15rem;">Събития на ' + parts[1] + ' ' + monthNames[parseInt(parts[0]) - 1] + '</h2>';
         events.forEach(function(event) {
             html += '<a href="address.html?slug=' + encodeURIComponent(event.slug) + '" class="event-card">';
             html += '<div class="event-icon">' + (event.type === 'birth' ? '🎂' : '🕯️') + '</div>';
