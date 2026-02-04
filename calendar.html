@@ -318,16 +318,21 @@
                 font-size: 1.1rem;
                 margin-bottom: 0.15rem;
             }
-            .event-badge {
-                font-size: 0.9rem;
+            
+            /* REMOVE CANDLES/CAKES ON MOBILE */
+            .calendar-events-badges {
+                display: none !important;
             }
+            
+            /* MOVE COUNT TO THE CENTER INSTEAD OF CORNER */
             .event-count {
-                width: 16px;
-                height: 16px;
-                font-size: 0.6rem;
-                top: 2px;
-                right: 2px;
+                position: static !important; /* Removes top/right positioning */
+                width: 18px;
+                height: 18px;
+                font-size: 0.65rem;
+                margin-top: 2px;
             }
+
             .calendar-day-header {
                 padding: 0.5rem 0.2rem;
                 font-size: 0.7rem;
@@ -353,24 +358,22 @@
                 gap: 2px;
             }
             .calendar-day {
-                min-height: 42px;
+                min-height: 45px; /* Slightly taller to accommodate the number below */
                 padding: 0.15rem;
                 border-radius: 6px;
             }
             .calendar-day-number {
-                font-size: 0.95rem;
-                margin-bottom: 0.1rem;
+                font-size: 1rem;
+                margin-bottom: 0.05rem;
             }
-            .event-badge {
-                font-size: 0.75rem;
-            }
+            
+            /* EVEN SMALLER COUNT FOR SMALL PHONES */
             .event-count {
-                width: 14px;
-                height: 14px;
-                font-size: 0.55rem;
-                top: 1px;
-                right: 1px;
+                width: 15px;
+                height: 15px;
+                font-size: 0.6rem;
             }
+
             .calendar-day-header {
                 padding: 0.4rem 0.1rem;
                 font-size: 0.65rem;
@@ -411,7 +414,6 @@
     <main class="container">
         <h1 class="page-title gradient-text">📅 Календар на събитията</h1>
         
-        <!-- LEGEND - compact, just badges -->
         <div class="calendar-legend">
             <div class="legend-item">
                 <span style="font-size: 1.2rem;">🎂</span>
@@ -445,7 +447,6 @@
 
         <div class="calendar-grid" id="calendarGrid"></div>
         
-        <!-- Hint below calendar -->
         <div class="calendar-hint">💡 Кликнете върху датите със събития</div>
         
         <div class="events-list" id="eventsList"></div>
