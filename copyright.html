@@ -262,21 +262,22 @@ document.addEventListener('keydown', function(e) {
 		</div>
 	</main>
 
-	<footer class="site-footer">
-		<p>© <span id="year"></span> Адресът на историята</p>
-		<div class="footer-social">
-			<a href="https://instagram.com/historyaddress.bg" target="_blank" rel="noopener noreferrer" class="social-link">
-				📷 Instagram
-			<a href="mailto:historyaddressbg@gmail.com" class="social-link" onclick="handleEmailClick(event)">
-    📧 Email
-</a>
-		</div>
-		<p class="footer-links">
-			<a href="privacy.html">Поверителност</a> | 
-			<a href="terms.html">Условия</a> | 
-			<a href="copyright.html">Авторски права</a>
-		</p>
-	</footer>
+<footer class="site-footer">
+    <p>© <span id="year"></span> Адресът на историята</p>
+    <div class="footer-social">
+        <a href="https://instagram.com/historyaddress.bg" target="_blank" rel="noopener noreferrer" class="social-link">
+            📷 Instagram
+        </a>
+        <a href="mailto:historyaddressbg@gmail.com" class="social-link" onclick="handleEmailClick(event)">
+            📧 Email
+        </a>
+    </div>
+    <p class="footer-links">
+        <a href="privacy.html">Поверителност</a> | 
+        <a href="terms.html">Условия</a> | 
+        <a href="copyright.html">Авторски права</a>
+    </p>
+</footer>
 
 	<script>document.getElementById('year').textContent = new Date().getFullYear();</script>
 </body>
