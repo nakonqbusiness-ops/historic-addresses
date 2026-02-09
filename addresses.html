@@ -54,22 +54,29 @@
 			padding: 8px 16px;
 			color: var(--text-muted, #999);
 		}
+		/* New subtle warning style */
+		.search-hint {
+			display: block;
+			font-size: 0.75rem;
+			color: var(--text-muted, #999);
+			margin-top: 6px;
+			margin-left: 4px;
+			opacity: 0.5;
+			font-style: italic;
+		}
 	</style>
 	<script defer src="assets/js/theme.js"></script>
 	<script defer src="assets/js/transitions.js"></script>
-	<!-- Add this in the <head> section, after the other script tags -->
-<script defer src="assets/js/calendar-popup.js"></script>
+	<script defer src="assets/js/calendar-popup.js"></script>
 <link rel="canonical" href="https://historyaddress.bg/addresses.html">
 <meta name="robots" content="index, follow">
 </head>
 <script>
 function handleEmailClick(event) {
-    // On mobile (screen width < 768px), let mailto work normally
     if (window.innerWidth <= 768) {
-        return; // Don't prevent default, let mailto: work
+        return;
     }
     
-    // On desktop, show modal
     event.preventDefault();
     showEmailModal();
 }
@@ -77,7 +84,6 @@ function handleEmailClick(event) {
 function showEmailModal() {
     var modal = document.getElementById('emailModal');
     if (!modal) {
-        // Create modal if it doesn't exist
         modal = document.createElement('div');
         modal.id = 'emailModal';
         modal.className = 'email-modal';
@@ -96,7 +102,6 @@ function showEmailModal() {
         `;
         document.body.appendChild(modal);
         
-        // Close on backdrop click
         modal.addEventListener('click', function(e) {
             if (e.target === modal) {
                 closeEmailModal();
@@ -134,7 +139,6 @@ function copyEmail() {
     });
 }
 
-// Close modal on ESC key
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
         closeEmailModal();
@@ -154,7 +158,10 @@ document.addEventListener('keydown', function(e) {
     <a href="calendar.html">Календар</a>
     <a href="about.html">За Нас</a>
 </nav>
-		<button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode"></button>
+		<button id="theme-toggle" aria-label="Toggle dark mode">
+			<span class="theme-icon sun">☀️</span>
+			<span class="theme-icon moon">🌙</span>
+		</button>
 	</header>
 
 	<main class="container">
@@ -165,6 +172,7 @@ document.addEventListener('keydown', function(e) {
 				<option value="">Всички тагове</option>
 			</select>
 		</div>
+		<span class="search-hint">* Търсенето различава малки и главни букви</span>
 		
 		<div id="grid" class="grid" aria-live="polite"></div>
 		
@@ -177,22 +185,30 @@ document.addEventListener('keydown', function(e) {
 		</div>
 	</main>
 
-	<footer class="site-footer">
-		<p>© <span id="year"></span> Адресът на историята</p>
-		<div class="footer-social">
-			<a href="https://instagram.com/historyaddress.bg" target="_blank" rel="noopener noreferrer" class="social-link">
-				📷 Instagram
-			</a>
-			<a href="mailto:historyaddressbg@gmail.com" class="social-link" onclick="handleEmailClick(event)">
-    📧 Email
-</a>
-		</div>
-		<p class="footer-links">
-			<a href="privacy.html">Поверителност</a> | 
-			<a href="terms.html">Условия</a> | 
-			<a href="copyright.html">Авторски права</a>
-		</p>
-	</footer>
+<footer class="site-footer">
+    <div class="footer-inner">
+        <div class="footer-social">
+            <a href="https://instagram.com/historyaddress.bg" target="_blank" rel="noopener noreferrer" class="social-link">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
+                Instagram
+            </a>
+            <a href="mailto:historyaddressbg@gmail.com" class="social-link" onclick="handleEmailClick(event)">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                Email
+            </a>
+        </div>
+
+        <p class="footer-links">
+            <a href="privacy.html">Поверителност</a>
+            <span>•</span>
+            <a href="terms.html">Условия</a>
+            <span>•</span>
+            <a href="copyright.html">Авторски права</a>
+        </p>
+
+        <p class="footer-copy">© <span id="year"></span> Адресът на историята</p>
+    </div>
+</footer>
 
 	<script>
 	(function() {
@@ -206,6 +222,7 @@ document.addEventListener('keydown', function(e) {
 			searchQuery: ''
 		};
 		var isLoading = false;
+		var pendingSearch = null;
 		var apiBase = window.location.protocol === 'file:' ? 'http://localhost:3000' : window.location.origin;
 		var searchTimeout;
 		
@@ -236,15 +253,20 @@ document.addEventListener('keydown', function(e) {
 		}
 		
 		function loadHomes(page) {
-			if (isLoading) return;
-			isLoading = true;
+			// If loading and this is a new search, queue it
+			if (isLoading) {
+				pendingSearch = page;
+				return;
+			}
 			
+			isLoading = true;
 			page = page || state.currentPage;
 			var url = apiBase + '/api/homes?page=' + page + '&limit=6';
 			
-			if (state.searchQuery) {
+			// Add search query if not empty - search ONLY in name field
+			if (state.searchQuery && state.searchQuery.trim().length > 0) {
 				url += '&search=' + encodeURIComponent(state.searchQuery);
-				url += '&searchMode=name';
+				url += '&searchMode=name';  // Restrict to name field only
 			}
 			
 			var tagFilter = document.getElementById('tag').value;
@@ -275,9 +297,17 @@ document.addEventListener('keydown', function(e) {
 					
 					renderHomes();
 					updatePagination();
+					
+					// Execute pending search if any
+					if (pendingSearch !== null) {
+						var p = pendingSearch;
+						pendingSearch = null;
+						loadHomes(p);
+					}
 				})
 				.catch(function(err){
 					isLoading = false;
+					pendingSearch = null;
 					console.error('Error loading homes:', err);
 					grid.innerHTML = '<p style="text-align:center;padding:2rem;color:#ff6b6b;">Грешка при зареждане.</p>';
 				});
@@ -288,7 +318,11 @@ document.addEventListener('keydown', function(e) {
 			grid.innerHTML = '';
 			
 			if (state.currentHomes.length === 0) {
-				grid.innerHTML = '<p style="text-align:center;padding:2rem;color:#999;">Няма намерени резултати.</p>';
+				var msg = 'Няма намерени резултати.';
+				if (state.searchQuery && state.searchQuery.trim().length > 0) {
+					msg = 'Няма намерени резултати за "' + state.searchQuery + '".';
+				}
+				grid.innerHTML = '<p style="text-align:center;padding:2rem;color:#999;">' + msg + '</p>';
 				return;
 			}
 			
@@ -344,19 +378,27 @@ document.addEventListener('keydown', function(e) {
 		document.getElementById('nextPage').addEventListener('click', function(){ goToPage(state.currentPage + 1); });
 		document.getElementById('lastPage').addEventListener('click', function(){ goToPage(state.totalPages); });
 		
+		// Search on input (debounced 400ms)
 		document.getElementById('q').addEventListener('input', function() {
 			clearTimeout(searchTimeout);
+			var query = document.getElementById('q').value.trim();
+			
 			searchTimeout = setTimeout(function() {
-				state.searchQuery = document.getElementById('q').value.trim();
-				state.currentPage = 1;
-				loadHomes(1);
-			}, 500);
+				// Only update if query actually changed
+				if (state.searchQuery !== query) {
+					state.searchQuery = query;
+					state.currentPage = 1;
+					loadHomes(1);
+				}
+			}, 400);
 		});
 		
+		// Instant search on Enter
 		document.getElementById('q').addEventListener('keypress', function(e) {
 			if (e.key === 'Enter') {
 				clearTimeout(searchTimeout);
-				state.searchQuery = document.getElementById('q').value.trim();
+				var query = document.getElementById('q').value.trim();
+				state.searchQuery = query;
 				state.currentPage = 1;
 				loadHomes(1);
 			}
