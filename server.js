@@ -39,9 +39,16 @@ if (!DB_FILE) {
     console.log('⚠️  No existing database found, will create new at:', DB_FILE);
 }
 
-// RAM DETECTION: Force 512MB mode for Render, but auto-detect for future upgrades
+// ============================================================================
+// >>> MANUALLY CHANGE THIS TO 'true' WHEN YOU UPGRADE TO 2GB TIER <<<
+const MANUAL_HIGH_PERFORMANCE_MODE = false; 
+// ============================================================================
+
+// RAM DETECTION: Force 512MB mode for Render, unless Manual Mode is ON
 const TOTAL_RAM_MB = process.env.RENDER ? 512 : Math.round(os.totalmem() / 1024 / 1024);
-const IS_LOW_SPEC = TOTAL_RAM_MB < 1024; // True if less than 1GB RAM
+
+// If Manual Mode is ON, we disable Low Spec limits. Otherwise, we calculate based on RAM.
+const IS_LOW_SPEC = MANUAL_HIGH_PERFORMANCE_MODE ? false : (TOTAL_RAM_MB < 1024);
 
 console.log(`\n🚀 HistoryAddress Server Starting...`);
 console.log(`🌍 Domain: ${DOMAIN}`);
@@ -313,15 +320,32 @@ function checkAndMigrateSchema() {
 }
 
 function importInitialData() {
-    db.get('SELECT COUNT(*) as count FROM homes', (err, row) => {
-        if (err || !row || row.count > 0) {
-            console.log(`📊 Database has ${row?.count || 0} homes`);
-            return;
-        }
-        
-        try {
-            const dataPath = path.join(__dirname, 'data', 'people.js');
-            if (fs.existsSync(dataPath)) {
+    // Wrap in serialize to ensure this runs strictly in order
+    db.serialize(() => {
+        db.get('SELECT COUNT(*) as count FROM homes', (err, row) => {
+            if (err) {
+                console.error('❌ Error checking DB count:', err);
+                return;
+            }
+
+            // If DB is not empty, we are good.
+            if (row && row.count > 0) {
+                console.log(`📊 Database has ${row.count} homes. Skipping import.`);
+                return;
+            }
+            
+            console.log('⚠️  Database is empty. Attempting import from people.js...');
+
+            try {
+                const dataPath = path.join(__dirname, 'data', 'people.js');
+                
+                // CRITICAL FIX: Check if file exists, if not, log loudly
+                if (!fs.existsSync(dataPath)) {
+                    console.error('❌ CRITICAL: people.js NOT FOUND at:', dataPath);
+                    console.error('   Please ensure the data folder is included in the build.');
+                    return;
+                }
+
                 const fileContent = fs.readFileSync(dataPath, 'utf8');
                 const match = fileContent.match(/var\s+PEOPLE\s*=\s*(\[[\s\S]*?\]);/);
                 
@@ -329,21 +353,26 @@ function importInitialData() {
                     const people = JSON.parse(match[1]);
                     let imported = 0;
                     
-                    people.forEach(person => {
-                        insertHome(person);
-                        imported++;
+                    db.serialize(() => { // Force inserts to be sequential
+                        db.run("BEGIN TRANSACTION");
+                        people.forEach(person => {
+                            insertHome(person);
+                            imported++;
+                        });
+                        db.run("COMMIT");
                     });
                     
                     console.log(`✅ Imported ${imported} initial homes from people.js`);
+                    
+                    // CLEAR CACHE immediately after import so the next refresh sees data
+                    apiCache.clear(); 
                 } else {
-                    console.log('⚠️  Could not parse people.js');
+                    console.log('⚠️  Could not parse people.js variable structure');
                 }
-            } else {
-                console.log('ℹ️  No initial data file found (people.js)');
+            } catch (error) {
+                console.error('❌ Error importing initial data:', error.message);
             }
-        } catch (error) {
-            console.error('❌ Error importing initial data:', error.message);
-        }
+        });
     });
 }
 
@@ -593,8 +622,18 @@ app.get('/api/homes', (req, res) => {
                 }
             };
 
-            // 6. CACHE THE RESPONSE (10 seconds is enough to handle traffic spikes)
-            apiCache.set(cacheKey, responseData, IS_LOW_SPEC ? 10 : 30);
+            // 6. INTELLIGENT CACHING (THE FIX)
+            // If the DB returned 0 items but we didn't search for anything, 
+            // it implies the DB is still initializing. DO NOT CACHE THIS RESULT.
+            // This forces the next refresh to try again immediately.
+            const isInitializing = (homes.length === 0 && !search && !tag);
+            
+            if (!isInitializing) {
+                // Only cache if we actually found data or if it's a legitimate "no results" search
+                apiCache.set(cacheKey, responseData, IS_LOW_SPEC ? 10 : 30);
+            } else {
+                console.log('⚠️  Empty result during startup - skipping cache to allow retry');
+            }
             
             res.json(responseData);
             
@@ -817,7 +856,6 @@ app.put('/api/homes/:id', (req, res) => {
             
             // Clear all caches
             apiCache.clear();
-            
             res.json({ message: 'Home updated successfully' });
         }
     );
