@@ -41,7 +41,7 @@ if (!DB_FILE) {
 
 // ============================================================================
 // >>> MANUALLY CHANGE THIS TO 'true' WHEN YOU UPGRADE TO 2GB TIER <<<
-const MANUAL_HIGH_PERFORMANCE_MODE = false; 
+const MANUAL_HIGH_PERFORMANCE_MODE = true; 
 // ============================================================================
 
 // RAM DETECTION: Force 512MB mode for Render, unless Manual Mode is ON
