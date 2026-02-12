@@ -7,14 +7,10 @@ const os = require('os');
 
 const app = express();
 
-// ============================================================================
-// CONFIGURATION & ENVIRONMENT
-// ============================================================================
 const PORT = process.env.PORT || 10000;
 const NODE_ENV = process.env.NODE_ENV || 'production';
 const DOMAIN = 'https://historyaddress.bg';
 
-// Try to find existing database in multiple locations
 const possiblePaths = [
     process.env.DB_PATH,
     '/data/database.db',
@@ -32,22 +28,14 @@ for (const dbPath of possiblePaths) {
     }
 }
 
-// If no database found, use default location
 if (!DB_FILE) {
     const DB_DIR = process.env.RENDER ? '/data' : '.';
     DB_FILE = path.join(DB_DIR, 'database.db');
     console.log('⚠️  No existing database found, will create new at:', DB_FILE);
 }
 
-// ============================================================================
-// >>> MANUALLY CHANGE THIS TO 'true' WHEN YOU UPGRADE TO 2GB TIER <<<
-const MANUAL_HIGH_PERFORMANCE_MODE = false; 
-// ============================================================================
-
-// RAM DETECTION: Force 512MB mode for Render, unless Manual Mode is ON
+const MANUAL_HIGH_PERFORMANCE_MODE = false;
 const TOTAL_RAM_MB = process.env.RENDER ? 512 : Math.round(os.totalmem() / 1024 / 1024);
-
-// If Manual Mode is ON, we disable Low Spec limits. Otherwise, we calculate based on RAM.
 const IS_LOW_SPEC = MANUAL_HIGH_PERFORMANCE_MODE ? false : (TOTAL_RAM_MB < 1024);
 
 console.log(`\n🚀 HistoryAddress Server Starting...`);
@@ -56,17 +44,12 @@ console.log(`📦 DB Path: ${DB_FILE}`);
 console.log(`🖥️  RAM Detected: ${TOTAL_RAM_MB}MB`);
 console.log(`⚡ Mode: ${IS_LOW_SPEC ? 'ULTRA LEAN (512MB Optimization)' : 'PERFORMANCE (High RAM Available)'}`);
 
-// ============================================================================
-// INTELLIGENT API CACHE SYSTEM
-// ============================================================================
 const apiCache = {
     data: new Map(),
-    maxSize: IS_LOW_SPEC ? 50 : 200, // Adaptive cache size
+    maxSize: IS_LOW_SPEC ? 50 : 200,
     
     set: function(key, value, ttlSeconds = 60) {
-        // Prevent cache overflow
         if (this.data.size >= this.maxSize) {
-            // Remove oldest entries (first 25%)
             const toRemove = Math.floor(this.maxSize * 0.25);
             const keys = Array.from(this.data.keys()).slice(0, toRemove);
             keys.forEach(k => this.data.delete(k));
@@ -90,7 +73,7 @@ const apiCache = {
     
     clear: function() {
         this.data.clear();
-        console.log('🧹 API Cache Flushed (Database changed)');
+        console.log('🧹 API Cache Flushed');
     },
     
     getStats: function() {
@@ -101,18 +84,12 @@ const apiCache = {
     }
 };
 
-// ============================================================================
-// MIDDLEWARE
-// ============================================================================
-app.disable('x-powered-by'); // Save bandwidth
-
+app.disable('x-powered-by');
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
-// INTELLIGENT REQUEST LOGGER: Deduplicates rapid requests from same IP
 const recentVisits = new Map();
 app.use((req, res, next) => {
-    // Skip logging for static files
     if (req.originalUrl.match(/\.(css|js|png|jpg|jpeg|ico|svg|webp|woff|woff2|ttf)$/)) {
         return next();
     }
@@ -121,16 +98,14 @@ app.use((req, res, next) => {
     const now = Date.now();
     const lastLog = recentVisits.get(ip);
     
-    // Log only if this IP hasn't been logged in last 10 seconds
     if (!lastLog || (now - lastLog) > 10000) {
         const time = new Date().toISOString().replace('T', ' ').substring(0, 19);
         console.log(`[${time}] ${ip} -> ${req.method} ${req.originalUrl.substring(0, 60)}`);
         recentVisits.set(ip, now);
     }
     
-    // Periodic cleanup of visit tracker
     if (recentVisits.size > 200) {
-        const cutoff = now - 60000; // Remove entries older than 1 minute
+        const cutoff = now - 60000;
         for (const [key, value] of recentVisits.entries()) {
             if (value < cutoff) recentVisits.delete(key);
         }
@@ -139,17 +114,15 @@ app.use((req, res, next) => {
     next();
 });
 
-// Cache static files aggressively
 app.use(express.static(path.join(__dirname), {
     maxAge: '1d',
     etag: true,
     immutable: true
 }));
 
-// Favicon routes (fast-path to prevent 404s)
 const faviconPath = path.join(__dirname, 'assets', 'img', 'Historyaddress.bg2.png');
 const sendFavicon = (req, res) => {
-    res.setHeader('Cache-Control', 'public, max-age=86400'); // 1 day
+    res.setHeader('Cache-Control', 'public, max-age=86400');
     res.sendFile(faviconPath);
 };
 app.get('/favicon.ico', sendFavicon);
@@ -158,11 +131,6 @@ app.get('/android-chrome-192x192.png', sendFavicon);
 app.get('/android-chrome-512x512.png', sendFavicon);
 app.get('/assets/img/HistAdrLogoOrig.ico', sendFavicon);
 
-// ============================================================================
-// DATABASE SETUP & OPTIMIZATION
-// ============================================================================
-
-// Ensure database directory exists BEFORE opening connection
 const dbDirectory = path.dirname(DB_FILE);
 if (!fs.existsSync(dbDirectory)) {
     try {
@@ -175,7 +143,6 @@ if (!fs.existsSync(dbDirectory)) {
     }
 }
 
-// Verify directory is writable
 try {
     fs.accessSync(dbDirectory, fs.constants.W_OK);
     console.log('✅ Database directory is writable');
@@ -183,6 +150,8 @@ try {
     console.error('❌ CRITICAL: Database directory not writable:', dbDirectory);
     process.exit(1);
 }
+
+let dbReady = false;
 
 const db = new sqlite3.Database(DB_FILE, (err) => {
     if (err) {
@@ -197,27 +166,18 @@ const db = new sqlite3.Database(DB_FILE, (err) => {
     }
 });
 
-// ADAPTIVE SQLITE PERFORMANCE SETTINGS
 db.serialize(() => {
-    db.run('PRAGMA journal_mode = WAL'); // Write-Ahead Logging for better concurrency
-    db.run('PRAGMA synchronous = NORMAL'); // Balance safety vs speed
-    db.run('PRAGMA temp_store = MEMORY'); // Store temp tables in RAM
-    db.run('PRAGMA busy_timeout = 5000'); // Wait up to 5s for locks
+    db.run('PRAGMA journal_mode = WAL');
+    db.run('PRAGMA synchronous = NORMAL');
+    db.run('PRAGMA temp_store = MEMORY');
+    db.run('PRAGMA busy_timeout = 5000');
     
-    // ADAPTIVE CACHE SIZE
-    // Low spec (512MB): 2MB cache = -2000 pages
-    // High spec (2GB+): 64MB cache = -64000 pages
     const dbCacheSize = IS_LOW_SPEC ? -2000 : -64000;
     db.run(`PRAGMA cache_size = ${dbCacheSize}`);
     console.log(`📊 SQLite cache: ${IS_LOW_SPEC ? '2MB' : '64MB'}`);
     
-    // Prevent memory fragmentation
     db.run('PRAGMA mmap_size = 0');
 });
-
-// ============================================================================
-// DATABASE SCHEMA INITIALIZATION
-// ============================================================================
 
 function initializeDatabase() {
     db.run(`
@@ -246,7 +206,6 @@ function initializeDatabase() {
             return;
         }
         
-        // Create indexes for performance
         db.run('CREATE INDEX IF NOT EXISTS idx_homes_published ON homes(published)');
         db.run('CREATE INDEX IF NOT EXISTS idx_homes_slug ON homes(slug)');
         db.run('CREATE INDEX IF NOT EXISTS idx_homes_name ON homes(name)');
@@ -287,7 +246,6 @@ function checkAndMigrateSchema() {
         const columnNames = columns.map(col => col.name);
         const columnsToAdd = [];
         
-        // Check for missing columns
         if (!columnNames.includes('portrait_url')) {
             columnsToAdd.push({ name: 'portrait_url', type: 'TEXT' });
         }
@@ -303,7 +261,6 @@ function checkAndMigrateSchema() {
             return;
         }
         
-        // Add missing columns
         let addedCount = 0;
         columnsToAdd.forEach((col) => {
             db.run(`ALTER TABLE homes ADD COLUMN ${col.name} ${col.type}`, (err) => {
@@ -320,17 +277,17 @@ function checkAndMigrateSchema() {
 }
 
 function importInitialData() {
-    // Wrap in serialize to ensure this runs strictly in order
     db.serialize(() => {
         db.get('SELECT COUNT(*) as count FROM homes', (err, row) => {
             if (err) {
                 console.error('❌ Error checking DB count:', err);
+                dbReady = true;
                 return;
             }
 
-            // If DB is not empty, we are good.
             if (row && row.count > 0) {
-                console.log(`📊 Database has ${row.count} homes. Skipping import.`);
+                console.log(`📊 Database has ${row.count} homes. Ready.`);
+                dbReady = true;
                 return;
             }
             
@@ -339,10 +296,10 @@ function importInitialData() {
             try {
                 const dataPath = path.join(__dirname, 'data', 'people.js');
                 
-                // CRITICAL FIX: Check if file exists, if not, log loudly
                 if (!fs.existsSync(dataPath)) {
                     console.error('❌ CRITICAL: people.js NOT FOUND at:', dataPath);
                     console.error('   Please ensure the data folder is included in the build.');
+                    dbReady = true;
                     return;
                 }
 
@@ -353,24 +310,25 @@ function importInitialData() {
                     const people = JSON.parse(match[1]);
                     let imported = 0;
                     
-                    db.serialize(() => { // Force inserts to be sequential
+                    db.serialize(() => {
                         db.run("BEGIN TRANSACTION");
                         people.forEach(person => {
                             insertHome(person);
                             imported++;
                         });
-                        db.run("COMMIT");
+                        db.run("COMMIT", () => {
+                            console.log(`✅ Imported ${imported} initial homes from people.js`);
+                            dbReady = true;
+                            apiCache.clear();
+                        });
                     });
-                    
-                    console.log(`✅ Imported ${imported} initial homes from people.js`);
-                    
-                    // CLEAR CACHE immediately after import so the next refresh sees data
-                    apiCache.clear(); 
                 } else {
                     console.log('⚠️  Could not parse people.js variable structure');
+                    dbReady = true;
                 }
             } catch (error) {
                 console.error('❌ Error importing initial data:', error.message);
+                dbReady = true;
             }
         });
     });
@@ -411,13 +369,8 @@ function insertHome(home) {
     stmt.finalize();
 }
 
-// ============================================================================
-// OPTIMIZED DATA TRANSFORMER
-// ============================================================================
-
 function rowToHome(row, listMode = false) {
     if (listMode) {
-        // FAST PATH: For lists/maps - minimal data processing
         let firstImage = null;
         let tags = [];
         
@@ -429,9 +382,7 @@ function rowToHome(row, listMode = false) {
             if (row.tags) {
                 tags = JSON.parse(row.tags);
             }
-        } catch (e) {
-            // Silent fail - corrupted JSON
-        }
+        } catch (e) {}
         
         return {
             id: row.id,
@@ -446,7 +397,6 @@ function rowToHome(row, listMode = false) {
         };
     }
     
-    // FULL DETAIL PATH: Complete data transformation
     return {
         id: row.id,
         slug: row.slug,
@@ -467,10 +417,6 @@ function rowToHome(row, listMode = false) {
     };
 }
 
-// ============================================================================
-// SEO ROUTES
-// ============================================================================
-
 app.get('/robots.txt', (req, res) => {
     res.type('text/plain').send(`User-agent: *
 Allow: /
@@ -478,7 +424,6 @@ Sitemap: ${DOMAIN}/sitemap.xml`);
 });
 
 app.get('/sitemap.xml', (req, res) => {
-    // Cache sitemap for 1 hour
     const cacheKey = 'sitemap_xml';
     const cached = apiCache.get(cacheKey);
     if (cached) {
@@ -494,7 +439,6 @@ app.get('/sitemap.xml', (req, res) => {
         let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
         xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
         
-        // Static pages
         const pages = ['index.html', 'addresses.html', 'map.html', 'calendar.html', 'about.html'];
         pages.forEach(page => {
             xml += `  <url>\n`;
@@ -503,7 +447,6 @@ app.get('/sitemap.xml', (req, res) => {
             xml += `  </url>\n`;
         });
         
-        // Dynamic address pages
         rows.forEach(home => {
             const lastmod = home.updated_at ? home.updated_at.split('T')[0] : '';
             xml += `  <url>\n`;
@@ -514,33 +457,27 @@ app.get('/sitemap.xml', (req, res) => {
         
         xml += '</urlset>';
         
-        apiCache.set(cacheKey, xml, 3600); // Cache for 1 hour
+        apiCache.set(cacheKey, xml, 3600);
         res.type('application/xml').send(xml);
     });
 });
 
-// ============================================================================
-// HOMES API - MAIN LISTING (HEAVILY OPTIMIZED)
-// ============================================================================
-
 app.get('/api/homes', (req, res) => {
-    // 1. CHECK CACHE FIRST
     const cacheKey = req.url;
     const cachedData = apiCache.get(cacheKey);
-    if (cachedData) {
+    
+    if (cachedData && cachedData.data && cachedData.data.length > 0) {
         return res.json(cachedData);
     }
 
-    // 2. PARSE QUERY PARAMETERS
     const showAll = req.query.all === 'true';
     const page = parseInt(req.query.page) || 1;
-    const limit = Math.min(parseInt(req.query.limit) || 6, 20); // Max 20 per page
+    const limit = Math.min(parseInt(req.query.limit) || 6, 20);
     const search = req.query.search || '';
     const tag = req.query.tag || '';
-    const searchMode = req.query.searchMode || 'all'; // 'all' or 'name'
+    const searchMode = req.query.searchMode || 'all';
     const offset = (page - 1) * limit;
     
-    // 3. BUILD WHERE CLAUSE
     let whereConditions = [];
     let params = [];
     
@@ -548,17 +485,14 @@ app.get('/api/homes', (req, res) => {
         whereConditions.push('published = 1');
     }
     
-    // Search Logic - Multi-word support
     if (search) {
         const searchWords = search.trim().split(/\s+/).filter(w => w.length > 0);
         
         if (searchMode === 'name') {
-            // Search only in name
             const nameConditions = searchWords.map(() => 'LOWER(name) LIKE LOWER(?)');
             whereConditions.push('(' + nameConditions.join(' AND ') + ')');
             searchWords.forEach(word => params.push(`%${word}%`));
         } else {
-            // Search in all fields
             const allConditions = searchWords.map(() => 
                 '(LOWER(name) LIKE LOWER(?) OR LOWER(biography) LIKE LOWER(?) OR LOWER(address) LIKE LOWER(?) OR LOWER(tags) LIKE LOWER(?))'
             );
@@ -570,7 +504,6 @@ app.get('/api/homes', (req, res) => {
         }
     }
     
-    // Tag filter
     if (tag) {
         whereConditions.push('LOWER(tags) LIKE LOWER(?)');
         params.push(`%${tag}%`);
@@ -580,7 +513,6 @@ app.get('/api/homes', (req, res) => {
         ? 'WHERE ' + whereConditions.join(' AND ') 
         : '';
     
-    // 4. GET TOTAL COUNT
     db.get(`SELECT COUNT(*) as total FROM homes ${whereClause}`, params, (err, countRow) => {
         if (err) {
             console.error('Count error:', err);
@@ -590,7 +522,6 @@ app.get('/api/homes', (req, res) => {
         const total = countRow.total;
         const totalPages = Math.ceil(total / limit);
         
-        // 5. FETCH PAGINATED DATA (OPTIMIZED: Only fetch first 200 chars of biography)
         const query = `
             SELECT 
                 id, slug, name, address, lat, lng, images, tags,
@@ -607,7 +538,6 @@ app.get('/api/homes', (req, res) => {
                 return res.status(500).json({ error: 'Database error' });
             }
             
-            // Transform rows to home objects
             const homes = rows.map(row => rowToHome(row, true));
             
             const responseData = {
@@ -622,20 +552,17 @@ app.get('/api/homes', (req, res) => {
                 }
             };
 
-            // 6. INTELLIGENT CACHING (FIXED)
-// Never cache empty results unless it's a legitimate search/filter with no matches
-const hasFilters = search || tag;
-const shouldCache = homes.length > 0 || hasFilters;
-
-if (shouldCache) {
-    apiCache.set(cacheKey, responseData, IS_LOW_SPEC ? 10 : 30);
-} else {
-    console.log('⚠️  Skipping cache for empty unfiltered result (DB may be initializing)');
-}
+            const hasFilters = search || tag;
+            const shouldCache = homes.length > 0 || hasFilters;
+            
+            if (shouldCache) {
+                apiCache.set(cacheKey, responseData, IS_LOW_SPEC ? 10 : 30);
+            } else {
+                console.log('⚠️  Skipping cache for empty unfiltered result');
+            }
             
             res.json(responseData);
             
-            // 7. MEMORY CLEANUP (LOW SPEC MODE ONLY)
             if (IS_LOW_SPEC && global.gc) {
                 setImmediate(() => {
                     rows.length = 0;
@@ -647,12 +574,7 @@ if (shouldCache) {
     });
 });
 
-// ============================================================================
-// HOMES API - MAP DATA (OPTIMIZED)
-// ============================================================================
-
 app.get('/api/homes/map', (req, res) => {
-    // Cache map data for 5 minutes
     const cacheKey = 'map_data_all';
     const cached = apiCache.get(cacheKey);
     if (cached) {
@@ -680,17 +602,12 @@ app.get('/api/homes/map', (req, res) => {
             lng: row.lng
         }));
         
-        apiCache.set(cacheKey, mapData, 300); // 5 minutes
+        apiCache.set(cacheKey, mapData, 300);
         res.json(mapData);
     });
 });
 
-// ============================================================================
-// HOMES API - SINGLE HOME DETAILS
-// ============================================================================
-
 app.get('/api/homes/:slug', (req, res) => {
-    // Cache individual home for 1 minute
     const cacheKey = `home_detail_${req.params.slug}`;
     const cached = apiCache.get(cacheKey);
     if (cached) {
@@ -714,7 +631,6 @@ app.get('/api/homes/:slug', (req, res) => {
             apiCache.set(cacheKey, homeData, 60);
             res.json(homeData);
             
-            // Cleanup in low spec mode
             if (IS_LOW_SPEC && global.gc) {
                 setImmediate(() => global.gc());
             }
@@ -722,12 +638,7 @@ app.get('/api/homes/:slug', (req, res) => {
     );
 });
 
-// ============================================================================
-// TAGS API
-// ============================================================================
-
 app.get('/api/tags', (req, res) => {
-    // Cache tags for 10 minutes
     const cacheKey = 'tags_list_all';
     const cached = apiCache.get(cacheKey);
     if (cached) {
@@ -753,34 +664,26 @@ app.get('/api/tags', (req, res) => {
                             tagSet.add(tag.trim());
                         }
                     });
-                } catch (e) {
-                    // Skip malformed JSON
-                }
+                } catch (e) {}
             });
             
             const tagArray = Array.from(tagSet).sort((a, b) => 
                 a.localeCompare(b, 'bg')
             );
             
-            apiCache.set(cacheKey, tagArray, 600); // 10 minutes
+            apiCache.set(cacheKey, tagArray, 600);
             res.json(tagArray);
         }
     );
 });
 
-// ============================================================================
-// ADMIN API - CREATE HOME
-// ============================================================================
-
 app.post('/api/homes', (req, res) => {
     const home = req.body;
     
-    // Validation
     if (!home.name) {
         return res.status(400).json({ error: 'Name is required' });
     }
     
-    // Generate slug if not provided
     if (!home.slug) {
         home.slug = home.name
             .toLowerCase()
@@ -796,7 +699,6 @@ app.post('/api/homes', (req, res) => {
     
     insertHome(home);
     
-    // Clear all caches
     apiCache.clear();
     
     res.status(201).json({ 
@@ -805,10 +707,6 @@ app.post('/api/homes', (req, res) => {
         slug: home.slug
     });
 });
-
-// ============================================================================
-// ADMIN API - UPDATE HOME
-// ============================================================================
 
 app.put('/api/homes/:id', (req, res) => {
     const home = req.body;
@@ -852,7 +750,6 @@ app.put('/api/homes/:id', (req, res) => {
                 return res.status(404).json({ error: 'Home not found' });
             }
             
-            // Clear all caches
             apiCache.clear();
             res.json({ message: 'Home updated successfully' });
         }
@@ -861,10 +758,6 @@ app.put('/api/homes/:id', (req, res) => {
     stmt.finalize();
 });
 
-// ============================================================================
-// ADMIN API - DELETE HOME
-// ============================================================================
-
 app.delete('/api/homes/:id', (req, res) => {
     db.run('DELETE FROM homes WHERE id = ?', [req.params.id], function(err) {
         if (err) {
@@ -872,7 +765,6 @@ app.delete('/api/homes/:id', (req, res) => {
             return res.status(500).json({ error: 'Database error' });
         }
         
-        // Clear all caches
         apiCache.clear();
         
         res.json({ 
@@ -881,10 +773,6 @@ app.delete('/api/homes/:id', (req, res) => {
         });
     });
 });
-
-// ============================================================================
-// PARTNERS API - LIST
-// ============================================================================
 
 app.get('/api/partners', (req, res) => {
     const showAll = req.query.all === 'true';
@@ -902,10 +790,6 @@ app.get('/api/partners', (req, res) => {
         }
     );
 });
-
-// ============================================================================
-// PARTNERS API - CREATE
-// ============================================================================
 
 app.post('/api/partners', (req, res) => {
     const p = req.body;
@@ -945,10 +829,6 @@ app.post('/api/partners', (req, res) => {
     );
 });
 
-// ============================================================================
-// PARTNERS API - UPDATE
-// ============================================================================
-
 app.put('/api/partners/:id', (req, res) => {
     const p = req.body;
     const now = new Date().toISOString();
@@ -987,10 +867,6 @@ app.put('/api/partners/:id', (req, res) => {
     );
 });
 
-// ============================================================================
-// PARTNERS API - DELETE
-// ============================================================================
-
 app.delete('/api/partners/:id', (req, res) => {
     db.run('DELETE FROM partners WHERE id = ?', [req.params.id], function(err) {
         if (err) {
@@ -1004,10 +880,6 @@ app.delete('/api/partners/:id', (req, res) => {
         });
     });
 });
-
-// ============================================================================
-// CALENDAR API - MONTHLY EVENTS
-// ============================================================================
 
 app.get('/api/calendar', (req, res) => {
     const month = String(parseInt(req.query.month) || new Date().getMonth() + 1).padStart(2, '0');
@@ -1033,7 +905,6 @@ app.get('/api/calendar', (req, res) => {
         const events = {};
         
         rows.forEach(row => {
-            // Process birth date
             if (row.birth_date && row.birth_date.includes(`-${month}-`)) {
                 const date = new Date(row.birth_date);
                 const day = String(date.getDate()).padStart(2, '0');
@@ -1050,7 +921,6 @@ app.get('/api/calendar', (req, res) => {
                 });
             }
             
-            // Process death date
             if (row.death_date && row.death_date.includes(`-${month}-`)) {
                 const date = new Date(row.death_date);
                 const day = String(date.getDate()).padStart(2, '0');
@@ -1068,14 +938,10 @@ app.get('/api/calendar', (req, res) => {
             }
         });
         
-        apiCache.set(cacheKey, events, 300); // 5 minutes
+        apiCache.set(cacheKey, events, 300);
         res.json(events);
     });
 });
-
-// ============================================================================
-// CALENDAR API - TODAY'S EVENTS (FOR POPUP)
-// ============================================================================
 
 app.get('/api/calendar/today', (req, res) => {
     const today = new Date();
@@ -1088,7 +954,6 @@ app.get('/api/calendar/today', (req, res) => {
         return res.json(cached);
     }
     
-    // Optimization: Search only for today's date in SQL
     const query = `
         SELECT name, slug, birth_date, death_date 
         FROM homes 
@@ -1108,9 +973,8 @@ app.get('/api/calendar/today', (req, res) => {
         const events = [];
         
         rows.forEach(row => {
-            // Check birth date
             if (row.birth_date) {
-                const birthMonthDay = row.birth_date.substring(5); // Get MM-DD from YYYY-MM-DD
+                const birthMonthDay = row.birth_date.substring(5);
                 if (birthMonthDay === monthDay) {
                     events.push({
                         name: row.name,
@@ -1122,9 +986,8 @@ app.get('/api/calendar/today', (req, res) => {
                 }
             }
             
-            // Check death date
             if (row.death_date) {
-                const deathMonthDay = row.death_date.substring(5); // Get MM-DD from YYYY-MM-DD
+                const deathMonthDay = row.death_date.substring(5);
                 if (deathMonthDay === monthDay) {
                     events.push({
                         name: row.name,
@@ -1137,7 +1000,7 @@ app.get('/api/calendar/today', (req, res) => {
             }
         });
         
-        apiCache.set(cacheKey, events, 300); // Cache for 5 minutes
+        apiCache.set(cacheKey, events, 300);
         res.json(events);
         
         if (IS_LOW_SPEC && global.gc) {
@@ -1145,10 +1008,6 @@ app.get('/api/calendar/today', (req, res) => {
         }
     });
 });
-
-// ============================================================================
-// CALENDAR API - ALL DATES
-// ============================================================================
 
 app.get('/api/calendar/all', (req, res) => {
     const cacheKey = 'calendar_all_dates';
@@ -1168,14 +1027,10 @@ app.get('/api/calendar/all', (req, res) => {
             return res.status(500).json({ error: 'Database error' });
         }
         
-        apiCache.set(cacheKey, rows, 1800); // 30 minutes
+        apiCache.set(cacheKey, rows, 1800);
         res.json(rows || []);
     });
 });
-
-// ============================================================================
-// STATIC PAGE ROUTES
-// ============================================================================
 
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
@@ -1192,16 +1047,13 @@ app.get('/:page.html', (req, res) => {
     }
 });
 
-// ============================================================================
-// HEALTH CHECK & DIAGNOSTICS
-// ============================================================================
-
 app.get('/api/health', (req, res) => {
     const mem = process.memoryUsage();
     const uptime = process.uptime();
     
     res.json({
         status: 'healthy',
+        dbReady: dbReady,
         uptime: Math.round(uptime),
         memory: {
             rss: Math.round(mem.rss / 1024 / 1024) + 'MB',
@@ -1214,10 +1066,6 @@ app.get('/api/health', (req, res) => {
     });
 });
 
-// ============================================================================
-// SERVER START
-// ============================================================================
-
 const server = app.listen(PORT, '0.0.0.0', () => {
     const mem = process.memoryUsage();
     console.log(`\n✅ Server is LIVE on port ${PORT}`);
@@ -1227,24 +1075,17 @@ const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`\n🎯 Ready to serve HistoryAddress.bg!\n`);
 });
 
-// Increase timeouts for slow connections
 server.keepAliveTimeout = 30000;
 server.headersTimeout = 31000;
-
-// ============================================================================
-// INTELLIGENT MEMORY MANAGEMENT
-// ============================================================================
 
 setInterval(() => {
     const mem = process.memoryUsage();
     const rss = Math.round(mem.rss / 1024 / 1024);
     const heapUsed = Math.round(mem.heapUsed / 1024 / 1024);
     
-    // Adaptive threshold based on RAM mode
     const warningThreshold = IS_LOW_SPEC ? 150 : 500;
     const criticalThreshold = IS_LOW_SPEC ? 250 : 800;
     
-    // WARNING LEVEL: Trigger GC
     if (rss > warningThreshold && global.gc) {
         const before = mem.heapUsed;
         global.gc();
@@ -1253,19 +1094,13 @@ setInterval(() => {
         
         console.log(`♻️  GC Triggered | RSS: ${rss}MB | Heap: ${heapUsed}MB | Freed: ${freed}MB`);
         
-        // CRITICAL LEVEL: Emergency cache clear
         if (rss > criticalThreshold) {
             console.log(`⚠️  CRITICAL MEMORY: ${rss}MB - Emergency cache flush!`);
             apiCache.clear();
-            // Double GC in critical situations
             if (global.gc) global.gc();
         }
     }
-}, IS_LOW_SPEC ? 30000 : 60000); // Check every 30s in low spec, 60s otherwise
-
-// ============================================================================
-// GRACEFUL SHUTDOWN
-// ============================================================================
+}, IS_LOW_SPEC ? 30000 : 60000);
 
 process.on('SIGINT', () => {
     console.log('\n🛑 Received SIGINT - Shutting down gracefully...');
@@ -1284,7 +1119,6 @@ process.on('SIGINT', () => {
         });
     });
     
-    // Force exit after 10 seconds
     setTimeout(() => {
         console.error('⚠️  Forced shutdown after timeout');
         process.exit(1);
@@ -1296,13 +1130,11 @@ process.on('SIGTERM', () => {
     process.exit(0);
 });
 
-// Uncaught exception handler
 process.on('uncaughtException', (err) => {
     console.error('❌ UNCAUGHT EXCEPTION:', err);
     process.exit(1);
 });
 
-// Unhandled promise rejection handler
 process.on('unhandledRejection', (reason, promise) => {
     console.error('❌ UNHANDLED REJECTION at:', promise, 'reason:', reason);
 });
