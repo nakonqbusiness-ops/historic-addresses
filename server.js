@@ -35,7 +35,11 @@ if (!DB_FILE) {
 }
 
 const MANUAL_HIGH_PERFORMANCE_MODE = false;
-const TOTAL_RAM_MB = process.env.RENDER ? 512 : Math.round(os.totalmem() / 1024 / 1024);
+
+const TOTAL_RAM_MB = MANUAL_HIGH_PERFORMANCE_MODE 
+    ? 2048 
+    : (process.env.RENDER ? 512 : Math.round(os.totalmem() / 1024 / 1024));
+
 const IS_LOW_SPEC = MANUAL_HIGH_PERFORMANCE_MODE ? false : (TOTAL_RAM_MB < 1024);
 
 console.log(`\n🚀 HistoryAddress Server Starting...`);
