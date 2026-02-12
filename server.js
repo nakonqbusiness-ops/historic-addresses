@@ -622,18 +622,16 @@ app.get('/api/homes', (req, res) => {
                 }
             };
 
-            // 6. INTELLIGENT CACHING (THE FIX)
-            // If the DB returned 0 items but we didn't search for anything, 
-            // it implies the DB is still initializing. DO NOT CACHE THIS RESULT.
-            // This forces the next refresh to try again immediately.
-            const isInitializing = (homes.length === 0 && !search && !tag);
-            
-            if (!isInitializing) {
-                // Only cache if we actually found data or if it's a legitimate "no results" search
-                apiCache.set(cacheKey, responseData, IS_LOW_SPEC ? 10 : 30);
-            } else {
-                console.log('⚠️  Empty result during startup - skipping cache to allow retry');
-            }
+            // 6. INTELLIGENT CACHING (FIXED)
+// Never cache empty results unless it's a legitimate search/filter with no matches
+const hasFilters = search || tag;
+const shouldCache = homes.length > 0 || hasFilters;
+
+if (shouldCache) {
+    apiCache.set(cacheKey, responseData, IS_LOW_SPEC ? 10 : 30);
+} else {
+    console.log('⚠️  Skipping cache for empty unfiltered result (DB may be initializing)');
+}
             
             res.json(responseData);
             
