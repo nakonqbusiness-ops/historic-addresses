@@ -29,7 +29,6 @@
     <script defer src="assets/js/calendar-popup.js"></script>
 
     <style>
-        /* 1. LAYOUT & SPACE FIXES */
         .page-wrapper {
             padding: 2rem 2rem 5rem;
             max-width: 900px;
@@ -48,7 +47,6 @@
             filter: drop-shadow(0 4px 10px rgba(0,0,0,0.2));
         }
 
-        /* 3. CONTENT STYLING */
         .content-block {
             line-height: 1.8;
             font-size: 1.1rem;
@@ -89,7 +87,6 @@
             font-size: 1.2rem;
         }
 
-        /* Partners Preview Box */
         #partners-preview {
             background: var(--card);
             border: 1px solid var(--border);
@@ -134,13 +131,14 @@
         <img src="assets/img/HistAdrLogo.png" alt="Адресът на историята" class="header-logo">
         <span class="logo-text">Адресът на историята</span>
     </a>
-    <nav class="nav">
-        <a href="index.html">Начало</a>
-        <a href="map.html">Карта</a>
-        <a href="addresses.html">Адреси</a>
-        <a href="calendar.html">Календар</a>
-        <a href="about.html" class="active">За Нас</a>
-    </nav>
+<nav class="nav">
+    <a href="index.html">Начало</a>
+    <a href="map.html">Карта</a>
+    <a href="addresses.html">Адреси</a>
+    <a href="calendar.html">Календар</a>
+    <a href="news.html">Новини</a>
+    <a href="about.html">За Нас</a>
+</nav>
     <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode">
         <span class="theme-icon sun">☀️</span>
         <span class="theme-icon moon">🌙</span>
@@ -158,12 +156,12 @@
 
     <article class="content-block">
         <div class="mission-box">
-            <h2 class="section-heading" style="margin-top:0;">Нашата мисия</h2>
+            <h2 class="section-heading" style="margin-top:0;">Нашата Мисия</h2>
             Ние сме група ученици от <strong>Първа английска езикова гимназия</strong>, обединени от любовта към България и желанието да съхраним спомена за нашите забележителни личности. Нашият проект цели да документира адресите на домовете на хора, които с делата, таланта и идеите си са оставили следа в българската история и култура.
         </div>
 
         <p>
-            С този сайт искаме не само да запазим паметта за великите българи, но и да вдъхновим нашите връстници да се гордеят със своето наследство и да се стремят към лични постижения. Вярваме, че знанието за миналото е основа за силна и осъзната нация.
+            С този сайт искаме не само да запазим паметта за великите българин, но и да вдъхновим нашите връстници да се гордеят със своето наследство и да се стремят към лични постижения. Вярваме, че знанието за миналото е основа за силна и осъзната нация.
         </p>
 
         <p>
@@ -236,7 +234,6 @@
 <script>
     document.getElementById('year').textContent = new Date().getFullYear();
 
-    // Email Logic
     function handleEmailClick(e) {
         if (window.innerWidth > 768) {
             e.preventDefault();
@@ -249,7 +246,6 @@
         alert('Email-ът е копиран!');
     }
 
-    // Load partners
     (function() {
         fetch(window.location.origin + '/api/partners')
             .then(res => res.json())
