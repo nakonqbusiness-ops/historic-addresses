@@ -91,12 +91,14 @@
         });
 
         tabNews.addEventListener('click', function() {
+            console.log('News tab clicked!');
             document.getElementById('homesSection').style.display = 'none';
             document.getElementById('partnersSection').style.display = 'none';
             document.getElementById('newsSection').style.display = '';
             this.classList.add('active');
             tabHomes.classList.remove('active');
             tabPartners.classList.remove('active');
+            console.log('Calling loadNews()...');
             loadNews();
         });
     }
@@ -658,12 +660,21 @@
     });
 
     function loadNews() {
+        console.log('Loading news articles...');
         var search = (document.getElementById('newsSearch').value || '').toLowerCase();
         
         fetch(NEWS_API + '?all=true&limit=100')
-            .then(function(res) { return res.json(); })
+            .then(function(res) {
+                console.log('News API response status:', res.status);
+                if (!res.ok) {
+                    throw new Error('HTTP error! status: ' + res.status);
+                }
+                return res.json();
+            })
             .then(function(response) {
+                console.log('News API response:', response);
                 var news = response.data || [];
+                console.log('Found', news.length, 'news articles');
                 currentNews = news;
                 
                 if (search) {
@@ -678,7 +689,10 @@
             })
             .catch(function(err) {
                 console.error('Error loading news:', err);
-                alert('Error loading news');
+                var list = document.getElementById('newsList');
+                if (list) {
+                    list.innerHTML = '<p style="text-align:center;padding:2rem;color:#ff6b6b;">Error loading news: ' + err.message + '</p>';
+                }
             });
     }
 
