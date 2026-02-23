@@ -1291,3 +1291,125 @@ process.on('uncaughtException', (err) => {
 process.on('unhandledRejection', (reason, promise) => {
     console.error('❌ UNHANDLED REJECTION at:', promise, 'reason:', reason);
 });
+============================================
+COPY-PASTE THIS INTO YOUR server.js
+============================================
+
+// ========== NEWS API ENDPOINTS ==========
+// Add these routes AFTER your existing address routes
+
+// News Routes
+app.get('/api/news', (req, res) => {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const offset = (page - 1) * limit;
+    
+    try {
+        const countStmt = db.prepare('SELECT COUNT(*) as total FROM news WHERE is_published = 1');
+        const { total } = countStmt.get();
+        
+        const stmt = db.prepare(`
+            SELECT id, title, slug, excerpt, cover_image, published_date, author
+            FROM news 
+            WHERE is_published = 1
+            ORDER BY published_date DESC
+            LIMIT ? OFFSET ?
+        `);
+        
+        const data = stmt.all(limit, offset);
+        
+        res.json({
+            data,
+            pagination: {
+                page,
+                limit,
+                total,
+                totalPages: Math.ceil(total / limit)
+            }
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/news/:slug', (req, res) => {
+    const { slug } = req.params;
+    
+    try {
+        const stmt = db.prepare('SELECT * FROM news WHERE slug = ? AND is_published = 1');
+        const article = stmt.get(slug);
+        
+        if (!article) {
+            return res.status(404).json({ error: 'Not found' });
+        }
+        
+        res.json(article);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Admin endpoints (add authentication middleware if you have it)
+app.post('/api/news', (req, res) => {
+    const { title, slug, content, excerpt, cover_image, published_date, author } = req.body;
+    
+    if (!title || !slug || !content) {
+        return res.status(400).json({ error: 'Missing required fields' });
+    }
+    
+    try {
+        const stmt = db.prepare(`
+            INSERT INTO news (title, slug, content, excerpt, cover_image, published_date, author)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        `);
+        
+        const result = stmt.run(
+            title,
+            slug,
+            content,
+            excerpt || '',
+            cover_image || '',
+            published_date || new Date().toISOString().split('T')[0],
+            author || 'Екипът на Адресът на историята'
+        );
+        
+        res.json({ success: true, id: result.lastInsertRowid });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.put('/api/news/:id', (req, res) => {
+    const { id } = req.params;
+    const { title, slug, content, excerpt, cover_image, published_date, author, is_published } = req.body;
+    
+    try {
+        const stmt = db.prepare(`
+            UPDATE news 
+            SET title = ?, slug = ?, content = ?, excerpt = ?, 
+                cover_image = ?, published_date = ?, author = ?,
+                is_published = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        `);
+        
+        stmt.run(title, slug, content, excerpt, cover_image, published_date, author, is_published, id);
+        
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.delete('/api/news/:id', (req, res) => {
+    const { id } = req.params;
+    
+    try {
+        const stmt = db.prepare('DELETE FROM news WHERE id = ?');
+        stmt.run(id);
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ========== END NEWS API ENDPOINTS ==========
