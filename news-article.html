@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="bg" data-theme="dark">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="icon" type="image/png" href="/assets/img/favicon-96x96.png" sizes="96x96" />
+	<link rel="shortcut icon" href="/assets/img/favicon.ico" />
+	
+	<title>Новина - Адресът на историята</title>
+	
+	<script>
+		(function() {
+			try {
+				var stored = localStorage.getItem('theme-preference');
+				var theme = (stored === 'dark' || stored === 'light') ? stored : 'dark';
+				document.documentElement.setAttribute('data-theme', theme);
+			} catch(e) {}
+		})();
+	</script>
+	
+	<link rel="stylesheet" href="assets/css/styles.css">
+	<script defer src="assets/js/theme.js"></script>
+	
+	<style>
+		.article-header {
+			max-width: 800px;
+			margin: 0 auto 3rem;
+			text-align: center;
+		}
+		
+		.article-title {
+			font-size: clamp(2rem, 5vw, 3rem);
+			font-weight: 700;
+			margin: 0 0 1rem;
+			line-height: 1.2;
+			color: var(--fg);
+		}
+		
+		.article-meta {
+			display: flex;
+			gap: 1.5rem;
+			justify-content: center;
+			align-items: center;
+			color: var(--muted);
+			font-size: 0.9rem;
+			margin-bottom: 2rem;
+		}
+		
+		.article-cover {
+			width: 100%;
+			max-width: 900px;
+			height: auto;
+			max-height: 500px;
+			object-fit: cover;
+			border-radius: 12px;
+			margin: 0 auto 3rem;
+			display: block;
+			box-shadow: var(--shadow);
+		}
+		
+		.article-content {
+			max-width: 750px;
+			margin: 0 auto;
+			font-size: 1.1rem;
+			line-height: 1.8;
+			color: var(--fg);
+		}
+		
+		.article-content p {
+			margin-bottom: 1.5rem;
+		}
+		
+		.article-content h2 {
+			font-size: 1.6rem;
+			font-weight: 600;
+			margin: 2.5rem 0 1rem;
+			color: var(--fg);
+		}
+		
+		.article-content h3 {
+			font-size: 1.3rem;
+			font-weight: 600;
+			margin: 2rem 0 0.8rem;
+			color: var(--fg);
+		}
+		
+		.article-content ul,
+		.article-content ol {
+			margin: 1rem 0 1.5rem 2rem;
+		}
+		
+		.article-content li {
+			margin-bottom: 0.5rem;
+		}
+		
+		.article-content img {
+			max-width: 100%;
+			height: auto;
+			border-radius: 8px;
+			margin: 2rem 0;
+		}
+		
+		.article-content blockquote {
+			border-left: 3px solid var(--accent-strong);
+			padding-left: 1.5rem;
+			margin: 2rem 0;
+			font-style: italic;
+			color: var(--muted);
+		}
+		
+		.back-link {
+			display: inline-flex;
+			align-items: center;
+			gap: 0.5rem;
+			margin-bottom: 2rem;
+			color: var(--accent-strong);
+			text-decoration: none;
+			font-weight: 600;
+			transition: transform 0.3s ease;
+		}
+		
+		.back-link:hover {
+			transform: translateX(-4px);
+		}
+		
+		@media (max-width: 768px) {
+			.article-meta {
+				flex-direction: column;
+				gap: 0.5rem;
+			}
+		}
+	</style>
+</head>
+<body>
+	<header class="site-header">
+		<a class="logo-link" href="index.html">
+			<img src="assets/img/HistAdrLogo.png" alt="Адресът на историята" class="header-logo">
+			<span class="logo-text">Адресът на историята</span>
+		</a>
+		
+		<nav class="nav">
+			<a href="index.html">Начало</a>
+			<a href="map.html">Карта</a>
+			<a href="addresses.html">Адреси</a>
+			<a href="calendar.html">Календар</a>
+			<a href="news.html">Новини</a>
+			<a href="about.html">За Нас</a>
+		</nav>
+		
+		<button id="theme-toggle" aria-label="Toggle dark mode">
+			<span class="theme-icon sun">☀️</span>
+			<span class="theme-icon moon">🌙</span>
+		</button>
+	</header>
+
+	<main class="container">
+		<a href="news.html" class="back-link">← Назад към новините</a>
+		
+		<div id="articleContent">
+			<p style="text-align:center;padding:3rem;color:var(--muted);">Зареждане...</p>
+		</div>
+	</main>
+
+	<footer class="site-footer">
+		<p>© <span id="year"></span> Адресът на историята</p>
+	</footer>
+
+	<script>
+	(function() {
+		var apiBase = window.location.protocol === 'file:' ? 'http://localhost:3000' : window.location.origin;
+		var params = new URLSearchParams(window.location.search);
+		var slug = params.get('slug');
+		
+		if (!slug) {
+			document.getElementById('articleContent').innerHTML = '<p style="text-align:center;padding:3rem;color:#ff6b6b;">Невалиден линк</p>';
+			return;
+		}
+		
+		function formatDate(dateStr) {
+			var date = new Date(dateStr);
+			var months = ['януари', 'февруари', 'март', 'април', 'май', 'юни', 'юли', 'август', 'септември', 'октомври', 'ноември', 'декември'];
+			return date.getDate() + ' ' + months[date.getMonth()] + ' ' + date.getFullYear();
+		}
+		
+		fetch(apiBase + '/api/news/' + encodeURIComponent(slug))
+			.then(function(res) {
+				if (!res.ok) throw new Error('Not found');
+				return res.json();
+			})
+			.then(function(article) {
+				document.title = article.title + ' - Адресът на историята';
+				
+				var html = '<div class="article-header">';
+				html += '<h1 class="article-title">' + article.title + '</h1>';
+				html += '<div class="article-meta">';
+				html += '<span>📅 ' + formatDate(article.published_date) + '</span>';
+				if (article.author) {
+					html += '<span>✍️ ' + article.author + '</span>';
+				}
+				html += '</div>';
+				html += '</div>';
+				
+				if (article.cover_image) {
+					html += '<img class="article-cover" src="' + article.cover_image + '" alt="' + article.title + '">';
+				}
+				
+				html += '<div class="article-content">';
+				html += article.content.replace(/\n/g, '<br>');
+				html += '</div>';
+				
+				document.getElementById('articleContent').innerHTML = html;
+			})
+			.catch(function(err) {
+				console.error('Error loading article:', err);
+				document.getElementById('articleContent').innerHTML = '<p style="text-align:center;padding:3rem;color:#ff6b6b;">Новината не е намерена</p>';
+			});
+		
+		document.getElementById('year').textContent = new Date().getFullYear();
+	})();
+	</script>
+</body>
+</html>
