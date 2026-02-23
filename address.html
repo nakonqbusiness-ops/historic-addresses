@@ -46,9 +46,8 @@
 </head>
 <script>
 function handleEmailClick(event) {
-    // On mobile (screen width < 768px), let mailto work normally
     if (window.innerWidth <= 768) {
-        return; // Don't prevent default, let mailto: work
+        return; 
     }
     
     // On desktop, show modal
@@ -59,7 +58,6 @@ function handleEmailClick(event) {
 function showEmailModal() {
     var modal = document.getElementById('emailModal');
     if (!modal) {
-        // Create modal if it doesn't exist
         modal = document.createElement('div');
         modal.id = 'emailModal';
         modal.className = 'email-modal';
@@ -78,7 +76,6 @@ function showEmailModal() {
         `;
         document.body.appendChild(modal);
         
-        // Close on backdrop click
         modal.addEventListener('click', function(e) {
             if (e.target === modal) {
                 closeEmailModal();
@@ -129,13 +126,14 @@ document.addEventListener('keydown', function(e) {
         <img src="assets/img/HistAdrLogo.png" alt="Адресът на историята" class="header-logo">
         <span class="logo-text">Адресът на историята</span>
     </a>
-    <nav class="nav">
-        <a href="index.html">Начало</a>
-        <a href="map.html">Карта</a>
-        <a href="addresses.html">Адреси</a>
-        <a href="calendar.html">Календар</a>
-        <a href="about.html">За Нас</a>
-    </nav>
+<nav class="nav">
+    <a href="index.html">Начало</a>
+    <a href="map.html">Карта</a>
+    <a href="addresses.html">Адреси</a>
+    <a href="calendar.html">Календар</a>
+    <a href="news.html">Новини</a>
+    <a href="about.html">За Нас</a>
+</nav>
     <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode"></button>
 </header>
 
@@ -226,7 +224,6 @@ document.addEventListener('keydown', function(e) {
                 ? 'https://historyaddress.bg/' + person.images[0].path 
                 : 'https://historyaddress.bg/assets/img/HistAdrLogo.png';
 
-            // Title на Български
             document.title = person.name + ' — Адресът на историята';
 
             var metaDesc = document.querySelector('meta[name="description"]');
@@ -289,7 +286,6 @@ document.addEventListener('keydown', function(e) {
         }
         
         function renderHome(person) {
-            // Title на Български
             document.title = person.name + ' — Адресът на историята';
             
             var portraitHtml = '';
