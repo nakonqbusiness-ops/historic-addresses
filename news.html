@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="bg" data-theme="dark">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="icon" type="image/png" href="/assets/img/favicon-96x96.png" sizes="96x96" />
+	<link rel="icon" type="image/svg+xml" href="/assets/img/favicon.svg" />
+	<link rel="shortcut icon" href="/assets/img/favicon.ico" />
+	<link rel="apple-touch-icon" sizes="180x180" href="/assets/img/apple-touch-icon.png" />
+	<link rel="manifest" href="/assets/img/site.webmanifest" />
+
+	<title>Новини - Адресът на историята</title>
+	<meta name="description" content="Последни новини и актуализации от Адресът на историята">
+	
+	<script>
+		(function() {
+			try {
+				var stored = localStorage.getItem('theme-preference');
+				var theme = (stored === 'dark' || stored === 'light') ? stored : 'dark';
+				document.documentElement.setAttribute('data-theme', theme);
+			} catch(e) {}
+		})();
+	</script>
+	
+	<link rel="stylesheet" href="assets/css/styles.css">
+	<script defer src="assets/js/theme.js"></script>
+	<script defer src="assets/js/transitions.js"></script>
+	
+	<style>
+		/* Lightweight news grid */
+		.news-grid {
+			display: grid;
+			grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+			gap: 1.5rem;
+			margin: 2rem 0;
+		}
+		
+		.news-card {
+			display: block;
+			background: var(--card);
+			border: 1px solid var(--border);
+			border-radius: 12px;
+			overflow: hidden;
+			text-decoration: none;
+			color: inherit;
+			transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+			box-shadow: var(--shadow-soft);
+		}
+		
+		.news-card:hover {
+			transform: translateY(-4px);
+			box-shadow: var(--shadow);
+			border-color: var(--accent-strong);
+		}
+		
+		.news-card-image {
+			width: 100%;
+			height: 200px;
+			object-fit: cover;
+			background: var(--muted);
+		}
+		
+		.news-card-content {
+			padding: 1.5rem;
+		}
+		
+		.news-card-date {
+			font-size: 0.85rem;
+			color: var(--muted);
+			margin-bottom: 0.5rem;
+		}
+		
+		.news-card-title {
+			font-size: 1.3rem;
+			font-weight: 700;
+			margin: 0 0 0.75rem;
+			color: var(--fg);
+			line-height: 1.3;
+		}
+		
+		.news-card-excerpt {
+			font-size: 0.95rem;
+			color: var(--muted);
+			line-height: 1.6;
+			margin: 0;
+		}
+		
+		.news-card-author {
+			font-size: 0.8rem;
+			color: var(--muted);
+			margin-top: 1rem;
+			font-style: italic;
+		}
+		
+		.pagination {
+			display: flex;
+			justify-content: center;
+			align-items: center;
+			gap: 1rem;
+			margin: 3rem 0;
+		}
+		
+		.pagination button {
+			padding: 0.6rem 1.2rem;
+			border: 1px solid var(--border);
+			background: var(--card);
+			color: var(--fg);
+			border-radius: 8px;
+			cursor: pointer;
+			transition: all 0.3s ease;
+		}
+		
+		.pagination button:hover:not(:disabled) {
+			background: var(--accent-strong);
+			border-color: var(--accent-strong);
+			color: white;
+		}
+		
+		.pagination button:disabled {
+			opacity: 0.3;
+			cursor: not-allowed;
+		}
+		
+		.pagination .page-info {
+			color: var(--muted);
+			font-size: 0.9rem;
+		}
+		
+		@media (max-width: 768px) {
+			.news-grid {
+				grid-template-columns: 1fr;
+				gap: 1rem;
+			}
+			
+			.news-card-image {
+				height: 180px;
+			}
+		}
+	</style>
+</head>
+<body>
+	<header class="site-header">
+		<a class="logo-link" href="index.html">
+			<img src="assets/img/HistAdrLogo.png" alt="Адресът на историята" class="header-logo">
+			<span class="logo-text">Адресът на историята</span>
+		</a>
+		
+		<nav class="nav">
+			<a href="index.html">Начало</a>
+			<a href="map.html">Карта</a>
+			<a href="addresses.html">Адреси</a>
+			<a href="calendar.html">Календар</a>
+			<a href="news.html" class="active">Новини</a>
+			<a href="about.html">За Нас</a>
+		</nav>
+		
+		<button id="theme-toggle" aria-label="Toggle dark mode">
+			<span class="theme-icon sun">☀️</span>
+			<span class="theme-icon moon">🌙</span>
+		</button>
+	</header>
+
+	<main class="container">
+		<h1 class="page-title gradient-text">📰 Новини</h1>
+		
+		<div id="newsGrid" class="news-grid">
+			<p style="text-align:center;padding:3rem;color:var(--muted);">Зареждане...</p>
+		</div>
+		
+		<div class="pagination">
+			<button id="prevPage">← Предишна</button>
+			<span class="page-info" id="pageInfo">Страница 1</span>
+			<button id="nextPage">Следваща →</button>
+		</div>
+	</main>
+
+	<footer class="site-footer">
+		<div class="footer-inner">
+			<div class="footer-social">
+				<a href="https://instagram.com/historyaddress.bg" target="_blank" rel="noopener noreferrer" class="social-link">
+					<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
+					Instagram
+				</a>
+				<a href="mailto:historyaddressbg@gmail.com" class="social-link">
+					<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+					Email
+				</a>
+			</div>
+			<p class="footer-links">
+				<a href="privacy.html">Поверителност</a> • 
+				<a href="terms.html">Условия</a> • 
+				<a href="copyright.html">Авторски права</a>
+			</p>
+			<p class="footer-copy">© <span id="year"></span> Адресът на историята</p>
+		</div>
+	</footer>
+
+	<script>
+	(function() {
+		var apiBase = window.location.protocol === 'file:' ? 'http://localhost:3000' : window.location.origin;
+		var currentPage = 1;
+		var totalPages = 1;
+		
+		function formatDate(dateStr) {
+			var date = new Date(dateStr);
+			var months = ['януари', 'февруари', 'март', 'април', 'май', 'юни', 'юли', 'август', 'септември', 'октомври', 'ноември', 'декември'];
+			return date.getDate() + ' ' + months[date.getMonth()] + ' ' + date.getFullYear();
+		}
+		
+		function loadNews(page) {
+			currentPage = page || 1;
+			var grid = document.getElementById('newsGrid');
+			grid.innerHTML = '<p style="text-align:center;padding:3rem;color:var(--muted);">Зареждане...</p>';
+			
+			fetch(apiBase + '/api/news?page=' + currentPage + '&limit=9')
+				.then(function(res) {
+					if (!res.ok) throw new Error('Server error');
+					return res.json();
+				})
+				.then(function(response) {
+					var news = response.data || [];
+					totalPages = response.pagination ? response.pagination.totalPages : 1;
+					
+					if (news.length === 0) {
+						grid.innerHTML = '<p style="text-align:center;padding:3rem;color:var(--muted);">Все още няма публикувани новини.</p>';
+						return;
+					}
+					
+					grid.innerHTML = '';
+					news.forEach(function(article) {
+						var card = document.createElement('a');
+						card.className = 'news-card';
+						card.href = 'news-article.html?slug=' + encodeURIComponent(article.slug);
+						
+						var html = '';
+						if (article.cover_image) {
+							html += '<img class="news-card-image" src="' + article.cover_image + '" alt="' + article.title + '" loading="lazy">';
+						}
+						
+						html += '<div class="news-card-content">';
+						html += '<div class="news-card-date">' + formatDate(article.published_date) + '</div>';
+						html += '<h2 class="news-card-title">' + article.title + '</h2>';
+						
+						if (article.excerpt) {
+							html += '<p class="news-card-excerpt">' + article.excerpt + '</p>';
+						}
+						
+						if (article.author) {
+							html += '<div class="news-card-author">— ' + article.author + '</div>';
+						}
+						
+						html += '</div>';
+						card.innerHTML = html;
+						grid.appendChild(card);
+					});
+					
+					updatePagination();
+				})
+				.catch(function(err) {
+					console.error('Error loading news:', err);
+					grid.innerHTML = '<p style="text-align:center;padding:3rem;color:#ff6b6b;">Грешка при зареждане.</p>';
+				});
+		}
+		
+		function updatePagination() {
+			document.getElementById('pageInfo').textContent = 'Страница ' + currentPage + ' от ' + totalPages;
+			document.getElementById('prevPage').disabled = currentPage === 1;
+			document.getElementById('nextPage').disabled = currentPage >= totalPages;
+		}
+		
+		document.getElementById('prevPage').addEventListener('click', function() {
+			if (currentPage > 1) {
+				loadNews(currentPage - 1);
+				window.scrollTo({ top: 0, behavior: 'smooth' });
+			}
+		});
+		
+		document.getElementById('nextPage').addEventListener('click', function() {
+			if (currentPage < totalPages) {
+				loadNews(currentPage + 1);
+				window.scrollTo({ top: 0, behavior: 'smooth' });
+			}
+		});
+		
+		document.getElementById('year').textContent = new Date().getFullYear();
+		loadNews(1);
+	})();
+	</script>
+</body>
+</html>
