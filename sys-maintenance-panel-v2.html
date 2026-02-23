@@ -145,6 +145,7 @@
                 <a href="map.html">Map</a>
                 <a href="addresses.html">Homes</a>
                 <a href="calendar.html">Calendar</a>
+                <a href="news.html">News</a>
                 <a href="about.html">About</a>
                 <button onclick="logout()" class="theme-toggle" style="background: #dc3545;">Logout</button>
             </nav>
@@ -157,9 +158,9 @@
             <div class="tab-buttons">
                 <button id="tabHomes" class="active">🏠 Homes</button>
                 <button id="tabPartners">🤝 Partners</button>
+                <button id="tabNews">📰 News</button>
             </div>
 
-            <!-- HOMES SECTION -->
             <section id="homesSection">
                 <div class="toolbar">
                     <button id="addBtn" class="theme-toggle">Add New Home</button>
@@ -177,7 +178,6 @@
                 </div>
             </section>
 
-            <!-- PARTNERS SECTION -->
             <section id="partnersSection" style="display:none;">
                 <div class="toolbar">
                     <button id="addPartnerBtn" class="theme-toggle">Add New Partner</button>
@@ -186,9 +186,17 @@
 
                 <div id="partnersList" class="grid"></div>
             </section>
+
+            <section id="newsSection" style="display:none;">
+                <div class="toolbar">
+                    <button id="addNewsBtn" class="theme-toggle">Add New Article</button>
+                    <input id="newsSearch" class="input" placeholder="Search news...">
+                </div>
+
+                <div id="newsList" class="grid"></div>
+            </section>
         </main>
 
-        <!-- HOMES MODAL -->
         <div id="modal" class="backdrop">
             <div class="modal" role="dialog" aria-modal="true" aria-labelledby="dlgTitle">
                 <header>
@@ -204,7 +212,6 @@
                             <div class="full" style="margin-top:-8px;color:var(--muted);font-size:.85rem;">Lowercase, URL-friendly identifier. If left blank, it will be generated from the name.</div>
                             <label><span class="label">Published</span><span class="row"><input id="f_published" type="checkbox"><span>Visible</span></span></label>
                             
-                            <!-- DATE FIELDS -->
                             <label><span class="label">Birth Date</span><input id="f_birth_date" class="field" type="date" placeholder="YYYY-MM-DD"></label>
                             <label><span class="label">Death Date</span><input id="f_death_date" class="field" type="date" placeholder="YYYY-MM-DD"></label>
                             
@@ -238,7 +245,6 @@
             </div>
         </div>
 
-        <!-- PARTNERS MODAL -->
         <div id="partnerModal" class="backdrop">
             <div class="modal" role="dialog">
                 <header>
@@ -276,6 +282,48 @@
                     <div class="actions">
                         <button type="button" id="cancelPartnerDlg" class="theme-toggle">Cancel</button>
                         <button type="submit" class="theme-toggle">Save Partner</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div id="newsModal" class="backdrop">
+            <div class="modal" role="dialog">
+                <header>
+                    <h2 id="newsDlgTitle">Edit News Article</h2>
+                    <button id="closeNewsDlg" class="theme-toggle">×</button>
+                </header>
+                <form id="newsForm">
+                    <div class="content">
+                        <input type="hidden" id="n_id">
+                        <div class="form-grid">
+                            <label class="full"><span class="label">Title *</span><input id="n_title" class="field" required></label>
+                            
+                            <label class="full"><span class="label">Slug (auto-generated if empty)</span><input id="n_slug" class="field" placeholder="article-url-name"></label>
+                            
+                            <label class="full"><span class="label">Excerpt (short description)</span><textarea id="n_excerpt" class="field textarea" rows="3" placeholder="Brief summary..."></textarea></label>
+                            
+                            <label class="full"><span class="label">Content *</span><textarea id="n_content" class="field textarea" rows="10" required placeholder="Full article content..."></textarea></label>
+                            
+                            <label class="full"><span class="label">Cover Image URL</span><input id="n_cover" class="field" placeholder="/assets/news/image.jpg"></label>
+                            
+                            <div class="full drop" id="newsCoverDrop">
+                                Drop image or 
+                                <button type="button" id="newsCoverPick" class="theme-toggle">Choose file</button>
+                                <input id="newsCoverFile" type="file" accept="image/*" style="display:none">
+                            </div>
+                            <div id="newsCoverPreview" style="margin-top: 10px; text-align: center;"></div>
+                            
+                            <label><span class="label">Published Date</span><input id="n_date" class="field" type="date" required></label>
+                            
+                            <label class="full"><span class="label">Author</span><input id="n_author" class="field" value="Екипът на Адресът на историята"></label>
+                            
+                            <label><span class="label">Published</span><span class="row"><input id="n_published" type="checkbox" checked><span>Visible</span></span></label>
+                        </div>
+                    </div>
+                    <div class="actions">
+                        <button type="button" id="cancelNewsDlg" class="theme-toggle">Cancel</button>
+                        <button type="submit" class="theme-toggle">Save Article</button>
                     </div>
                 </form>
             </div>
