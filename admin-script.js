@@ -57,7 +57,49 @@
         } else {
             document.getElementById('authPassword').focus();
         }
+        
+        setupTabHandlers();
     });
+
+    function setupTabHandlers() {
+        var tabNews = document.getElementById('tabNews');
+        var tabPartners = document.getElementById('tabPartners');
+        var tabHomes = document.getElementById('tabHomes');
+        
+        if (!tabNews || !tabPartners || !tabHomes) {
+            console.error('Tab buttons not found');
+            return;
+        }
+        
+        tabHomes.addEventListener('click', function() {
+            document.getElementById('homesSection').style.display = '';
+            document.getElementById('partnersSection').style.display = 'none';
+            document.getElementById('newsSection').style.display = 'none';
+            this.classList.add('active');
+            tabPartners.classList.remove('active');
+            tabNews.classList.remove('active');
+        });
+        
+        tabPartners.addEventListener('click', function() {
+            document.getElementById('homesSection').style.display = 'none';
+            document.getElementById('partnersSection').style.display = '';
+            document.getElementById('newsSection').style.display = 'none';
+            this.classList.add('active');
+            tabHomes.classList.remove('active');
+            tabNews.classList.remove('active');
+            loadPartners();
+        });
+
+        tabNews.addEventListener('click', function() {
+            document.getElementById('homesSection').style.display = 'none';
+            document.getElementById('partnersSection').style.display = 'none';
+            document.getElementById('newsSection').style.display = '';
+            this.classList.add('active');
+            tabHomes.classList.remove('active');
+            tabPartners.classList.remove('active');
+            loadNews();
+        });
+    }
 
     document.getElementById('authPassword').addEventListener('keypress', function(e) {
         if (e.key === 'Enter') checkAuth();
@@ -83,35 +125,6 @@
     var imageSources = [];
     var portraitPreviewEl = document.getElementById('portraitPreview');
     var fPortraitEl = document.getElementById('f_portrait');
-
-    document.getElementById('tabHomes').addEventListener('click', function() {
-        document.getElementById('homesSection').style.display = '';
-        document.getElementById('partnersSection').style.display = 'none';
-        document.getElementById('newsSection').style.display = 'none';
-        this.classList.add('active');
-        document.getElementById('tabPartners').classList.remove('active');
-        document.getElementById('tabNews').classList.remove('active');
-    });
-    
-    document.getElementById('tabPartners').addEventListener('click', function() {
-        document.getElementById('homesSection').style.display = 'none';
-        document.getElementById('partnersSection').style.display = '';
-        document.getElementById('newsSection').style.display = 'none';
-        this.classList.add('active');
-        document.getElementById('tabHomes').classList.remove('active');
-        document.getElementById('tabNews').classList.remove('active');
-        loadPartners();
-    });
-
-    document.getElementById('tabNews').addEventListener('click', function() {
-        document.getElementById('homesSection').style.display = 'none';
-        document.getElementById('partnersSection').style.display = 'none';
-        document.getElementById('newsSection').style.display = '';
-        this.classList.add('active');
-        document.getElementById('tabHomes').classList.remove('active');
-        document.getElementById('tabPartners').classList.remove('active');
-        loadNews();
-    });
 
     function loadHomes(page){
         page = page || state.currentPage;
