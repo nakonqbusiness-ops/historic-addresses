@@ -120,39 +120,58 @@
         });
 
         tabNews.addEventListener('click', function(event) {
-            console.log('News tab clicked!', event);
-            console.log('Button element:', this);
-            console.log('Event target:', event.target);
+            console.log('=== NEWS TAB CLICKED ===');
+            console.log('Event:', event);
+            console.log('This:', this);
+            
+            event.preventDefault();
+            event.stopPropagation();
             
             try {
+                console.log('Step 1: Getting section elements...');
                 var homesSection = document.getElementById('homesSection');
                 var partnersSection = document.getElementById('partnersSection');
                 var newsSection = document.getElementById('newsSection');
                 
-                console.log('Sections found:', { homesSection, partnersSection, newsSection });
+                console.log('Sections:', { 
+                    homes: homesSection, 
+                    partners: partnersSection, 
+                    news: newsSection 
+                });
                 
                 if (!newsSection) {
-                    console.error('newsSection element not found!');
+                    console.error('CRITICAL: newsSection element not found!');
+                    alert('Error: News section not found in DOM');
                     return;
                 }
                 
-                homesSection.style.display = 'none';
-                partnersSection.style.display = 'none';
-                newsSection.style.display = '';
+                console.log('Step 2: Hiding other sections...');
+                if (homesSection) homesSection.style.display = 'none';
+                if (partnersSection) partnersSection.style.display = 'none';
                 
-                console.log('Section displays set');
+                console.log('Step 3: Showing news section...');
+                newsSection.style.display = 'block';
+                newsSection.style.visibility = 'visible';
+                newsSection.style.opacity = '1';
                 
+                console.log('News section display:', newsSection.style.display);
+                console.log('News section visibility:', newsSection.style.visibility);
+                
+                console.log('Step 4: Updating active classes...');
+                if (tabHomes) tabHomes.classList.remove('active');
+                if (tabPartners) tabPartners.classList.remove('active');
                 this.classList.add('active');
-                tabHomes.classList.remove('active');
-                tabPartners.classList.remove('active');
                 
-                console.log('Classes updated');
-                console.log('Calling loadNews()...');
-                
+                console.log('Step 5: Calling loadNews()...');
                 loadNews();
+                
+                console.log('=== NEWS TAB SWITCH COMPLETE ===');
             } catch (e) {
-                console.error('Error in News tab handler:', e);
+                console.error('!!! ERROR IN NEWS TAB HANDLER !!!');
+                console.error('Error:', e);
+                console.error('Message:', e.message);
                 console.error('Stack:', e.stack);
+                alert('Error switching to News tab: ' + e.message);
             }
         });
         
