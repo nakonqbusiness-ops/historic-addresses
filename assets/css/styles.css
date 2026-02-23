@@ -1570,3 +1570,13 @@ button:not(.theme-toggle):not(.preview-item button):active {
 @media (max-width: 600px) {
     /* ... тук беше непълен блок, но няма отношение към About-проблема ... */
 }
+/* Override button styles for tab buttons */
+.tab-buttons button {
+    position: static !important;
+    overflow: visible !important;
+    z-index: auto !important;
+}
+
+.tab-buttons button::before {
+    display: none !important;
+}
