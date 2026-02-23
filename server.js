@@ -1063,18 +1063,15 @@ app.get('/api/news', (req, res) => {
     const offset = (page - 1) * limit;
     const showAll = req.query.all === 'true';
     
-    console.log(`📰 News API called: page=${page}, limit=${limit}, showAll=${showAll}`);
-    
     const whereClause = showAll ? '' : 'WHERE is_published = 1';
     
     db.get(`SELECT COUNT(*) as total FROM news ${whereClause}`, [], (err, countRow) => {
         if (err) {
-            console.error('❌ News count error:', err);
+            console.error('News count error:', err);
             return res.status(500).json({ error: 'Database error' });
         }
         
         const total = countRow ? countRow.total : 0;
-        console.log(`📊 Found ${total} news articles in database`);
         
         db.all(`
             SELECT id, title, slug, excerpt, cover_image, published_date, author, is_published
@@ -1084,11 +1081,9 @@ app.get('/api/news', (req, res) => {
             LIMIT ? OFFSET ?
         `, [limit, offset], (err, rows) => {
             if (err) {
-                console.error('❌ News query error:', err);
+                console.error('News query error:', err);
                 return res.status(500).json({ error: 'Database error' });
             }
-            
-            console.log(`✅ Returning ${rows ? rows.length : 0} news articles`);
             
             res.json({
                 data: rows || [],
@@ -1291,10 +1286,6 @@ process.on('uncaughtException', (err) => {
 process.on('unhandledRejection', (reason, promise) => {
     console.error('❌ UNHANDLED REJECTION at:', promise, 'reason:', reason);
 });
-============================================
-COPY-PASTE THIS INTO YOUR server.js
-============================================
-
 // ========== NEWS API ENDPOINTS ==========
 // Add these routes AFTER your existing address routes
 
@@ -1411,5 +1402,3 @@ app.delete('/api/news/:id', (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
-
-// ========== END NEWS API ENDPOINTS ==========
