@@ -54,7 +54,6 @@
 			padding: 8px 16px;
 			color: var(--text-muted, #999);
 		}
-		/* New subtle warning style */
 		.search-hint {
 			display: block;
 			font-size: 0.75rem;
@@ -156,6 +155,7 @@ document.addEventListener('keydown', function(e) {
     <a href="map.html">Карта</a>
     <a href="addresses.html">Адреси</a>
     <a href="calendar.html">Календар</a>
+    <a href="news.html">Новини</a>
     <a href="about.html">За Нас</a>
 </nav>
 		<button id="theme-toggle" aria-label="Toggle dark mode">
@@ -253,7 +253,6 @@ document.addEventListener('keydown', function(e) {
 		}
 		
 		function loadHomes(page) {
-			// If loading and this is a new search, queue it
 			if (isLoading) {
 				pendingSearch = page;
 				return;
@@ -263,10 +262,9 @@ document.addEventListener('keydown', function(e) {
 			page = page || state.currentPage;
 			var url = apiBase + '/api/homes?page=' + page + '&limit=6';
 			
-			// Add search query if not empty - search ONLY in name field
 			if (state.searchQuery && state.searchQuery.trim().length > 0) {
 				url += '&search=' + encodeURIComponent(state.searchQuery);
-				url += '&searchMode=name';  // Restrict to name field only
+				url += '&searchMode=name';  
 			}
 			
 			var tagFilter = document.getElementById('tag').value;
@@ -298,7 +296,6 @@ document.addEventListener('keydown', function(e) {
 					renderHomes();
 					updatePagination();
 					
-					// Execute pending search if any
 					if (pendingSearch !== null) {
 						var p = pendingSearch;
 						pendingSearch = null;
@@ -378,13 +375,11 @@ document.addEventListener('keydown', function(e) {
 		document.getElementById('nextPage').addEventListener('click', function(){ goToPage(state.currentPage + 1); });
 		document.getElementById('lastPage').addEventListener('click', function(){ goToPage(state.totalPages); });
 		
-		// Search on input (debounced 400ms)
 		document.getElementById('q').addEventListener('input', function() {
 			clearTimeout(searchTimeout);
 			var query = document.getElementById('q').value.trim();
 			
 			searchTimeout = setTimeout(function() {
-				// Only update if query actually changed
 				if (state.searchQuery !== query) {
 					state.searchQuery = query;
 					state.currentPage = 1;
@@ -393,7 +388,6 @@ document.addEventListener('keydown', function(e) {
 			}, 400);
 		});
 		
-		// Instant search on Enter
 		document.getElementById('q').addEventListener('keypress', function(e) {
 			if (e.key === 'Enter') {
 				clearTimeout(searchTimeout);
