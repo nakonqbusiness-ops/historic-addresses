@@ -35,11 +35,7 @@ if (!DB_FILE) {
 }
 
 const MANUAL_HIGH_PERFORMANCE_MODE = false;
-
-const TOTAL_RAM_MB = MANUAL_HIGH_PERFORMANCE_MODE 
-    ? 2048 
-    : (process.env.RENDER ? 512 : Math.round(os.totalmem() / 1024 / 1024));
-
+const TOTAL_RAM_MB = process.env.RENDER ? 512 : Math.round(os.totalmem() / 1024 / 1024);
 const IS_LOW_SPEC = MANUAL_HIGH_PERFORMANCE_MODE ? false : (TOTAL_RAM_MB < 1024);
 
 console.log(`\n🚀 HistoryAddress Server Starting...`);
@@ -167,6 +163,7 @@ const db = new sqlite3.Database(DB_FILE, (err) => {
         console.log('✅ SQLite Connected:', DB_FILE);
         initializeDatabase();
         initializePartnersTable();
+        initializeNewsTable();
     }
 });
 
@@ -236,6 +233,30 @@ function initializePartnersTable() {
         )
     `, (err) => {
         if (!err) console.log('✅ Partners table initialized');
+    });
+}
+
+function initializeNewsTable() {
+    db.run(`
+        CREATE TABLE IF NOT EXISTS news (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            slug TEXT UNIQUE NOT NULL,
+            content TEXT NOT NULL,
+            excerpt TEXT,
+            cover_image TEXT,
+            published_date TEXT NOT NULL,
+            author TEXT DEFAULT 'Екипът на Адресът на историята',
+            is_published INTEGER DEFAULT 1,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+    `, (err) => {
+        if (!err) {
+            console.log('✅ News table initialized');
+            db.run('CREATE INDEX IF NOT EXISTS idx_news_slug ON news(slug)');
+            db.run('CREATE INDEX IF NOT EXISTS idx_news_published ON news(is_published, published_date DESC)');
+        }
     });
 }
 
@@ -1033,6 +1054,129 @@ app.get('/api/calendar/all', (req, res) => {
         
         apiCache.set(cacheKey, rows, 1800);
         res.json(rows || []);
+    });
+});
+
+app.get('/api/news', (req, res) => {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const offset = (page - 1) * limit;
+    const showAll = req.query.all === 'true';
+    
+    const whereClause = showAll ? '' : 'WHERE is_published = 1';
+    
+    db.get(`SELECT COUNT(*) as total FROM news ${whereClause}`, [], (err, countRow) => {
+        if (err) {
+            console.error('News count error:', err);
+            return res.status(500).json({ error: 'Database error' });
+        }
+        
+        const total = countRow ? countRow.total : 0;
+        
+        db.all(`
+            SELECT id, title, slug, excerpt, cover_image, published_date, author, is_published
+            FROM news 
+            ${whereClause}
+            ORDER BY published_date DESC
+            LIMIT ? OFFSET ?
+        `, [limit, offset], (err, rows) => {
+            if (err) {
+                console.error('News query error:', err);
+                return res.status(500).json({ error: 'Database error' });
+            }
+            
+            res.json({
+                data: rows || [],
+                pagination: {
+                    page,
+                    limit,
+                    total,
+                    totalPages: Math.ceil(total / limit)
+                }
+            });
+        });
+    });
+});
+
+app.get('/api/news/:slug', (req, res) => {
+    const slug = req.params.slug;
+    
+    db.get('SELECT * FROM news WHERE slug = ? AND is_published = 1', [slug], (err, row) => {
+        if (err) {
+            console.error('News article error:', err);
+            return res.status(500).json({ error: 'Database error' });
+        }
+        
+        if (!row) {
+            return res.status(404).json({ error: 'Article not found' });
+        }
+        
+        res.json(row);
+    });
+});
+
+app.post('/api/news', (req, res) => {
+    const { title, slug, content, excerpt, cover_image, published_date, author, is_published } = req.body;
+    
+    if (!title || !slug || !content) {
+        return res.status(400).json({ error: 'Missing required fields' });
+    }
+    
+    db.run(`
+        INSERT INTO news (title, slug, content, excerpt, cover_image, published_date, author, is_published)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `, [
+        title,
+        slug,
+        content,
+        excerpt || '',
+        cover_image || '',
+        published_date || new Date().toISOString().split('T')[0],
+        author || 'Екипът на Адресът на историята',
+        is_published !== false ? 1 : 0
+    ], function(err) {
+        if (err) {
+            console.error('News insert error:', err);
+            return res.status(500).json({ error: err.message });
+        }
+        
+        apiCache.clear();
+        res.json({ success: true, id: this.lastID });
+    });
+});
+
+app.put('/api/news/:id', (req, res) => {
+    const id = req.params.id;
+    const { title, slug, content, excerpt, cover_image, published_date, author, is_published } = req.body;
+    
+    db.run(`
+        UPDATE news 
+        SET title = ?, slug = ?, content = ?, excerpt = ?, 
+            cover_image = ?, published_date = ?, author = ?,
+            is_published = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+    `, [title, slug, content, excerpt, cover_image, published_date, author, is_published, id], function(err) {
+        if (err) {
+            console.error('News update error:', err);
+            return res.status(500).json({ error: 'Database error' });
+        }
+        
+        apiCache.clear();
+        res.json({ success: true, changes: this.changes });
+    });
+});
+
+app.delete('/api/news/:id', (req, res) => {
+    const id = req.params.id;
+    
+    db.run('DELETE FROM news WHERE id = ?', [id], function(err) {
+        if (err) {
+            console.error('News delete error:', err);
+            return res.status(500).json({ error: 'Database error' });
+        }
+        
+        apiCache.clear();
+        res.json({ success: true, deleted: this.changes > 0 });
     });
 });
 
