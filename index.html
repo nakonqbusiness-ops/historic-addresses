@@ -39,13 +39,11 @@
     <meta name="robots" content="index, follow">
 
     <style>
-        /* 1. RESET STYLES */
         .hero { background: none !important; border: none !important; border-radius: 0 !important; box-shadow: none !important; backdrop-filter: none !important; }
         .hero::after { content: none !important; }
         .cards-grid .card::after { content: none !important; }
         .nav a::after { content: none !important; }
 
-        /* 2. HEADER - match about.html sizes */
         .logo-link {
             display: flex; align-items: center; gap: 0.8rem;
             text-decoration: none; color: var(--fg);
@@ -63,16 +61,13 @@
             color: var(--fg); font-weight: 600;
         }
 
-        /* Nav links - match about.html (no overrides, let styles.css handle it) */
         .nav a { 
             color: var(--fg); opacity: 0.85;
         }
         .nav a:hover, .nav a.active { color: var(--accent-strong) !important; opacity: 1; }
 
-        /* 3. HERO SECTION */
         .hero {
             position: relative; 
-            /* REDUCED PADDING ABOVE AND BELOW */
             padding: 0.5rem 2rem 2rem !important;
             text-align: center; overflow: hidden;
             min-height: 80vh;
@@ -89,10 +84,8 @@
 
         .hero-logo {
             position: relative; display: block;
-            /* INCREASED SIZE */
             width: 220px; height: 220px; 
             object-fit: contain; 
-            /* REDUCED MARGIN UNDER LOGO */
             margin: 0 auto 0.5rem !important;
             filter: drop-shadow(0 4px 15px rgba(0,0,0,0.4));
             animation: idx-fadeDown 0.8s cubic-bezier(.4,0,.2,1) both;
@@ -163,7 +156,6 @@
             stroke-width: 2;
         }
 
-        /* 4. CARDS SECTION */
         .cards-section {
             padding: 0 2rem 6rem; max-width: 1200px; 
             margin: 0 auto; width: 100%;
@@ -232,7 +224,6 @@
         .cards-grid .card:nth-child(2) { animation: idx-fadeUp 0.6s 0.6s cubic-bezier(.4,0,.2,1) both; }
         .cards-grid .card:nth-child(3) { animation: idx-fadeUp 0.6s 0.7s cubic-bezier(.4,0,.2,1) both; }
 
-        /* 5. FOOTER */
         .site-footer {
             padding: 3rem 2rem 2rem !important;
             background: var(--card) !important;
@@ -254,7 +245,6 @@
             transform: translateY(-2px);
         }
 
-        /* 6. ANIMATIONS */
         @keyframes idx-fadeDown { from { opacity: 0; transform: translateY(-25px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes idx-fadeUp { from { opacity: 0; transform: translateY(25px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes idx-fadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -280,13 +270,14 @@
         <span class="logo-text">Адресът на историята</span>
     </a>
 
-    <nav class="nav">
-        <a href="index.html" class="active">Начало</a>
-        <a href="map.html">Карта</a>
-        <a href="addresses.html">Адреси</a>
-        <a href="calendar.html">Календар</a>
-        <a href="about.html">За Нас</a>
-    </nav>
+<nav class="nav">
+    <a href="index.html">Начало</a>
+    <a href="map.html">Карта</a>
+    <a href="addresses.html">Адреси</a>
+    <a href="calendar.html">Календар</a>
+    <a href="news.html">Новини</a>
+    <a href="about.html">За Нас</a>
+</nav>
 
     <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode">
         <span class="theme-icon sun">☀️</span>
