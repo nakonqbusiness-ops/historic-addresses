@@ -57,51 +57,7 @@
         } else {
             document.getElementById('authPassword').focus();
         }
-        
-        setupTabHandlers();
     });
-
-    function setupTabHandlers() {
-        var tabNews = document.getElementById('tabNews');
-        var tabPartners = document.getElementById('tabPartners');
-        var tabHomes = document.getElementById('tabHomes');
-        
-        if (!tabNews || !tabPartners || !tabHomes) {
-            console.error('Tab buttons not found');
-            return;
-        }
-        
-        tabHomes.addEventListener('click', function() {
-            document.getElementById('homesSection').style.display = '';
-            document.getElementById('partnersSection').style.display = 'none';
-            document.getElementById('newsSection').style.display = 'none';
-            this.classList.add('active');
-            tabPartners.classList.remove('active');
-            tabNews.classList.remove('active');
-        });
-        
-        tabPartners.addEventListener('click', function() {
-            document.getElementById('homesSection').style.display = 'none';
-            document.getElementById('partnersSection').style.display = '';
-            document.getElementById('newsSection').style.display = 'none';
-            this.classList.add('active');
-            tabHomes.classList.remove('active');
-            tabNews.classList.remove('active');
-            loadPartners();
-        });
-
-        tabNews.addEventListener('click', function() {
-            console.log('News tab clicked!');
-            document.getElementById('homesSection').style.display = 'none';
-            document.getElementById('partnersSection').style.display = 'none';
-            document.getElementById('newsSection').style.display = '';
-            this.classList.add('active');
-            tabHomes.classList.remove('active');
-            tabPartners.classList.remove('active');
-            console.log('Calling loadNews()...');
-            loadNews();
-        });
-    }
 
     document.getElementById('authPassword').addEventListener('keypress', function(e) {
         if (e.key === 'Enter') checkAuth();
@@ -127,6 +83,35 @@
     var imageSources = [];
     var portraitPreviewEl = document.getElementById('portraitPreview');
     var fPortraitEl = document.getElementById('f_portrait');
+
+    document.getElementById('tabHomes').addEventListener('click', function() {
+        document.getElementById('homesSection').style.display = '';
+        document.getElementById('partnersSection').style.display = 'none';
+        document.getElementById('newsSection').style.display = 'none';
+        this.classList.add('active');
+        document.getElementById('tabPartners').classList.remove('active');
+        document.getElementById('tabNews').classList.remove('active');
+    });
+    
+    document.getElementById('tabPartners').addEventListener('click', function() {
+        document.getElementById('homesSection').style.display = 'none';
+        document.getElementById('partnersSection').style.display = '';
+        document.getElementById('newsSection').style.display = 'none';
+        this.classList.add('active');
+        document.getElementById('tabHomes').classList.remove('active');
+        document.getElementById('tabNews').classList.remove('active');
+        loadPartners();
+    });
+
+    document.getElementById('tabNews').addEventListener('click', function() {
+        document.getElementById('homesSection').style.display = 'none';
+        document.getElementById('partnersSection').style.display = 'none';
+        document.getElementById('newsSection').style.display = '';
+        this.classList.add('active');
+        document.getElementById('tabHomes').classList.remove('active');
+        document.getElementById('tabPartners').classList.remove('active');
+        loadNews();
+    });
 
     function loadHomes(page){
         page = page || state.currentPage;
@@ -660,21 +645,12 @@
     });
 
     function loadNews() {
-        console.log('Loading news articles...');
         var search = (document.getElementById('newsSearch').value || '').toLowerCase();
         
         fetch(NEWS_API + '?all=true&limit=100')
-            .then(function(res) {
-                console.log('News API response status:', res.status);
-                if (!res.ok) {
-                    throw new Error('HTTP error! status: ' + res.status);
-                }
-                return res.json();
-            })
+            .then(function(res) { return res.json(); })
             .then(function(response) {
-                console.log('News API response:', response);
                 var news = response.data || [];
-                console.log('Found', news.length, 'news articles');
                 currentNews = news;
                 
                 if (search) {
@@ -689,10 +665,7 @@
             })
             .catch(function(err) {
                 console.error('Error loading news:', err);
-                var list = document.getElementById('newsList');
-                if (list) {
-                    list.innerHTML = '<p style="text-align:center;padding:2rem;color:#ff6b6b;">Error loading news: ' + err.message + '</p>';
-                }
+                alert('Error loading news');
             });
     }
 
