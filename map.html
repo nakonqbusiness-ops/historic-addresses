@@ -313,7 +313,7 @@ document.addEventListener('keydown', function(e) {
 					
 					if (focused) {
 						setTimeout(function() {
-							m.setView([focused.lat, focused.lng], Math.max(m.getZoom(), 15));
+							m.setView([focused.lat, focused.lng], Math.max(m.getZoom(), 19));
 							focused.marker.openTooltip();
 						}, 300);
 					}
