@@ -34,7 +34,7 @@ if (!DB_FILE) {
     console.log('⚠️  No existing database found, will create new at:', DB_FILE);
 }
 
-const MANUAL_HIGH_PERFORMANCE_MODE = true;
+const MANUAL_HIGH_PERFORMANCE_MODE = false;
 const TOTAL_RAM_MB = process.env.RENDER ? 512 : Math.round(os.totalmem() / 1024 / 1024);
 const IS_LOW_SPEC = MANUAL_HIGH_PERFORMANCE_MODE ? false : (TOTAL_RAM_MB < 1024);
 
