@@ -70,6 +70,8 @@
     var API_URL = apiBase + '/api/homes';
     var PARTNERS_API = apiBase + '/api/partners';
     var NEWS_API = apiBase + '/api/news';
+    var TEAM_API = apiBase + '/api/team';
+
     var state = { 
         currentPage: 1,
         totalPages: 1,
@@ -79,40 +81,49 @@
     };
     var currentPartners = [];
     var currentNews = [];
+    var currentTeam = [];
     var searchTimeout;
     var imageSources = [];
     var portraitPreviewEl = document.getElementById('portraitPreview');
     var fPortraitEl = document.getElementById('f_portrait');
 
+    // ── Tab switching ─────────────────────────────────────────────
     document.getElementById('tabHomes').addEventListener('click', function() {
-        document.getElementById('homesSection').style.display = '';
-        document.getElementById('partnersSection').style.display = 'none';
-        document.getElementById('newsSection').style.display = 'none';
-        this.classList.add('active');
-        document.getElementById('tabPartners').classList.remove('active');
-        document.getElementById('tabNews').classList.remove('active');
+        showSection('homesSection');
+        setActiveTab('tabHomes');
     });
     
     document.getElementById('tabPartners').addEventListener('click', function() {
-        document.getElementById('homesSection').style.display = 'none';
-        document.getElementById('partnersSection').style.display = '';
-        document.getElementById('newsSection').style.display = 'none';
-        this.classList.add('active');
-        document.getElementById('tabHomes').classList.remove('active');
-        document.getElementById('tabNews').classList.remove('active');
+        showSection('partnersSection');
+        setActiveTab('tabPartners');
         loadPartners();
     });
 
     document.getElementById('tabNews').addEventListener('click', function() {
-        document.getElementById('homesSection').style.display = 'none';
-        document.getElementById('partnersSection').style.display = 'none';
-        document.getElementById('newsSection').style.display = '';
-        this.classList.add('active');
-        document.getElementById('tabHomes').classList.remove('active');
-        document.getElementById('tabPartners').classList.remove('active');
+        showSection('newsSection');
+        setActiveTab('tabNews');
         loadNews();
     });
 
+    document.getElementById('tabTeam').addEventListener('click', function() {
+        showSection('teamSection');
+        setActiveTab('tabTeam');
+        loadTeam();
+    });
+
+    function showSection(id) {
+        ['homesSection','partnersSection','newsSection','teamSection'].forEach(function(s) {
+            document.getElementById(s).style.display = s === id ? '' : 'none';
+        });
+    }
+
+    function setActiveTab(id) {
+        ['tabHomes','tabPartners','tabNews','tabTeam'].forEach(function(t) {
+            document.getElementById(t).classList.toggle('active', t === id);
+        });
+    }
+
+    // ── Homes ─────────────────────────────────────────────────────
     function loadHomes(page){
         page = page || state.currentPage;
         var url = API_URL + '?all=true&page=' + page + '&limit=6';
@@ -446,6 +457,7 @@
         }
     });
 
+    // ── Partners ──────────────────────────────────────────────────
     function loadPartners() {
         var search = (document.getElementById('partnerSearch').value || '').toLowerCase();
         
@@ -644,6 +656,7 @@
         }
     });
 
+    // ── News ──────────────────────────────────────────────────────
     function loadNews() {
         var search = (document.getElementById('newsSearch').value || '').toLowerCase();
         
@@ -869,16 +882,220 @@
         }
     });
 
+    // ── Team ──────────────────────────────────────────────────────
+    function loadTeam() {
+        var search = (document.getElementById('teamSearch').value || '').toLowerCase();
+        
+        fetch(TEAM_API + '?all=true')
+            .then(function(res) { return res.json(); })
+            .then(function(team) {
+                currentTeam = team;
+                
+                if (search) {
+                    team = team.filter(function(t) {
+                        return t.name.toLowerCase().includes(search) ||
+                               (t.role && t.role.toLowerCase().includes(search)) ||
+                               (t.bio && t.bio.toLowerCase().includes(search));
+                    });
+                }
+                
+                renderTeam(team);
+            })
+            .catch(function(err) {
+                console.error('Error loading team:', err);
+                alert('Error loading team');
+            });
+    }
+
+    function renderTeam(team) {
+        var list = document.getElementById('teamList');
+        list.innerHTML = '';
+        
+        if (team.length === 0) {
+            list.innerHTML = '<p style="text-align:center;padding:2rem;color:#999;">No team members found.</p>';
+            return;
+        }
+        
+        team.forEach(function(t) {
+            var card = document.createElement('div');
+            card.className = 'thumb';
+            var photo = t.photo || 'assets/img/placeholder.svg';
+            
+            var publishedLabel = t.is_published ? 'Published' : 'Hidden';
+            var statusColor = t.is_published ? '#28a745' : '#6c757d';
+            
+            card.innerHTML = '<img alt="' + t.name + '" loading="lazy" src="' + photo + '" style="object-fit:cover;height:180px;border-radius:50%;width:180px;margin:0 auto;display:block;">' +
+                '<div class="meta" style="text-align:center;"><strong>' + t.name + '</strong>' +
+                '<div class="muted" style="margin-top:4px;font-size:0.9rem;color:var(--accent-strong);">' + (t.role || 'Member') + '</div>' +
+                '<div style="margin-top:4px;font-size:0.85rem;color:' + statusColor + ';">● ' + publishedLabel + '</div>' +
+                '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">' +
+                '<button data-act="editTeam" data-id="' + t.id + '" class="theme-toggle">Edit</button>' +
+                '<button data-act="toggleTeam" data-id="' + t.id + '" class="theme-toggle">' + (t.is_published ? 'Hide' : 'Publish') + '</button>' +
+                '<button data-act="deleteTeam" data-id="' + t.id + '" class="theme-toggle">Delete</button>' +
+                '</div></div>';
+            list.appendChild(card);
+        });
+    }
+
+    var teamSearchTimeout;
+    document.getElementById('teamSearch').addEventListener('input', function() {
+        clearTimeout(teamSearchTimeout);
+        teamSearchTimeout = setTimeout(loadTeam, 300);
+    });
+
+    function openTeamModal(title) {
+        document.getElementById('teamDlgTitle').textContent = title;
+        document.getElementById('teamModal').style.display = 'flex';
+    }
+
+    function closeTeamModal() {
+        document.getElementById('teamModal').style.display = 'none';
+    }
+
+    function fillTeamForm(t) {
+        document.getElementById('t_name').value = t.name || '';
+        document.getElementById('t_role').value = t.role || '';
+        document.getElementById('t_bio').value = t.bio || '';
+        document.getElementById('t_photo').value = t.photo || '';
+        document.getElementById('t_order').value = t.display_order || 0;
+        document.getElementById('t_published').checked = t.is_published !== 0;
+        renderTeamPhotoPreview();
+    }
+
+    function renderTeamPhotoPreview() {
+        var preview = document.getElementById('teamPhotoPreview');
+        var url = document.getElementById('t_photo').value.trim();
+        preview.innerHTML = '';
+        
+        if (url) {
+            var img = document.createElement('img');
+            img.src = url;
+            img.alt = 'Photo Preview';
+            img.style.maxWidth = '120px';
+            img.style.maxHeight = '120px';
+            img.style.objectFit = 'cover';
+            img.style.borderRadius = '50%';
+            img.style.border = '3px solid var(--accent-strong)';
+            
+            var clearBtn = document.createElement('button');
+            clearBtn.textContent = '× Clear';
+            clearBtn.className = 'theme-toggle';
+            clearBtn.style.marginLeft = '10px';
+            clearBtn.onclick = function() {
+                document.getElementById('t_photo').value = '';
+                renderTeamPhotoPreview();
+            };
+            
+            preview.appendChild(img);
+            preview.appendChild(clearBtn);
+        }
+    }
+
+    function loadTeamPhotoFile(file) {
+        if (!file) return;
+        if (!/^image\//.test(file.type)) { alert('Please select an image'); return; }
+        if (file.size > 5 * 1024 * 1024) { alert('Photo exceeds 5MB'); return; }
+        
+        var fr = new FileReader();
+        fr.onload = function() {
+            document.getElementById('t_photo').value = fr.result;
+            renderTeamPhotoPreview();
+        };
+        fr.readAsDataURL(file);
+    }
+
+    document.getElementById('addTeamBtn').addEventListener('click', function() {
+        document.getElementById('t_id').value = '';
+        fillTeamForm({ is_published: 1, display_order: 0 });
+        openTeamModal('Add Team Member');
+    });
+
+    document.getElementById('closeTeamDlg').addEventListener('click', closeTeamModal);
+    document.getElementById('cancelTeamDlg').addEventListener('click', closeTeamModal);
+
+    document.getElementById('t_photo').addEventListener('input', renderTeamPhotoPreview);
+
+    document.getElementById('teamPhotoDrop').addEventListener('dragover', function(e) { e.preventDefault(); });
+    document.getElementById('teamPhotoDrop').addEventListener('drop', function(e) {
+        e.preventDefault();
+        var file = (e.dataTransfer.files && e.dataTransfer.files[0]) || null;
+        if (file) loadTeamPhotoFile(file);
+    });
+
+    document.getElementById('teamPhotoPick').addEventListener('click', function() {
+        document.getElementById('teamPhotoFile').click();
+    });
+
+    document.getElementById('teamPhotoFile').addEventListener('change', function(e) {
+        var file = (e.target.files && e.target.files[0]) || null;
+        if (file) loadTeamPhotoFile(file);
+        e.target.value = '';
+    });
+
+    document.getElementById('teamForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        var teamId = document.getElementById('t_id').value;
+        var teamData = {
+            name: document.getElementById('t_name').value.trim(),
+            role: document.getElementById('t_role').value.trim() || '',
+            bio: document.getElementById('t_bio').value.trim() || '',
+            photo: document.getElementById('t_photo').value.trim() || '',
+            display_order: parseInt(document.getElementById('t_order').value) || 0,
+            is_published: document.getElementById('t_published').checked ? 1 : 0
+        };
+
+        if (!teamData.name) {
+            alert('Name is required');
+            return;
+        }
+        
+        if (!teamId) {
+            fetch(TEAM_API, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(teamData)
+            })
+            .then(function(res) { return res.json(); })
+            .then(function() {
+                closeTeamModal();
+                loadTeam();
+                alert('Team member added!');
+            })
+            .catch(function(err) {
+                console.error(err);
+                alert('Error adding team member');
+            });
+        } else {
+            fetch(TEAM_API + '/' + teamId, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(teamData)
+            })
+            .then(function(res) { return res.json(); })
+            .then(function() {
+                closeTeamModal();
+                loadTeam();
+                alert('Team member updated!');
+            })
+            .catch(function(err) {
+                console.error(err);
+                alert('Error updating team member');
+            });
+        }
+    });
+
+    // ── Unified click handler (homes + partners + news + team) ────
     document.addEventListener('click', function(e){
         var act = e.target && e.target.getAttribute('data-act');
         if (!act) return;
         var id = e.target.getAttribute('data-id');
         if (!id) return;
-        
+
+        // Homes
         if (act === 'edit') {
             editHome(id);
         }
-        
         if (act === 'toggle') {
             fetch(API_URL + '/' + id)
                 .then(function(res){ return res.json(); })
@@ -893,7 +1110,6 @@
                 .then(function(){ loadHomes(state.currentPage); })
                 .catch(function(err){ console.error(err); alert('Error updating'); });
         }
-        
         if (act === 'delete') {
             if (confirm('Delete this home?')) {
                 fetch(API_URL + '/' + id, { method: 'DELETE' })
@@ -901,7 +1117,8 @@
                     .catch(function(err){ console.error(err); alert('Error deleting'); });
             }
         }
-        
+
+        // Partners
         if (act === 'editPartner') {
             fetch(PARTNERS_API + '/' + id)
                 .then(function(res) { return res.json(); })
@@ -910,12 +1127,8 @@
                     fillPartnerForm(partner);
                     openPartnerModal('Edit Partner');
                 })
-                .catch(function(err) {
-                    console.error(err);
-                    alert('Error loading partner');
-                });
+                .catch(function(err) { console.error(err); alert('Error loading partner'); });
         }
-        
         if (act === 'togglePartner') {
             fetch(PARTNERS_API + '/' + id)
                 .then(function(res) { return res.json(); })
@@ -928,23 +1141,17 @@
                     });
                 })
                 .then(function() { loadPartners(); })
-                .catch(function(err) {
-                    console.error(err);
-                    alert('Error updating partner');
-                });
+                .catch(function(err) { console.error(err); alert('Error updating partner'); });
         }
-        
         if (act === 'deletePartner') {
             if (confirm('Delete this partner?')) {
                 fetch(PARTNERS_API + '/' + id, { method: 'DELETE' })
                     .then(function() { loadPartners(); })
-                    .catch(function(err) {
-                        console.error(err);
-                        alert('Error deleting partner');
-                    });
+                    .catch(function(err) { console.error(err); alert('Error deleting partner'); });
             }
         }
 
+        // News
         if (act === 'editNews') {
             fetch(NEWS_API + '/' + id + '?all=true')
                 .then(function(res) {
@@ -964,12 +1171,8 @@
                     fillNewsForm(article);
                     openNewsModal('Edit News Article');
                 })
-                .catch(function(err) {
-                    console.error(err);
-                    alert('Error loading article');
-                });
+                .catch(function(err) { console.error(err); alert('Error loading article'); });
         }
-
         if (act === 'toggleNews') {
             fetch(NEWS_API + '?all=true&limit=1000')
                 .then(function(res) { return res.json(); })
@@ -984,292 +1187,50 @@
                     });
                 })
                 .then(function() { loadNews(); })
-                .catch(function(err) {
-                    console.error(err);
-                    alert('Error updating article');
-                });
+                .catch(function(err) { console.error(err); alert('Error updating article'); });
         }
-
         if (act === 'deleteNews') {
             if (confirm('Delete this article?')) {
                 fetch(NEWS_API + '/' + id, { method: 'DELETE' })
                     .then(function() { loadNews(); })
-                    .catch(function(err) {
-                        console.error(err);
-                        alert('Error deleting article');
+                    .catch(function(err) { console.error(err); alert('Error deleting article'); });
+            }
+        }
+
+        // ── Team actions — fixed: now inside the click handler ───
+        if (act === 'editTeam') {
+            fetch(TEAM_API + '/' + id)
+                .then(function(res) { return res.json(); })
+                .then(function(member) {
+                    document.getElementById('t_id').value = member.id;
+                    fillTeamForm(member);
+                    openTeamModal('Edit Team Member');
+                })
+                .catch(function(err) { console.error(err); alert('Error loading team member'); });
+        }
+        if (act === 'toggleTeam') {
+            fetch(TEAM_API + '/' + id)
+                .then(function(res) { return res.json(); })
+                .then(function(member) {
+                    member.is_published = member.is_published ? 0 : 1;
+                    return fetch(TEAM_API + '/' + id, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(member)
                     });
+                })
+                .then(function() { loadTeam(); })
+                .catch(function(err) { console.error(err); alert('Error updating team member'); });
+        }
+        if (act === 'deleteTeam') {
+            if (confirm('Delete this team member?')) {
+                fetch(TEAM_API + '/' + id, { method: 'DELETE' })
+                    .then(function() { loadTeam(); })
+                    .catch(function(err) { console.error(err); alert('Error deleting team member'); });
             }
         }
     });
-    
+
     document.getElementById('year').textContent = new Date().getFullYear();
-    // ============================================
-// TEAM MANAGEMENT CODE
-// Add this to the END of your admin-script.js
-// (before the closing })();)
-// ============================================
-
-var TEAM_API = apiBase + '/api/team';
-var currentTeam = [];
-
-// Tab switching for Team
-document.getElementById('tabTeam').addEventListener('click', function() {
-    document.getElementById('homesSection').style.display = 'none';
-    document.getElementById('partnersSection').style.display = 'none';
-    document.getElementById('newsSection').style.display = 'none';
-    document.getElementById('teamSection').style.display = '';
-    
-    document.getElementById('tabHomes').classList.remove('active');
-    document.getElementById('tabPartners').classList.remove('active');
-    document.getElementById('tabNews').classList.remove('active');
-    this.classList.add('active');
-    
-    loadTeam();
-});
-
-function loadTeam() {
-    var search = (document.getElementById('teamSearch').value || '').toLowerCase();
-    
-    fetch(TEAM_API + '?all=true')
-        .then(function(res) { return res.json(); })
-        .then(function(team) {
-            currentTeam = team;
-            
-            if (search) {
-                team = team.filter(function(t) {
-                    return t.name.toLowerCase().includes(search) ||
-                           (t.role && t.role.toLowerCase().includes(search)) ||
-                           (t.bio && t.bio.toLowerCase().includes(search));
-                });
-            }
-            
-            renderTeam(team);
-        })
-        .catch(function(err) {
-            console.error('Error loading team:', err);
-            alert('Error loading team');
-        });
-}
-
-function renderTeam(team) {
-    var list = document.getElementById('teamList');
-    list.innerHTML = '';
-    
-    if (team.length === 0) {
-        list.innerHTML = '<p style="text-align:center;padding:2rem;color:#999;">No team members found.</p>';
-        return;
-    }
-    
-    team.forEach(function(t) {
-        var card = document.createElement('div');
-        card.className = 'thumb';
-        var photo = t.photo || 'assets/img/placeholder.svg';
-        
-        var publishedLabel = t.is_published ? 'Published' : 'Hidden';
-        var statusColor = t.is_published ? '#28a745' : '#6c757d';
-        
-        card.innerHTML = '<img alt="' + t.name + '" loading="lazy" src="' + photo + '" style="object-fit:cover;height:180px;border-radius:50%;width:180px;margin:0 auto;display:block;">' +
-            '<div class="meta" style="text-align:center;"><strong>' + t.name + '</strong>' +
-            '<div class="muted" style="margin-top:4px;font-size:0.9rem;color:var(--accent-strong);">' + (t.role || 'Member') + '</div>' +
-            '<div style="margin-top:4px;font-size:0.85rem;color:' + statusColor + ';">● ' + publishedLabel + '</div>' +
-            '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">' +
-            '<button data-act="editTeam" data-id="' + t.id + '" class="theme-toggle">Edit</button>' +
-            '<button data-act="toggleTeam" data-id="' + t.id + '" class="theme-toggle">' + (t.is_published ? 'Hide' : 'Publish') + '</button>' +
-            '<button data-act="deleteTeam" data-id="' + t.id + '" class="theme-toggle">Delete</button>' +
-            '</div></div>';
-        list.appendChild(card);
-    });
-}
-
-var teamSearchTimeout;
-document.getElementById('teamSearch').addEventListener('input', function() {
-    clearTimeout(teamSearchTimeout);
-    teamSearchTimeout = setTimeout(loadTeam, 300);
-});
-
-function openTeamModal(title) {
-    document.getElementById('teamDlgTitle').textContent = title;
-    document.getElementById('teamModal').style.display = 'flex';
-}
-
-function closeTeamModal() {
-    document.getElementById('teamModal').style.display = 'none';
-}
-
-function fillTeamForm(t) {
-    document.getElementById('t_name').value = t.name || '';
-    document.getElementById('t_role').value = t.role || '';
-    document.getElementById('t_bio').value = t.bio || '';
-    document.getElementById('t_photo').value = t.photo || '';
-    document.getElementById('t_order').value = t.display_order || 0;
-    document.getElementById('t_published').checked = t.is_published !== 0;
-    renderTeamPhotoPreview();
-}
-
-function renderTeamPhotoPreview() {
-    var preview = document.getElementById('teamPhotoPreview');
-    var url = document.getElementById('t_photo').value.trim();
-    preview.innerHTML = '';
-    
-    if (url) {
-        var img = document.createElement('img');
-        img.src = url;
-        img.alt = 'Photo Preview';
-        img.style.maxWidth = '120px';
-        img.style.maxHeight = '120px';
-        img.style.objectFit = 'cover';
-        img.style.borderRadius = '50%';
-        img.style.border = '3px solid var(--accent-strong)';
-        
-        var clearBtn = document.createElement('button');
-        clearBtn.textContent = '× Clear';
-        clearBtn.className = 'theme-toggle';
-        clearBtn.style.marginLeft = '10px';
-        clearBtn.onclick = function() {
-            document.getElementById('t_photo').value = '';
-            renderTeamPhotoPreview();
-        };
-        
-        preview.appendChild(img);
-        preview.appendChild(clearBtn);
-    }
-}
-
-function loadTeamPhotoFile(file) {
-    if (!file) return;
-    if (!/^image\//.test(file.type)) { alert('Please select an image'); return; }
-    if (file.size > 5 * 1024 * 1024) { alert('Photo exceeds 5MB'); return; }
-    
-    var fr = new FileReader();
-    fr.onload = function() {
-        document.getElementById('t_photo').value = fr.result;
-        renderTeamPhotoPreview();
-    };
-    fr.readAsDataURL(file);
-}
-
-document.getElementById('addTeamBtn').addEventListener('click', function() {
-    document.getElementById('t_id').value = '';
-    fillTeamForm({ is_published: 1, display_order: 0 });
-    openTeamModal('Add Team Member');
-});
-
-document.getElementById('closeTeamDlg').addEventListener('click', closeTeamModal);
-document.getElementById('cancelTeamDlg').addEventListener('click', closeTeamModal);
-
-document.getElementById('t_photo').addEventListener('input', renderTeamPhotoPreview);
-
-document.getElementById('teamPhotoDrop').addEventListener('dragover', function(e) { e.preventDefault(); });
-document.getElementById('teamPhotoDrop').addEventListener('drop', function(e) {
-    e.preventDefault();
-    var file = (e.dataTransfer.files && e.dataTransfer.files[0]) || null;
-    if (file) loadTeamPhotoFile(file);
-});
-
-document.getElementById('teamPhotoPick').addEventListener('click', function() {
-    document.getElementById('teamPhotoFile').click();
-});
-
-document.getElementById('teamPhotoFile').addEventListener('change', function(e) {
-    var file = (e.target.files && e.target.files[0]) || null;
-    if (file) loadTeamPhotoFile(file);
-    e.target.value = '';
-});
-
-document.getElementById('teamForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    
-    var teamId = document.getElementById('t_id').value;
-    var teamData = {
-        name: document.getElementById('t_name').value.trim(),
-        role: document.getElementById('t_role').value.trim() || '',
-        bio: document.getElementById('t_bio').value.trim() || '',
-        photo: document.getElementById('t_photo').value.trim() || '',
-        display_order: parseInt(document.getElementById('t_order').value) || 0,
-        is_published: document.getElementById('t_published').checked ? 1 : 0
-    };
-
-    if (!teamData.name) {
-        alert('Name is required');
-        return;
-    }
-    
-    if (!teamId) {
-        fetch(TEAM_API, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(teamData)
-        })
-        .then(function(res) { return res.json(); })
-        .then(function() {
-            closeTeamModal();
-            loadTeam();
-            alert('Team member added!');
-        })
-        .catch(function(err) {
-            console.error(err);
-            alert('Error adding team member');
-        });
-    } else {
-        fetch(TEAM_API + '/' + teamId, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(teamData)
-        })
-        .then(function(res) { return res.json(); })
-        .then(function() {
-            closeTeamModal();
-            loadTeam();
-            alert('Team member updated!');
-        })
-        .catch(function(err) {
-            console.error(err);
-            alert('Error updating team member');
-        });
-    }
-});
-
-if (act === 'editTeam') {
-    fetch(TEAM_API + '/' + id)
-        .then(function(res) { return res.json(); })
-        .then(function(member) {
-            document.getElementById('t_id').value = member.id;
-            fillTeamForm(member);
-            openTeamModal('Edit Team Member');
-        })
-        .catch(function(err) {
-            console.error(err);
-            alert('Error loading team member');
-        });
-}
-
-if (act === 'toggleTeam') {
-    fetch(TEAM_API + '/' + id)
-        .then(function(res) { return res.json(); })
-        .then(function(member) {
-            member.is_published = member.is_published ? 0 : 1;
-            return fetch(TEAM_API + '/' + id, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(member)
-            });
-        })
-        .then(function() { loadTeam(); })
-        .catch(function(err) {
-            console.error(err);
-            alert('Error updating team member');
-        });
-}
-
-if (act === 'deleteTeam') {
-    if (confirm('Delete this team member?')) {
-        fetch(TEAM_API + '/' + id, { method: 'DELETE' })
-            .then(function() { loadTeam(); })
-            .catch(function(err) {
-                console.error(err);
-                alert('Error deleting team member');
-            });
-    }
-}
 
 })();
