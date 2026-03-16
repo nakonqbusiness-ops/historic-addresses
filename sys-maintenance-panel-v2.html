@@ -104,6 +104,7 @@
             display: flex;
             gap: 0.5rem;
             margin-bottom: 1.5rem;
+            flex-wrap: wrap;
         }
         .tab-buttons button {
             padding: 0.75rem 1.5rem;
@@ -159,8 +160,10 @@
                 <button id="tabHomes" class="active">🏠 Homes</button>
                 <button id="tabPartners">🤝 Partners</button>
                 <button id="tabNews">📰 News</button>
+                <button id="tabTeam">👥 Team</button>
             </div>
 
+            <!-- HOMES SECTION -->
             <section id="homesSection">
                 <div class="toolbar">
                     <button id="addBtn" class="theme-toggle">Add New Home</button>
@@ -178,6 +181,7 @@
                 </div>
             </section>
 
+            <!-- PARTNERS SECTION -->
             <section id="partnersSection" style="display:none;">
                 <div class="toolbar">
                     <button id="addPartnerBtn" class="theme-toggle">Add New Partner</button>
@@ -187,6 +191,7 @@
                 <div id="partnersList" class="grid"></div>
             </section>
 
+            <!-- NEWS SECTION -->
             <section id="newsSection" style="display:none;">
                 <div class="toolbar">
                     <button id="addNewsBtn" class="theme-toggle">Add New Article</button>
@@ -195,8 +200,19 @@
 
                 <div id="newsList" class="grid"></div>
             </section>
+
+            <!-- TEAM SECTION -->
+            <section id="teamSection" style="display:none;">
+                <div class="toolbar">
+                    <button id="addTeamBtn" class="theme-toggle">Add Team Member</button>
+                    <input id="teamSearch" class="input" placeholder="Search team...">
+                </div>
+
+                <div id="teamList" class="grid"></div>
+            </section>
         </main>
 
+        <!-- HOMES MODAL -->
         <div id="modal" class="backdrop">
             <div class="modal" role="dialog" aria-modal="true" aria-labelledby="dlgTitle">
                 <header>
@@ -245,6 +261,7 @@
             </div>
         </div>
 
+        <!-- PARTNERS MODAL -->
         <div id="partnerModal" class="backdrop">
             <div class="modal" role="dialog">
                 <header>
@@ -324,6 +341,66 @@
                     <div class="actions">
                         <button type="button" id="cancelNewsDlg" class="theme-toggle">Cancel</button>
                         <button type="submit" class="theme-toggle">Save Article</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- TEAM MODAL -->
+        <div id="teamModal" class="backdrop">
+            <div class="modal" role="dialog">
+                <header>
+                    <h2 id="teamDlgTitle">Edit Team Member</h2>
+                    <button id="closeTeamDlg" class="theme-toggle">×</button>
+                </header>
+                <form id="teamForm">
+                    <div class="content">
+                        <input type="hidden" id="t_id">
+                        <div class="form-grid">
+                            <label class="full">
+                                <span class="label">Name *</span>
+                                <input id="t_name" class="field" required>
+                            </label>
+                            
+                            <label class="full">
+                                <span class="label">Role</span>
+                                <input id="t_role" class="field" placeholder="Основател, Администратор, Член на екипа...">
+                            </label>
+                            
+                            <label class="full">
+                                <span class="label">Bio (short description)</span>
+                                <textarea id="t_bio" class="field textarea" rows="4" placeholder="Brief biography..."></textarea>
+                            </label>
+                            
+                            <label class="full">
+                                <span class="label">Photo URL</span>
+                                <input id="t_photo" class="field" placeholder="/assets/team/photo.jpg">
+                            </label>
+                            
+                            <div class="full drop" id="teamPhotoDrop">
+                                Drop photo or 
+                                <button type="button" id="teamPhotoPick" class="theme-toggle">Choose file</button>
+                                <input id="teamPhotoFile" type="file" accept="image/*" style="display:none">
+                            </div>
+                            <div id="teamPhotoPreview" style="margin-top: 10px; text-align: center;"></div>
+                            
+                            <label>
+                                <span class="label">Display Order</span>
+                                <input id="t_order" class="field" type="number" value="0">
+                            </label>
+                            
+                            <label>
+                                <span class="label">Published</span>
+                                <span class="row">
+                                    <input id="t_published" type="checkbox" checked>
+                                    <span>Visible</span>
+                                </span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="actions">
+                        <button type="button" id="cancelTeamDlg" class="theme-toggle">Cancel</button>
+                        <button type="submit" class="theme-toggle">Save Member</button>
                     </div>
                 </form>
             </div>
