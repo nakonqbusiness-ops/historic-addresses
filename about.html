@@ -359,6 +359,793 @@
         .partners-empty-icon { font-size: 2.5rem; opacity: 0.45; }
         .partners-empty-text { font-size: 0.95rem; max-width: 320px; line-height: 1.55; }
 
+        /* "more partners" info bar */
+        .partners-more-bar {
+            display: none;
+            margin-top: 1.5rem;
+            padding: 1rem 1.5rem;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            text-align: center;
+            font-size: 0.93rem;
+            color: var(--muted);
+        }
+        .partners-more-bar a {
+            color: var(--accent-strong);
+            font-weight: 700;
+            text-decoration: none;
+            margin-left: 0.35rem;
+        }
+        .partners-more-bar a:hover { text-decoration: underline; }
+
+        /* ─── Contact ─────────────────────────────────────────── */
+        .contact-section {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 3rem;
+            text-align: center;
+        }
+        .contact-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+        .contact-item {
+            padding: 1.5rem;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            text-decoration: none;
+            color: var(--fg);
+            display: flex; align-items: center; justify-content: center;
+            gap: 12px;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+        .contact-item:hover {
+            border-color: var(--accent-strong);
+            background: rgba(205,133,63,0.1);
+            transform: translateY(-2px);
+        }
+        .contact-icon { font-size: 1.5rem; }
+
+        /* ─── Responsive ──────────────────────────────────────── */
+        @media (max-width: 768px) {
+            .about-wrapper { padding: 2rem 1rem 3rem; }
+            .mission-section { padding: 2rem 1.5rem; }
+            .values-grid, .contact-grid { grid-template-columns: 1fr; }
+            .team-grid, .team-overflow, .partners-preview-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+        @media (max-width: 480px) {
+            .team-grid, .team-overflow, .partners-preview-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<header class="site-header">
+    <a class="logo-link" href="index.html">
+        <img src="assets/img/HistAdrLogo.png" alt="Адресът на историята" class="header-logo">
+        <span class="logo-text">Адресът на историята</span>
+    </a>
+    <nav class="nav">
+        <a href="index.html">Начало</a>
+        <a href="map.html">Карта</a>
+        <a href="addresses.html">Адреси</a>
+        <a href="calendar.html">Календар</a>
+        <a href="news.html">Новини</a>
+        <a href="about.html" class="active">За Нас</a>
+    </nav>
+    <button id="theme-toggle" aria-label="Toggle dark mode">
+        <span class="theme-icon sun">☀️</span>
+        <span class="theme-icon moon">🌙</span>
+    </button>
+</header>
+
+<main class="about-wrapper">
+
+    <!-- Hero -->
+    <section class="about-hero">
+        <img src="assets/img/HistAdrLogoOrig.png" alt="Адресът на историята" class="about-logo">
+        <h1 class="hero-title">За „Адресът на историята"</h1>
+        <p class="hero-subtitle">
+            Дигитален архив, съхраняващ паметта за домовете и личностите, които са оформили България.
+        </p>
+    </section>
+
+    <!-- Mission -->
+    <section class="mission-section">
+        <h2 class="section-title">🎯 Нашата мисия</h2>
+        <div class="mission-text">
+            <p>Ние сме група ученици от <strong>Първа английска езикова гимназия</strong>, обединени от любовта към България и желанието да съхраним спомена за нашите забележителни личности.</p>
+            <p>Нашата неправителствена организация цели да документира адресите на домовете на хора, които с делата, таланта и идеите си са оставили следа в българската история и култура. Всеки адрес и всяка история, която публикуваме, е малък мост между миналото и настоящето.</p>
+            <p>С този сайт искаме не само да запазим паметта за великите българи, но и да вдъхновим нашите връстници да се гордеят със своето наследство и да се стремят към лични постижения. Вярваме, че знанието за миналото е основа за силна и осъзната нация.</p>
+        </div>
+    </section>
+
+    <!-- Values -->
+    <section class="values-section">
+        <h2 class="section-title">💎 Нашите Ценности</h2>
+        <div class="values-grid">
+            <div class="value-card">
+                <div class="value-icon">📚</div>
+                <div class="value-title">Образование</div>
+                <p class="value-text">Споделяме знания за българската история по достъпен и интересен начин.</p>
+            </div>
+            <div class="value-card">
+                <div class="value-icon">🏛️</div>
+                <div class="value-title">Наследство</div>
+                <p class="value-text">Съхраняваме паметта за архитектурното и културното богатство на България.</p>
+            </div>
+            <div class="value-card">
+                <div class="value-icon">🌱</div>
+                <div class="value-title">Вдъхновение</div>
+                <p class="value-text">Мотивираме младите хора да се гордеят с българската идентичност.</p>
+            </div>
+            <div class="value-card">
+                <div class="value-icon">🤝</div>
+                <div class="value-title">Общност</div>
+                <p class="value-text">Изграждаме мрежа от хора, които се грижат за културното наследство.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ── TEAM ──────────────────────────────────────────────── -->
+    <section class="leadership-section">
+        <div class="team-header">
+            <h2 class="section-title">👥 Нашият Екип</h2>
+            <span class="member-count-badge" id="memberCount" style="display:none;"></span>
+        </div>
+
+        <div class="team-grid" id="teamGrid">
+            <!-- First 4 members rendered here; extras in .team-overflow below -->
+        </div>
+
+        <div class="team-actions">
+            <button class="team-show-more" id="teamShowMore" onclick="toggleMoreMembers()">
+                Виж всички членове
+            </button>
+        </div>
+    </section>
+
+    <!-- ── PARTNERS ──────────────────────────────────────────── -->
+    <section class="partners-section">
+        <div class="partners-section-header">
+            <h2 class="section-title">✨ Нашите Партньори</h2>
+            <a href="partners.html" class="partners-all-link">Виж всички →</a>
+        </div>
+
+        <div class="partners-preview-grid" id="partnersGrid">
+            <!-- populated by JS -->
+        </div>
+
+        <div class="partners-more-bar" id="partnersMoreBar">
+            Показани 3 от <strong id="partnersTotalCount"></strong> партньора. —
+            <a href="partners.html">Виж всички →</a>
+        </div>
+    </section>
+
+    <!-- Contact -->
+    <section class="contact-section">
+        <h2 class="section-title" style="justify-content:center;">📧 Свържете се с нас</h2>
+        <p style="color:var(--muted);margin-bottom:2rem;">
+            Имате информация за споделяне или искате да подкрепите проекта?
+        </p>
+        <div class="contact-grid">
+            <a href="mailto:historyaddressbg@gmail.com" class="contact-item" onclick="handleEmailClick(event)">
+                <span class="contact-icon">📧</span>
+                historyaddressbg@gmail.com
+            </a>
+            <a href="https://www.instagram.com/historyaddress.bg/" target="_blank" class="contact-item">
+                <span class="contact-icon">📷</span>
+                @historyaddress.bg
+            </a>
+        </div>
+    </section>
+</main>
+
+<footer class="site-footer">
+    <div class="footer-inner">
+        <div class="footer-social">
+            <a href="https://instagram.com/historyaddress.bg" target="_blank" rel="noopener noreferrer" class="social-link">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
+                Instagram
+            </a>
+            <a href="mailto:historyaddressbg@gmail.com" class="social-link" onclick="handleEmailClick(event)">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                Email
+            </a>
+        </div>
+        <p class="footer-links">
+            <a href="privacy.html">Поверителност</a> •
+            <a href="terms.html">Условия</a> •
+            <a href="copyright.html">Авторски права</a>
+        </p>
+        <p class="footer-copy">© <span id="year"></span> Адресът на историята</p>
+    </div>
+</footer>
+
+<!-- Email Modal -->
+<div id="emailModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:1000;align-items:center;justify-content:center;">
+    <div style="background:var(--card);padding:2.5rem;border-radius:16px;text-align:center;border:1px solid var(--accent-strong);max-width:450px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.5);">
+        <h3 style="margin-top:0;color:var(--fg);">📧 Свържете се с нас</h3>
+        <p style="margin:1.5rem 0;font-weight:700;font-size:1.15rem;color:var(--accent-strong);">historyaddressbg@gmail.com</p>
+        <p style="color:var(--muted);margin-bottom:2rem;">Можете да ни пишете за въпроси или подкрепа</p>
+        <div style="display:flex;gap:12px;justify-content:center;">
+            <button onclick="copyEmail()" style="padding:0.75rem 1.5rem;border-radius:10px;cursor:pointer;background:var(--accent-strong);color:white;border:none;font-weight:600;font-size:1rem;">📋 Копирай Email</button>
+            <button onclick="closeEmailModal()" style="padding:0.75rem 1.5rem;border-radius:10px;cursor:pointer;background:transparent;color:var(--fg);border:1px solid var(--border);font-weight:600;">Затвори</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    var apiBase = window.location.protocol === 'file:' ? 'http://localhost:3000' : window.location.origin;
+    document.getElementById('year').textContent = new Date().getFullYear();
+
+    /* ── Email modal ─────────────────────────────────────────── */
+    function handleEmailClick(e) {
+        if (window.innerWidth > 768) {
+            e.preventDefault();
+            document.getElementById('emailModal').style.display = 'flex';
+        }
+    }
+    function closeEmailModal() { document.getElementById('emailModal').style.display = 'none'; }
+    function copyEmail() {
+        navigator.clipboard.writeText('historyaddressbg@gmail.com')
+            .then(function() { alert('Email-ът е копиран!'); });
+    }
+    document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeEmailModal(); });
+    document.getElementById('emailModal').addEventListener('click', function(e) {
+        if (e.target === this) closeEmailModal();
+    });
+
+    /* ── Build a team member card ────────────────────────────── */
+    function buildMemberCard(member) {
+        var card = document.createElement('div');
+        card.className = 'team-member';
+
+        var photo = document.createElement('div');
+        photo.className = 'member-photo';
+        if (member.photo) {
+            var img = document.createElement('img');
+            img.src = member.photo;
+            img.alt = member.name;
+            photo.appendChild(img);
+        } else {
+            photo.textContent = '👤';
+        }
+
+        var name = document.createElement('div');
+        name.className = 'member-name';
+        name.textContent = member.name;
+
+        var role = document.createElement('div');
+        role.className = 'member-role';
+        role.textContent = member.role || 'Член на екипа';
+
+        var bio = document.createElement('p');
+        bio.className = 'member-bio';
+        bio.textContent = member.bio || '';
+
+        card.appendChild(photo);
+        card.appendChild(name);
+        card.appendChild(role);
+        card.appendChild(bio);
+        return card;
+    }
+
+    /* ── Team expand / collapse ──────────────────────────────── */
+    var teamOpen = false;
+
+    function toggleMoreMembers() {
+        var overflow = document.getElementById('teamOverflow');
+        var btn = document.getElementById('teamShowMore');
+        teamOpen = !teamOpen;
+        overflow.classList.toggle('open', teamOpen);
+        btn.textContent = teamOpen ? '↑ Скрий' : btn.dataset.label;
+    }
+
+    /* ── Load team ───────────────────────────────────────────── */
+    var PEEK = 4;
+
+    fetch(apiBase + '/api/team')
+        .then(function(res) { return res.json(); })
+        .then(function(team) {
+            if (!team || team.length === 0) {
+                team = [{
+                    name: 'Георги Георгиев Петков',
+                    role: 'Администратор',
+                    bio: 'Основател и администратор на проекта „Адресът на историята".',
+                    photo: null
+                }];
+            }
+
+            var grid  = document.getElementById('teamGrid');
+            var btn   = document.getElementById('teamShowMore');
+            var badge = document.getElementById('memberCount');
+
+            grid.innerHTML = '';
+
+            // First PEEK cards — always visible
+            team.slice(0, PEEK).forEach(function(m) {
+                grid.appendChild(buildMemberCard(m));
+            });
+
+            // Remaining cards — hidden, expand on button click
+            var hidden = team.slice(PEEK);
+            if (hidden.length > 0) {
+                var overflowWrap = document.createElement('div');
+                overflowWrap.className = 'team-overflow-wrap';
+
+                var overflow = document.createElement('div');
+                overflow.className = 'team-overflow';
+                overflow.id = 'teamOverflow';
+
+                hidden.forEach(function(m) { overflow.appendChild(buildMemberCard(m)); });
+                overflowWrap.appendChild(overflow);
+                grid.appendChild(overflowWrap);
+
+                var label = 'Виж всички (' + team.length + ' члена)';
+                btn.textContent = label;
+                btn.dataset.label = label;
+                btn.style.display = 'inline-block';
+            }
+
+            // Count badge
+            if (team.length > 1) {
+                badge.textContent = team.length + ' члена';
+                badge.style.display = 'inline-block';
+            }
+        })
+        .catch(function() {
+            var grid = document.getElementById('teamGrid');
+            grid.innerHTML = '';
+            grid.appendChild(buildMemberCard({
+                name: 'Георги Георгиев Петков',
+                role: 'Администратор',
+                bio: 'Основател и администратор на проекта „Адресът на историята".',
+                photo: null
+            }));
+        });
+
+    /* ── Build a partner preview card ───────────────────────── */
+    function buildPartnerCard(p) {
+        var card = document.createElement('div');
+        card.className = 'pcard';
+
+        // Header: logo + name
+        var header = document.createElement('div');
+        header.className = 'pcard-header';
+
+        var logoWrap = document.createElement('div');
+        logoWrap.className = 'pcard-logo-wrap';
+        var logoSrc = p.logo_url || p.logo || null;
+        if (logoSrc) {
+            var img = document.createElement('img');
+            img.src = logoSrc;
+            img.alt = p.name;
+            logoWrap.appendChild(img);
+        } else {
+            logoWrap.textContent = '🏢';
+        }
+
+        var nameEl = document.createElement('div');
+        nameEl.className = 'pcard-name';
+        nameEl.textContent = p.name;
+
+        header.appendChild(logoWrap);
+        header.appendChild(nameEl);
+
+        // Description
+        var desc = document.createElement('div');
+        desc.className = 'pcard-desc';
+        desc.textContent = p.description || p.desc || 'Партньор на проекта „Адресът на историята"';
+
+        // Links
+        var links = document.createElement('div');
+        links.className = 'pcard-links';
+
+        if (p.website) {
+            var a = document.createElement('a');
+            a.href = p.website; a.target = '_blank'; a.rel = 'noopener noreferrer';
+            a.className = 'pcard-link';
+            a.innerHTML = '🌐 Уебсайт';
+            links.appendChild(a);
+        }
+        if (p.instagram) {
+            var instaUrl = p.instagram.startsWith('http')
+                ? p.instagram
+                : 'https://instagram.com/' + p.instagram.replace('@', '');
+            var b = document.createElement('a');
+            b.href = instaUrl; b.target = '_blank'; b.rel = 'noopener noreferrer';
+            b.className = 'pcard-link';
+            b.innerHTML = '📸 Instagram';
+            links.appendChild(b);
+        }
+        if (p.email) {
+            var c = document.createElement('a');
+            c.href = 'mailto:' + p.email;
+            c.className = 'pcard-link';
+            c.innerHTML = '📧 Email';
+            links.appendChild(c);
+        }
+
+        card.appendChild(header);
+        card.appendChild(desc);
+        if (links.children.length > 0) card.appendChild(links);
+        return card;
+    }
+
+    /* ── Load partners ───────────────────────────────────────── */
+    var PARTNER_PEEK = 3;
+
+    fetch(apiBase + '/api/partners')
+        .then(function(res) { return res.json(); })
+        .then(function(partners) {
+            var grid    = document.getElementById('partnersGrid');
+            var moreBar = document.getElementById('partnersMoreBar');
+            var totalEl = document.getElementById('partnersTotalCount');
+
+            grid.innerHTML = '';
+
+            if (!partners || partners.length === 0) {
+                grid.innerHTML =
+                    '<div class="partners-empty">' +
+                    '<div class="partners-empty-icon">🤝</div>' +
+                    '<p class="partners-empty-text">Предстои обявяване на официалните партньори.</p>' +
+                    '</div>';
+                return;
+            }
+
+            partners.slice(0, PARTNER_PEEK).forEach(function(p) {
+                grid.appendChild(buildPartnerCard(p));
+            });
+
+            if (partners.length > PARTNER_PEEK) {
+                totalEl.textContent = partners.length;
+                moreBar.style.display = 'block';
+            }
+        })
+        .catch(function() {
+            document.getElementById('partnersGrid').innerHTML =
+                '<div class="partners-empty">' +
+                '<div class="partners-empty-icon">🤝</div>' +
+                '<p class="partners-empty-text">Предстои обявяване на официалните партньори.</p>' +
+                '</div>';
+        });
+</script>
+</body>
+</html>        }
+
+        /* ─── Hero ────────────────────────────────────────────── */
+        .about-hero {
+            text-align: center;
+            padding: 3rem 0 4rem;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 4rem;
+        }
+        .about-logo {
+            width: 140px; height: auto;
+            margin-bottom: 1.5rem;
+            filter: drop-shadow(0 8px 16px rgba(0,0,0,0.3));
+        }
+        .hero-title {
+            font-family: "Baskerville", "Garamond", Georgia, serif;
+            font-size: clamp(2rem, 5vw, 3rem);
+            font-weight: 600;
+            margin: 0 0 1rem;
+            background: linear-gradient(135deg, var(--accent-strong) 0%, #e0c98a 50%, var(--accent-strong) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .hero-subtitle {
+            font-size: 1.2rem;
+            color: var(--muted);
+            max-width: 700px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+
+        /* ─── Shared ──────────────────────────────────────────── */
+        .section-title {
+            font-family: "Baskerville", serif;
+            font-size: 2rem;
+            color: var(--accent-strong);
+            margin: 0 0 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        /* ─── Mission ─────────────────────────────────────────── */
+        .mission-section {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 3rem;
+            margin-bottom: 4rem;
+            box-shadow: var(--shadow-soft);
+            position: relative;
+            overflow: hidden;
+        }
+        .mission-section::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0;
+            width: 4px; height: 100%;
+            background: var(--accent-gradient);
+        }
+        .mission-text { font-size: 1.15rem; line-height: 1.8; color: var(--fg); }
+        .mission-text p { margin-bottom: 1.5rem; }
+        .mission-text p:last-child { margin-bottom: 0; }
+        .mission-text strong { color: var(--accent-strong); font-weight: 600; }
+
+        /* ─── Values ──────────────────────────────────────────── */
+        .values-section { margin-bottom: 4rem; }
+        .values-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+        .value-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 2rem;
+            text-align: center;
+        }
+        .value-icon { font-size: 2.5rem; margin-bottom: 1rem; }
+        .value-title { font-size: 1.2rem; font-weight: 700; margin-bottom: 0.5rem; color: var(--fg); }
+        .value-text { font-size: 0.95rem; color: var(--muted); line-height: 1.6; }
+
+        /* ─── TEAM: peek grid ─────────────────────────────────── */
+        .leadership-section { margin-bottom: 4rem; }
+
+        .team-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            margin-bottom: 2rem;
+        }
+        .team-header .section-title { margin: 0; }
+
+        .member-count-badge {
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: var(--accent-strong);
+            background: rgba(205,133,63,0.12);
+            border: 1px solid rgba(205,133,63,0.25);
+            padding: 0.25rem 0.8rem;
+            border-radius: 999px;
+        }
+
+        .team-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 1.5rem;
+        }
+
+        /* overflow container spans full grid width */
+        .team-overflow-wrap {
+            grid-column: 1 / -1;
+        }
+        .team-overflow {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 1.5rem;
+            max-height: 0;
+            overflow: hidden;
+            opacity: 0;
+            transition: max-height 0.55s ease, opacity 0.4s ease;
+        }
+        .team-overflow.open {
+            max-height: 4000px;
+            opacity: 1;
+        }
+
+        .team-member {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 1.75rem 1.5rem;
+            text-align: center;
+            transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+            box-shadow: var(--shadow-soft);
+        }
+        .team-member:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--shadow);
+            border-color: var(--accent-strong);
+        }
+
+        .member-photo {
+            width: 88px; height: 88px;
+            border-radius: 50%;
+            margin: 0 auto 1.25rem;
+            border: 3px solid var(--accent-strong);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            background: var(--border);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 2rem;
+            overflow: hidden;
+        }
+        .member-photo img {
+            width: 100%; height: 100%;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+        .member-name { font-size: 1.05rem; font-weight: 700; color: var(--fg); margin: 0 0 0.3rem; }
+        .member-role {
+            font-size: 0.78rem; color: var(--accent-strong);
+            font-weight: 600; text-transform: uppercase;
+            letter-spacing: 0.6px; margin: 0 0 0.85rem;
+        }
+        .member-bio { font-size: 0.87rem; line-height: 1.55; color: var(--muted); }
+
+        .team-show-more {
+            display: none;
+            margin: 1.75rem auto 0;
+            background: transparent;
+            border: 1px solid var(--accent-strong);
+            color: var(--accent-strong);
+            padding: 0.6rem 1.75rem;
+            border-radius: 999px;
+            font-size: 0.92rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.25s;
+        }
+        .team-show-more:hover { background: var(--accent-strong); color: #fff; }
+        .team-actions { text-align: center; }
+
+        /* ─── PARTNERS preview ────────────────────────────────── */
+        .partners-section { margin-bottom: 4rem; }
+
+        .partners-section-header {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            margin-bottom: 2rem;
+        }
+        .partners-section-header .section-title { margin: 0; }
+        .partners-all-link {
+            color: var(--accent-strong);
+            font-weight: 600;
+            text-decoration: none;
+            font-size: 0.95rem;
+            white-space: nowrap;
+            transition: opacity 0.2s;
+        }
+        .partners-all-link:hover { opacity: 0.7; }
+
+        .partners-preview-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1.5rem;
+        }
+
+        /* Partner card — mirrors partners.html style */
+        .pcard {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.9rem;
+            transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+            box-shadow: var(--shadow-soft);
+            position: relative;
+            overflow: hidden;
+        }
+        .pcard:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow);
+            border-color: var(--accent-strong);
+        }
+        .pcard::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: var(--accent-gradient, var(--accent-strong));
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform 0.35s ease;
+        }
+        .pcard:hover::before { transform: scaleX(1); }
+
+        .pcard-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        .pcard-logo-wrap {
+            width: 60px; height: 60px;
+            flex-shrink: 0;
+            border-radius: 10px;
+            background: rgba(205,133,63,0.09);
+            border: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.8rem;
+            overflow: hidden;
+        }
+        .pcard-logo-wrap img {
+            width: 100%; height: 100%;
+            object-fit: contain;
+            padding: 6px;
+        }
+        .pcard-name {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: var(--fg);
+            line-height: 1.3;
+        }
+        .pcard-desc {
+            font-size: 0.88rem;
+            color: var(--muted);
+            line-height: 1.55;
+            flex: 1;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .pcard-links {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: auto;
+        }
+        .pcard-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.38rem 0.9rem;
+            border-radius: 6px;
+            background: rgba(205,133,63,0.1);
+            color: var(--accent-strong);
+            text-decoration: none;
+            font-size: 0.82rem;
+            font-weight: 600;
+            border: 1px solid rgba(205,133,63,0.2);
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .pcard-link:hover {
+            background: var(--accent-strong);
+            color: #fff;
+            border-color: var(--accent-strong);
+        }
+
+        /* empty state */
+        .partners-empty {
+            grid-column: 1 / -1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 3.5rem 1.5rem;
+            border: 2px dashed var(--border);
+            border-radius: 14px;
+            text-align: center;
+            color: var(--muted);
+        }
+        .partners-empty-icon { font-size: 2.5rem; opacity: 0.45; }
+        .partners-empty-text { font-size: 0.95rem; max-width: 320px; line-height: 1.55; }
+
         /* partners expand button */
         .partners-show-more {
             display: none;
