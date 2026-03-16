@@ -164,8 +164,10 @@ const db = new sqlite3.Database(DB_FILE, (err) => {
         initializeDatabase();
         initializePartnersTable();
         initializeNewsTable();
+        initializeTeamTable();
     }
 });
+
 
 db.serialize(() => {
     db.run('PRAGMA journal_mode = WAL');
@@ -259,7 +261,38 @@ function initializeNewsTable() {
         }
     });
 }
-
+function initializeTeamTable() {
+    db.run(`
+        CREATE TABLE IF NOT EXISTS team (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            role TEXT,
+            bio TEXT,
+            photo TEXT,
+            display_order INTEGER DEFAULT 0,
+            is_published INTEGER DEFAULT 1,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+    `, (err) => {
+        if (!err) {
+            console.log('✅ Team table initialized');
+            db.run('CREATE INDEX IF NOT EXISTS idx_team_order ON team(display_order, is_published)');
+            
+            // Add default member if table is empty
+            db.get('SELECT COUNT(*) as count FROM team', [], (err, row) => {
+                if (!err && row && row.count === 0) {
+                    db.run(`
+                        INSERT INTO team (name, role, bio, display_order) VALUES 
+                        ('Георги Георгиев Петков', 'Основател и Администратор', 
+                         'Основател и администратор на проекта „Адресът на историята". Ученик от Първа английска езикова гимназия с мисия да съхрани паметта за българските личности.', 1)
+                    `, () => {
+                        console.log('✅ Default team member added');
+                    });
+                }
+            });
+        }
+    });
+}
 function checkAndMigrateSchema() {
     db.all("PRAGMA table_info(homes)", (err, columns) => {
         if (err) {
@@ -1184,6 +1217,109 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
+// GET /api/team - Public list
+app.get('/api/team', (req, res) => {
+    try {
+        db.all(`
+            SELECT id, name, role, bio, photo, display_order
+            FROM team 
+            WHERE is_published = 1
+            ORDER BY display_order ASC, id ASC
+        `, [], (err, rows) => {
+            if (err) {
+                console.error('Team query error:', err);
+                return res.status(500).json({ error: 'Database error' });
+            }
+            res.json(rows || []);
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+ 
+// GET /api/team/:id - Single member (admin)
+app.get('/api/team/:id', (req, res) => {
+    const { id } = req.params;
+    
+    db.get('SELECT * FROM team WHERE id = ?', [id], (err, row) => {
+        if (err) {
+            console.error('Team member error:', err);
+            return res.status(500).json({ error: 'Database error' });
+        }
+        
+        if (!row) {
+            return res.status(404).json({ error: 'Not found' });
+        }
+        
+        res.json(row);
+    });
+});
+ 
+// POST /api/team - Create member (admin only)
+app.post('/api/team', (req, res) => {
+    const { name, role, bio, photo, display_order } = req.body;
+    
+    if (!name) {
+        return res.status(400).json({ error: 'Name is required' });
+    }
+    
+    db.run(`
+        INSERT INTO team (name, role, bio, photo, display_order)
+        VALUES (?, ?, ?, ?, ?)
+    `, [
+        name,
+        role || '',
+        bio || '',
+        photo || '',
+        display_order || 0
+    ], function(err) {
+        if (err) {
+            console.error('Team insert error:', err);
+            return res.status(500).json({ error: err.message });
+        }
+        
+        apiCache.clear();
+        res.json({ success: true, id: this.lastID });
+    });
+});
+ 
+// PUT /api/team/:id - Update member (admin only)
+app.put('/api/team/:id', (req, res) => {
+    const { id } = req.params;
+    const { name, role, bio, photo, display_order, is_published } = req.body;
+    
+    db.run(`
+        UPDATE team 
+        SET name = ?, role = ?, bio = ?, photo = ?, 
+            display_order = ?, is_published = ?
+        WHERE id = ?
+    `, [name, role, bio, photo, display_order, is_published, id], function(err) {
+        if (err) {
+            console.error('Team update error:', err);
+            return res.status(500).json({ error: 'Database error' });
+        }
+        
+        apiCache.clear();
+        res.json({ success: true, changes: this.changes });
+    });
+});
+ 
+// DELETE /api/team/:id - Delete member (admin only)
+app.delete('/api/team/:id', (req, res) => {
+    const { id } = req.params;
+    
+    db.run('DELETE FROM team WHERE id = ?', [id], function(err) {
+        if (err) {
+            console.error('Team delete error:', err);
+            return res.status(500).json({ error: 'Database error' });
+        }
+        
+        apiCache.clear();
+        res.json({ success: true, deleted: this.changes > 0 });
+    });
+});
+ 
+// ========== END TEAM API ENDPOINTS ==========
 app.get('/:page.html', (req, res) => {
     const page = req.params.page;
     const filePath = path.join(__dirname, `${page}.html`);
