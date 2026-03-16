@@ -523,10 +523,7 @@ document.addEventListener('keydown', function(e) { if (e.key === 'Escape') close
         <a href="news.html">Новини</a>
         <a href="about.html">За Нас</a>
     </nav>
-    <button id="theme-toggle" aria-label="Toggle dark mode">
-        <span class="theme-icon sun">☀️</span>
-        <span class="theme-icon moon">🌙</span>
-    </button>
+    <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode"></button>
 </header>
 
 <main class="addr-page">
@@ -535,7 +532,7 @@ document.addEventListener('keydown', function(e) { if (e.key === 'Escape') close
     <div class="addr-header">
         <div class="addr-heading-group">
             <p class="addr-eyebrow">Дигитален архив</p>
-            <h1 class="addr-title">Списък на <em>адресите</em></h1>
+            <h1 class="addr-title">Списък на адресите</h1>
         </div>
         <div class="addr-count-badge" id="addrCountBadge"></div>
     </div>
