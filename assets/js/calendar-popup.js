@@ -60,7 +60,7 @@
             };
             
             var icon = event.type === 'birth' ? '🎂' : '🕯️';
-            var action = event.type === 'birth' ? 'е роден' : 'е починал(а)';
+            var action = event.type === 'birth' ? 'е роден(a)' : 'е починал(a)';
             var years = event.years_ago;
             var yearsText = years === 1 ? 'година' : 'години';
             
