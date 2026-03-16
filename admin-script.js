@@ -1,14 +1,4 @@
 (function(){
-    window.onerror = function(msg, url, lineNo, columnNo, error) {
-        console.error('GLOBAL ERROR:', msg, 'at', url, lineNo + ':' + columnNo);
-        console.error('Error object:', error);
-        return false;
-    };
-    
-    window.addEventListener('unhandledrejection', function(event) {
-        console.error('UNHANDLED PROMISE REJECTION:', event.reason);
-    });
-    
     const PASSWORD_HASH = '135a21d2896b3b414a72f31aa2ada261c499b0740bc747b731dcfbd4315619ec';
     const SESSION_KEY = 'sys_auth_token';
 
@@ -67,116 +57,7 @@
         } else {
             document.getElementById('authPassword').focus();
         }
-        
-        setupTabHandlers();
     });
-
-    function setupTabHandlers() {
-        console.log('Setting up tab handlers...');
-        
-        var tabNews = document.getElementById('tabNews');
-        var tabPartners = document.getElementById('tabPartners');
-        var tabHomes = document.getElementById('tabHomes');
-        
-        console.log('Tab elements:', { tabNews, tabPartners, tabHomes });
-        
-        if (!tabNews || !tabPartners || !tabHomes) {
-            console.error('Tab buttons not found!');
-            console.error('Missing:', {
-                news: !tabNews,
-                partners: !tabPartners,
-                homes: !tabHomes
-            });
-            return;
-        }
-        
-        tabHomes.addEventListener('click', function() {
-            console.log('Homes tab clicked');
-            try {
-                document.getElementById('homesSection').style.display = '';
-                document.getElementById('partnersSection').style.display = 'none';
-                document.getElementById('newsSection').style.display = 'none';
-                this.classList.add('active');
-                tabPartners.classList.remove('active');
-                tabNews.classList.remove('active');
-            } catch (e) {
-                console.error('Error in Homes tab handler:', e);
-            }
-        });
-        
-        tabPartners.addEventListener('click', function() {
-            console.log('Partners tab clicked');
-            try {
-                document.getElementById('homesSection').style.display = 'none';
-                document.getElementById('partnersSection').style.display = '';
-                document.getElementById('newsSection').style.display = 'none';
-                this.classList.add('active');
-                tabHomes.classList.remove('active');
-                tabNews.classList.remove('active');
-                loadPartners();
-            } catch (e) {
-                console.error('Error in Partners tab handler:', e);
-            }
-        });
-
-        tabNews.addEventListener('click', function(event) {
-            console.log('=== NEWS TAB CLICKED ===');
-            console.log('Event:', event);
-            console.log('This:', this);
-            
-            event.preventDefault();
-            event.stopPropagation();
-            
-            try {
-                console.log('Step 1: Getting section elements...');
-                var homesSection = document.getElementById('homesSection');
-                var partnersSection = document.getElementById('partnersSection');
-                var newsSection = document.getElementById('newsSection');
-                
-                console.log('Sections:', { 
-                    homes: homesSection, 
-                    partners: partnersSection, 
-                    news: newsSection 
-                });
-                
-                if (!newsSection) {
-                    console.error('CRITICAL: newsSection element not found!');
-                    alert('Error: News section not found in DOM');
-                    return;
-                }
-                
-                console.log('Step 2: Hiding other sections...');
-                if (homesSection) homesSection.style.display = 'none';
-                if (partnersSection) partnersSection.style.display = 'none';
-                
-                console.log('Step 3: Showing news section...');
-                newsSection.style.display = 'block';
-                newsSection.style.visibility = 'visible';
-                newsSection.style.opacity = '1';
-                
-                console.log('News section display:', newsSection.style.display);
-                console.log('News section visibility:', newsSection.style.visibility);
-                
-                console.log('Step 4: Updating active classes...');
-                if (tabHomes) tabHomes.classList.remove('active');
-                if (tabPartners) tabPartners.classList.remove('active');
-                this.classList.add('active');
-                
-                console.log('Step 5: Calling loadNews()...');
-                loadNews();
-                
-                console.log('=== NEWS TAB SWITCH COMPLETE ===');
-            } catch (e) {
-                console.error('!!! ERROR IN NEWS TAB HANDLER !!!');
-                console.error('Error:', e);
-                console.error('Message:', e.message);
-                console.error('Stack:', e.stack);
-                alert('Error switching to News tab: ' + e.message);
-            }
-        });
-        
-        console.log('Tab handlers setup complete');
-    }
 
     document.getElementById('authPassword').addEventListener('keypress', function(e) {
         if (e.key === 'Enter') checkAuth();
@@ -202,6 +83,35 @@
     var imageSources = [];
     var portraitPreviewEl = document.getElementById('portraitPreview');
     var fPortraitEl = document.getElementById('f_portrait');
+
+    document.getElementById('tabHomes').addEventListener('click', function() {
+        document.getElementById('homesSection').style.display = '';
+        document.getElementById('partnersSection').style.display = 'none';
+        document.getElementById('newsSection').style.display = 'none';
+        this.classList.add('active');
+        document.getElementById('tabPartners').classList.remove('active');
+        document.getElementById('tabNews').classList.remove('active');
+    });
+    
+    document.getElementById('tabPartners').addEventListener('click', function() {
+        document.getElementById('homesSection').style.display = 'none';
+        document.getElementById('partnersSection').style.display = '';
+        document.getElementById('newsSection').style.display = 'none';
+        this.classList.add('active');
+        document.getElementById('tabHomes').classList.remove('active');
+        document.getElementById('tabNews').classList.remove('active');
+        loadPartners();
+    });
+
+    document.getElementById('tabNews').addEventListener('click', function() {
+        document.getElementById('homesSection').style.display = 'none';
+        document.getElementById('partnersSection').style.display = 'none';
+        document.getElementById('newsSection').style.display = '';
+        this.classList.add('active');
+        document.getElementById('tabHomes').classList.remove('active');
+        document.getElementById('tabPartners').classList.remove('active');
+        loadNews();
+    });
 
     function loadHomes(page){
         page = page || state.currentPage;
@@ -735,29 +645,12 @@
     });
 
     function loadNews() {
-        console.log('Loading news articles...');
-        
-        var searchInput = document.getElementById('newsSearch');
-        var search = '';
-        
-        if (searchInput && searchInput.value) {
-            search = searchInput.value.toLowerCase();
-        }
-        
-        console.log('Search query:', search);
+        var search = (document.getElementById('newsSearch').value || '').toLowerCase();
         
         fetch(NEWS_API + '?all=true&limit=100')
-            .then(function(res) {
-                console.log('News API response status:', res.status);
-                if (!res.ok) {
-                    throw new Error('HTTP error! status: ' + res.status);
-                }
-                return res.json();
-            })
+            .then(function(res) { return res.json(); })
             .then(function(response) {
-                console.log('News API response:', response);
                 var news = response.data || [];
-                console.log('Found', news.length, 'news articles');
                 currentNews = news;
                 
                 if (search) {
@@ -772,10 +665,7 @@
             })
             .catch(function(err) {
                 console.error('Error loading news:', err);
-                var list = document.getElementById('newsList');
-                if (list) {
-                    list.innerHTML = '<p style="text-align:center;padding:2rem;color:#ff6b6b;">Error loading news: ' + err.message + '</p>';
-                }
+                alert('Error loading news');
             });
     }
 
@@ -810,15 +700,10 @@
     }
 
     var newsSearchTimeout;
-    var newsSearchInput = document.getElementById('newsSearch');
-    if (newsSearchInput) {
-        newsSearchInput.addEventListener('input', function() {
-            clearTimeout(newsSearchTimeout);
-            newsSearchTimeout = setTimeout(loadNews, 300);
-        });
-    } else {
-        console.warn('newsSearch input not found during initialization');
-    }
+    document.getElementById('newsSearch').addEventListener('input', function() {
+        clearTimeout(newsSearchTimeout);
+        newsSearchTimeout = setTimeout(loadNews, 300);
+    });
 
     function openNewsModal(title) {
         document.getElementById('newsDlgTitle').textContent = title;
@@ -1118,4 +1003,273 @@
     });
     
     document.getElementById('year').textContent = new Date().getFullYear();
+    // ============================================
+// TEAM MANAGEMENT CODE
+// Add this to the END of your admin-script.js
+// (before the closing })();)
+// ============================================
+
+var TEAM_API = apiBase + '/api/team';
+var currentTeam = [];
+
+// Tab switching for Team
+document.getElementById('tabTeam').addEventListener('click', function() {
+    document.getElementById('homesSection').style.display = 'none';
+    document.getElementById('partnersSection').style.display = 'none';
+    document.getElementById('newsSection').style.display = 'none';
+    document.getElementById('teamSection').style.display = '';
+    
+    document.getElementById('tabHomes').classList.remove('active');
+    document.getElementById('tabPartners').classList.remove('active');
+    document.getElementById('tabNews').classList.remove('active');
+    this.classList.add('active');
+    
+    loadTeam();
+});
+
+function loadTeam() {
+    var search = (document.getElementById('teamSearch').value || '').toLowerCase();
+    
+    fetch(TEAM_API + '?all=true')
+        .then(function(res) { return res.json(); })
+        .then(function(team) {
+            currentTeam = team;
+            
+            if (search) {
+                team = team.filter(function(t) {
+                    return t.name.toLowerCase().includes(search) ||
+                           (t.role && t.role.toLowerCase().includes(search)) ||
+                           (t.bio && t.bio.toLowerCase().includes(search));
+                });
+            }
+            
+            renderTeam(team);
+        })
+        .catch(function(err) {
+            console.error('Error loading team:', err);
+            alert('Error loading team');
+        });
+}
+
+function renderTeam(team) {
+    var list = document.getElementById('teamList');
+    list.innerHTML = '';
+    
+    if (team.length === 0) {
+        list.innerHTML = '<p style="text-align:center;padding:2rem;color:#999;">No team members found.</p>';
+        return;
+    }
+    
+    team.forEach(function(t) {
+        var card = document.createElement('div');
+        card.className = 'thumb';
+        var photo = t.photo || 'assets/img/placeholder.svg';
+        
+        var publishedLabel = t.is_published ? 'Published' : 'Hidden';
+        var statusColor = t.is_published ? '#28a745' : '#6c757d';
+        
+        card.innerHTML = '<img alt="' + t.name + '" loading="lazy" src="' + photo + '" style="object-fit:cover;height:180px;border-radius:50%;width:180px;margin:0 auto;display:block;">' +
+            '<div class="meta" style="text-align:center;"><strong>' + t.name + '</strong>' +
+            '<div class="muted" style="margin-top:4px;font-size:0.9rem;color:var(--accent-strong);">' + (t.role || 'Member') + '</div>' +
+            '<div style="margin-top:4px;font-size:0.85rem;color:' + statusColor + ';">● ' + publishedLabel + '</div>' +
+            '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">' +
+            '<button data-act="editTeam" data-id="' + t.id + '" class="theme-toggle">Edit</button>' +
+            '<button data-act="toggleTeam" data-id="' + t.id + '" class="theme-toggle">' + (t.is_published ? 'Hide' : 'Publish') + '</button>' +
+            '<button data-act="deleteTeam" data-id="' + t.id + '" class="theme-toggle">Delete</button>' +
+            '</div></div>';
+        list.appendChild(card);
+    });
+}
+
+var teamSearchTimeout;
+document.getElementById('teamSearch').addEventListener('input', function() {
+    clearTimeout(teamSearchTimeout);
+    teamSearchTimeout = setTimeout(loadTeam, 300);
+});
+
+function openTeamModal(title) {
+    document.getElementById('teamDlgTitle').textContent = title;
+    document.getElementById('teamModal').style.display = 'flex';
+}
+
+function closeTeamModal() {
+    document.getElementById('teamModal').style.display = 'none';
+}
+
+function fillTeamForm(t) {
+    document.getElementById('t_name').value = t.name || '';
+    document.getElementById('t_role').value = t.role || '';
+    document.getElementById('t_bio').value = t.bio || '';
+    document.getElementById('t_photo').value = t.photo || '';
+    document.getElementById('t_order').value = t.display_order || 0;
+    document.getElementById('t_published').checked = t.is_published !== 0;
+    renderTeamPhotoPreview();
+}
+
+function renderTeamPhotoPreview() {
+    var preview = document.getElementById('teamPhotoPreview');
+    var url = document.getElementById('t_photo').value.trim();
+    preview.innerHTML = '';
+    
+    if (url) {
+        var img = document.createElement('img');
+        img.src = url;
+        img.alt = 'Photo Preview';
+        img.style.maxWidth = '120px';
+        img.style.maxHeight = '120px';
+        img.style.objectFit = 'cover';
+        img.style.borderRadius = '50%';
+        img.style.border = '3px solid var(--accent-strong)';
+        
+        var clearBtn = document.createElement('button');
+        clearBtn.textContent = '× Clear';
+        clearBtn.className = 'theme-toggle';
+        clearBtn.style.marginLeft = '10px';
+        clearBtn.onclick = function() {
+            document.getElementById('t_photo').value = '';
+            renderTeamPhotoPreview();
+        };
+        
+        preview.appendChild(img);
+        preview.appendChild(clearBtn);
+    }
+}
+
+function loadTeamPhotoFile(file) {
+    if (!file) return;
+    if (!/^image\//.test(file.type)) { alert('Please select an image'); return; }
+    if (file.size > 5 * 1024 * 1024) { alert('Photo exceeds 5MB'); return; }
+    
+    var fr = new FileReader();
+    fr.onload = function() {
+        document.getElementById('t_photo').value = fr.result;
+        renderTeamPhotoPreview();
+    };
+    fr.readAsDataURL(file);
+}
+
+document.getElementById('addTeamBtn').addEventListener('click', function() {
+    document.getElementById('t_id').value = '';
+    fillTeamForm({ is_published: 1, display_order: 0 });
+    openTeamModal('Add Team Member');
+});
+
+document.getElementById('closeTeamDlg').addEventListener('click', closeTeamModal);
+document.getElementById('cancelTeamDlg').addEventListener('click', closeTeamModal);
+
+document.getElementById('t_photo').addEventListener('input', renderTeamPhotoPreview);
+
+document.getElementById('teamPhotoDrop').addEventListener('dragover', function(e) { e.preventDefault(); });
+document.getElementById('teamPhotoDrop').addEventListener('drop', function(e) {
+    e.preventDefault();
+    var file = (e.dataTransfer.files && e.dataTransfer.files[0]) || null;
+    if (file) loadTeamPhotoFile(file);
+});
+
+document.getElementById('teamPhotoPick').addEventListener('click', function() {
+    document.getElementById('teamPhotoFile').click();
+});
+
+document.getElementById('teamPhotoFile').addEventListener('change', function(e) {
+    var file = (e.target.files && e.target.files[0]) || null;
+    if (file) loadTeamPhotoFile(file);
+    e.target.value = '';
+});
+
+document.getElementById('teamForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    var teamId = document.getElementById('t_id').value;
+    var teamData = {
+        name: document.getElementById('t_name').value.trim(),
+        role: document.getElementById('t_role').value.trim() || '',
+        bio: document.getElementById('t_bio').value.trim() || '',
+        photo: document.getElementById('t_photo').value.trim() || '',
+        display_order: parseInt(document.getElementById('t_order').value) || 0,
+        is_published: document.getElementById('t_published').checked ? 1 : 0
+    };
+
+    if (!teamData.name) {
+        alert('Name is required');
+        return;
+    }
+    
+    if (!teamId) {
+        fetch(TEAM_API, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(teamData)
+        })
+        .then(function(res) { return res.json(); })
+        .then(function() {
+            closeTeamModal();
+            loadTeam();
+            alert('Team member added!');
+        })
+        .catch(function(err) {
+            console.error(err);
+            alert('Error adding team member');
+        });
+    } else {
+        fetch(TEAM_API + '/' + teamId, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(teamData)
+        })
+        .then(function(res) { return res.json(); })
+        .then(function() {
+            closeTeamModal();
+            loadTeam();
+            alert('Team member updated!');
+        })
+        .catch(function(err) {
+            console.error(err);
+            alert('Error updating team member');
+        });
+    }
+});
+
+if (act === 'editTeam') {
+    fetch(TEAM_API + '/' + id)
+        .then(function(res) { return res.json(); })
+        .then(function(member) {
+            document.getElementById('t_id').value = member.id;
+            fillTeamForm(member);
+            openTeamModal('Edit Team Member');
+        })
+        .catch(function(err) {
+            console.error(err);
+            alert('Error loading team member');
+        });
+}
+
+if (act === 'toggleTeam') {
+    fetch(TEAM_API + '/' + id)
+        .then(function(res) { return res.json(); })
+        .then(function(member) {
+            member.is_published = member.is_published ? 0 : 1;
+            return fetch(TEAM_API + '/' + id, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(member)
+            });
+        })
+        .then(function() { loadTeam(); })
+        .catch(function(err) {
+            console.error(err);
+            alert('Error updating team member');
+        });
+}
+
+if (act === 'deleteTeam') {
+    if (confirm('Delete this team member?')) {
+        fetch(TEAM_API + '/' + id, { method: 'DELETE' })
+            .then(function() { loadTeam(); })
+            .catch(function(err) {
+                console.error(err);
+                alert('Error deleting team member');
+            });
+    }
+}
+
 })();
