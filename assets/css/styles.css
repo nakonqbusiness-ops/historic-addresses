@@ -1208,6 +1208,7 @@ button:not(.theme-toggle):not(.preview-item button):active {
         width: 52px !important;
         height: 28px !important;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+        opacity: 1; 
     }
     
     #theme-toggle::before {
