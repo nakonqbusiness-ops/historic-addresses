@@ -11,6 +11,19 @@ const PORT = process.env.PORT || 10000;
 const NODE_ENV = process.env.NODE_ENV || 'production';
 const DOMAIN = 'https://historyaddress.bg';
 
+// --- ADD THIS PART BELOW ---
+// This looks for the Railway path first, then falls back to local for your PC
+const dbPath = process.env.DATABASE_URL || path.join(__dirname, 'database.db');
+
+const db = new sqlite3.Database(dbPath, (err) => {
+    if (err) {
+        console.error('Database opening error:', err.message);
+    } else {
+        console.log(`Connected to database at: ${dbPath}`);
+    }
+});
+// ---------------------------
+
 const possiblePaths = [
     process.env.DB_PATH,
     '/data/database.db',
