@@ -4,10 +4,14 @@
 	"description": "Historic Homes website with database backend",
 	"main": "server.js",
 	"scripts": {
-		"start": "if [ ! -f /data/database.db ]; then curl -L $DB_DOWNLOAD_URL -o /data/database.db; fi && node --expose-gc --max-old-space-size=1800 server.js",
+		"start": "node download-db.js && node --expose-gc --max-old-space-size=1800 server.js",
 		"dev": "nodemon server.js"
 	},
-	"keywords": ["historic", "homes", "vintage"],
+	"keywords": [
+		"historic",
+		"homes",
+		"vintage"
+	],
 	"author": "",
 	"license": "ISC",
 	"dependencies": {
