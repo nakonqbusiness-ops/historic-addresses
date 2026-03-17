@@ -11,25 +11,11 @@ const PORT = process.env.PORT || 10000;
 const NODE_ENV = process.env.NODE_ENV || 'production';
 const DOMAIN = 'https://historyaddress.bg';
 
-// --- ADD THIS PART BELOW ---
-// This looks for the Railway path first, then falls back to local for your PC
-const dbPath = process.env.DATABASE_URL || path.join(__dirname, 'database.db');
-
-const db = new sqlite3.Database(dbPath, (err) => {
-    if (err) {
-        console.error('Database opening error:', err.message);
-    } else {
-        console.log(`Connected to database at: ${dbPath}`);
-    }
-});
-// ---------------------------
-
+// Logic to find the correct Database File
 const possiblePaths = [
-    process.env.DB_PATH,
+    process.env.DATABASE_URL, // High priority: Railway Volume path
     '/data/database.db',
-    '/opt/render/project/src/database.db',
-    path.join(__dirname, 'database.db'),
-    './database.db'
+    path.join(__dirname, 'database.db')
 ].filter(Boolean);
 
 let DB_FILE = null;
@@ -42,13 +28,13 @@ for (const dbPath of possiblePaths) {
 }
 
 if (!DB_FILE) {
-    const DB_DIR = process.env.RENDER ? '/data' : '.';
-    DB_FILE = path.join(DB_DIR, 'database.db');
-    console.log('⚠️  No existing database found, will create new at:', DB_FILE);
+    // Default fallback
+    DB_FILE = path.join(__dirname, 'database.db');
+    console.log('⚠️  No existing database found, using default:', DB_FILE);
 }
 
 const MANUAL_HIGH_PERFORMANCE_MODE = false;
-const TOTAL_RAM_MB = process.env.RENDER ? 512 : Math.round(os.totalmem() / 1024 / 1024);
+const TOTAL_RAM_MB = Math.round(os.totalmem() / 1024 / 1024);
 const IS_LOW_SPEC = MANUAL_HIGH_PERFORMANCE_MODE ? false : (TOTAL_RAM_MB < 1024);
 
 console.log(`\n🚀 HistoryAddress Server Starting...`);
@@ -166,6 +152,7 @@ try {
 
 let dbReady = false;
 
+// ONLY ONE DECLARATION OF db
 const db = new sqlite3.Database(DB_FILE, (err) => {
     if (err) {
         console.error('❌ Database connection error:', err);
@@ -174,13 +161,12 @@ const db = new sqlite3.Database(DB_FILE, (err) => {
         process.exit(1);
     } else {
         console.log('✅ SQLite Connected:', DB_FILE);
-        initializeDatabase();
-        initializePartnersTable();
-        initializeNewsTable();
-        initializeTeamTable();
+        if (typeof initializeDatabase === 'function') initializeDatabase();
+        if (typeof initializePartnersTable === 'function') initializePartnersTable();
+        if (typeof initializeNewsTable === 'function') initializeNewsTable();
+        if (typeof initializeTeamTable === 'function') initializeTeamTable();
     }
 });
-
 
 db.serialize(() => {
     db.run('PRAGMA journal_mode = WAL');
