@@ -179,10 +179,10 @@
     card.innerHTML =
         '<span class="prom-emoji">🎓</span>' +
         '<p class="prom-pre">Покана за абитуриентски бал</p>' +
-        '<h1 class="prom-name">Господин Дамянов,</h1>' +
+        '<h1 class="prom-name">Госпожо Григорова,</h1>' +
         '<div class="prom-divider"></div>' +
         '<p class="prom-message">чакаме Ви навън!</p>' +
-        '<p class="prom-class">12е клас &nbsp;·&nbsp; Випуск 2026</p>';
+        '<p class="prom-class">12 клас &nbsp;·&nbsp; Випуск 2026</p>';
 
     var hint = document.createElement('div');
     hint.className = 'prom-hint';
