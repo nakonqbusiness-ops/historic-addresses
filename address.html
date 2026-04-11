@@ -6,23 +6,20 @@
     <meta name="robots" content="index, follow">
 
     <link rel="icon" type="image/png" href="/assets/img/favicon-96x96.png" sizes="96x96" />
-<link rel="icon" type="image/svg+xml" href="/assets/img/favicon.svg" />
-<link rel="shortcut icon" href="/assets/img/favicon.ico" />
-<link rel="apple-touch-icon" sizes="180x180" href="/assets/img/apple-touch-icon.png" />
-<link rel="manifest" href="/assets/img/site.webmanifest" />
-
+    <link rel="icon" type="image/svg+xml" href="/assets/img/favicon.svg" />
+    <link rel="shortcut icon" href="/assets/img/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/img/apple-touch-icon.png" />
+    <link rel="manifest" href="/assets/img/site.webmanifest" />
     <meta name="msapplication-TileImage" content="/assets/img/Historyaddress.bg2.png">
 
     <title>Адресът на историята</title>
     <meta name="description" content="Исторически адреси и домове в България">
     <link rel="canonical" href="https://historyaddress.bg/address.html">
-
     <meta property="og:type" content="article">
     <meta property="og:url" content="https://historyaddress.bg/address.html">
     <meta property="og:title" content="Адресът на историята">
     <meta property="og:description" content="Исторически адреси и домове в България">
     <meta property="og:image" content="https://historyaddress.bg/assets/img/HistAdrLogo.png">
-
     <meta property="twitter:card" content="summary_large_image">
     <meta property="twitter:url" content="https://historyaddress.bg/address.html">
     <meta property="twitter:title" content="Адресът на историята">
@@ -32,116 +29,237 @@
     <script>
         (function() {
             try {
-                var stored = localStorage.getItem('theme-preference');
-                if (stored === 'system') stored = 'dark';
-                var theme = (stored === 'dark' || stored === 'light') ? stored : 'dark';
-                document.documentElement.setAttribute('data-theme', theme);
+                var s = localStorage.getItem('theme-preference');
+                if (s === 'system') s = 'dark';
+                document.documentElement.setAttribute('data-theme', (s==='dark'||s==='light')?s:'dark');
             } catch(e) {}
         })();
     </script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400;1,600&family=Mulish:wght@300;400;600;700&display=swap" rel="stylesheet">
+
     <link rel="stylesheet" href="assets/css/styles.css">
     <script defer src="assets/js/theme.js"></script>
     <script defer src="assets/js/transitions.js"></script>
-    <script defer src="assets/js/calendar-popup.js?v=3.0"></script>
+    <script defer src="assets/js/calendar-popup.js"></script>
+
+    <style>
+        :root { --fd: 'Cormorant Garamond', Georgia, serif; --fb: 'Mulish', sans-serif; }
+        #pageRoot, #pageRoot * { box-sizing: border-box; }
+        #pageRoot { font-family: var(--fb); }
+
+        /* ══ GALLERY STRIP ═══════════════════════════════
+           Hero (2 parts) + thumb column (1 part), 8px gaps,
+           rounded corners on each cell. Overlay only on desktop.
+           On mobile: strip shows clean photos, title appears below.
+        ════════════════════════════════════════════════ */
+        .gh {
+            margin-left: calc(-50vw + 50%);
+            width: 100vw;
+            display: flex;
+            height: clamp(300px, 42vw, 520px);
+            gap: 8px;
+            padding: 0 8px;
+            background: var(--bg, #111);
+            animation: ghIn .6s ease both;
+        }
+        @keyframes ghIn { from{opacity:0;} to{opacity:1;} }
+
+        /* hero: 2 parts wide */
+        .gh-hero {
+            position: relative; flex: 2; overflow: hidden;
+            border-radius: 10px; cursor: zoom-in; min-width: 0;
+        }
+        .gh-hero img { width:100%; height:100%; object-fit:cover; display:block; transition:transform .7s ease; }
+        .gh-hero:hover img { transform:scale(1.04); }
+
+        /* gradient only on desktop where overlay text lives */
+        .gh-hero::before {
+            content:''; position:absolute; inset:0; pointer-events:none; z-index:1;
+            background:
+                linear-gradient(to top, rgba(0,0,0,.78) 0%, rgba(0,0,0,.35) 35%, transparent 60%),
+                linear-gradient(to right, rgba(0,0,0,.25) 0%, transparent 50%);
+        }
+
+        /* overlay: back + eyebrow + name + tags — hidden on mobile */
+        .gh-overlay {
+            position:absolute; bottom:0; left:0; right:0;
+            padding: 1.75rem 1.75rem 1.5rem; z-index:2;
+        }
+        .gh-back {
+            display:inline-flex; align-items:center; gap:.35rem;
+            color:rgba(255,255,255,.6); text-decoration:none;
+            font-size:.65rem; font-weight:700; letter-spacing:.1em;
+            text-transform:uppercase; margin-bottom:.85rem; transition:color .2s;
+        }
+        .gh-back:hover { color:#fff; }
+        .gh-back:hover .gh-back-arr { transform:translateX(-3px); }
+        .gh-back-arr { transition:transform .2s; display:inline-block; }
+        .gh-eyebrow { font-family:var(--fb); font-size:.58rem; font-weight:700; letter-spacing:.22em; text-transform:uppercase; color:rgba(205,133,63,.9); margin:0 0 .4rem; }
+        .gh-name { font-family:var(--fd); font-size:clamp(1.6rem,3.2vw,2.9rem); font-weight:700; color:#fff; line-height:1.06; margin:0 0 .7rem; text-shadow:0 2px 10px rgba(0,0,0,.5); }
+        .gh-tags { display:flex; flex-wrap:wrap; gap:.3rem; }
+        .gh-tag { padding:.16rem .6rem; border-radius:999px; border:1px solid rgba(205,133,63,.5); background:rgba(205,133,63,.15); color:rgba(255,220,150,.9); font-size:.65rem; font-weight:700; text-decoration:none; transition:all .2s; font-family:var(--fb); }
+        .gh-tag:hover { background:var(--accent-strong); color:#fff; border-color:var(--accent-strong); }
+
+        /* photo count badge */
+        .gh-count { position:absolute; top:.9rem; right:.9rem; z-index:3; background:rgba(0,0,0,.55); color:rgba(255,255,255,.8); font-family:var(--fb); font-size:.65rem; font-weight:700; letter-spacing:.06em; padding:.25rem .7rem; border-radius:999px; backdrop-filter:blur(6px); }
+
+        /* thumbnail column: 1 part wide, stacked vertically */
+        .gh-thumbs { display:flex; flex-direction:column; gap:8px; flex:1; min-width:0; max-width:35%; }
+        .gh-thumb { position:relative; flex:1; overflow:hidden; border-radius:10px; cursor:zoom-in; min-height:0; }
+        .gh-thumb img { width:100%; height:100%; object-fit:cover; display:block; transition:transform .5s ease; }
+        .gh-thumb:hover img { transform:scale(1.07); }
+        .gh-thumb::after { content:'⊕'; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:1.5rem; color:rgba(255,255,255,.85); background:rgba(0,0,0,.22); opacity:0; transition:opacity .2s; }
+        .gh-thumb:hover::after { opacity:1; }
+        .gh-thumb-more::after { content:attr(data-more); background:rgba(0,0,0,.6); color:#fff; font-size:1.4rem; font-weight:700; font-family:var(--fb); opacity:1; }
+        .gh-thumb-more:hover::after { background:rgba(0,0,0,.72); }
+
+        .gh-placeholder { flex:2; border-radius:10px; display:flex; align-items:center; justify-content:center; background:linear-gradient(135deg,rgba(205,133,63,.09),rgba(205,133,63,.02)); font-size:5rem; opacity:.18; }
+
+        /* ══ MOBILE TITLE BLOCK ═════════════════════════
+           Below the strip on mobile — replaces the overlay.
+        ════════════════════════════════════════════════ */
+        .gh-title-block {
+            display: none; /* shown only on mobile via media query */
+            padding: 1.25rem 1rem .5rem;
+            border-bottom: 1px solid var(--border);
+        }
+        .gh-title-block .gh-back {
+            color: var(--muted); margin-bottom: .6rem;
+        }
+        .gh-title-block .gh-back:hover { color: var(--accent-strong); }
+        .gh-title-block .gh-eyebrow { color: var(--accent-strong); }
+        .gh-title-block .gh-name { color: var(--fg); text-shadow: none; font-size: clamp(1.5rem,6vw,2.2rem); margin-bottom:.6rem; }
+        .gh-title-block .gh-tag { border-color: rgba(205,133,63,.35); background: rgba(205,133,63,.07); color: var(--accent-strong); }
+
+        /* ══ CONTENT ════════════════════════════════════ */
+        .dp-body { max-width:960px; margin:0 auto; padding:2.5rem 2rem 5rem; }
+        .dp-section-label { font-family:var(--fb); font-size:.65rem; font-weight:700; letter-spacing:.18em; text-transform:uppercase; color:var(--muted); margin-bottom:1rem; display:flex; align-items:center; gap:.75rem; }
+        .dp-section-label::after { content:''; flex:1; height:1px; background:var(--border); }
+
+        /* biography: portrait | info card + text */
+        .dp-bio-wrap { display:grid; grid-template-columns:240px 1fr; gap:2.5rem; align-items:flex-start; margin-bottom:3rem; }
+
+        .dp-portrait-col { display:flex; flex-direction:column; align-items:center; gap:.75rem; }
+        .dp-portrait { width:240px; height:300px; border-radius:10px; object-fit:cover; object-position:center top; border:3px solid var(--accent-strong); box-shadow:0 8px 28px rgba(0,0,0,.35); display:block; }
+        .dp-portrait-caption { font-family:var(--fd); font-size:.85rem; font-style:italic; color:var(--muted); text-align:center; line-height:1.3; }
+
+        /* info card: dates, address, map — sits above bio text */
+        .dp-info-card {
+            background:var(--card); border:1px solid var(--border);
+            border-radius:10px; padding:1rem 1.25rem;
+            display:flex; flex-wrap:wrap; gap:.75rem 1.75rem;
+            margin-bottom:1.5rem;
+        }
+        .dp-info-item { display:flex; align-items:center; gap:.45rem; }
+        .dp-info-icon { font-size:.85rem; opacity:.65; flex-shrink:0; }
+        .dp-info-label { font-size:.58rem; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); display:block; margin-bottom:.05rem; }
+        .dp-info-value { font-size:.83rem; color:var(--fg); line-height:1.3; }
+        .dp-map-btn { display:inline-flex; align-items:center; gap:.4rem; padding:.4rem .9rem; border-radius:7px; border:1px solid var(--accent-strong); color:var(--accent-strong); text-decoration:none; font-size:.75rem; font-weight:700; font-family:var(--fb); transition:all .2s; white-space:nowrap; align-self:center; }
+        .dp-map-btn:hover { background:var(--accent-strong); color:#fff; }
+        .dp-map-btn:hover .dp-map-arr { transform:translateX(3px); }
+        .dp-map-arr { transition:transform .2s; }
+
+        .dp-pull-quote { font-family:var(--fd); font-size:clamp(1.25rem,2.2vw,1.65rem); font-style:italic; font-weight:300; color:var(--fg); line-height:1.45; margin:0 0 1.25rem; padding-left:1.1rem; border-left:3px solid var(--accent-strong); opacity:.92; }
+        .dp-bio-body { font-family:var(--fb); font-size:1rem; line-height:1.85; color:var(--fg); opacity:.88; margin:0; white-space:pre-line; }
+
+        .dp-src-toggle { display:flex; align-items:center; justify-content:space-between; width:100%; background:var(--card); border:1px solid var(--border); border-radius:10px; padding:.9rem 1.25rem; cursor:pointer; color:var(--fg); font-family:var(--fb); font-size:.88rem; font-weight:600; text-align:left; transition:border-color .2s,background .2s; }
+        .dp-src-toggle:hover { border-color:var(--accent-strong); background:rgba(205,133,63,.04); }
+        .dp-src-chevron { font-size:.7rem; color:var(--muted); transition:transform .28s; }
+        .dp-src-toggle.open .dp-src-chevron { transform:rotate(180deg); }
+        .dp-src-body { display:none; background:var(--card); border:1px solid var(--border); border-top:none; border-radius:0 0 10px 10px; padding:.9rem 1.25rem 1.1rem; }
+        .dp-src-body.open { display:block; }
+        .dp-src-list { margin:0; padding:0 0 0 1.1rem; list-style:disc; }
+        .dp-src-list li { font-size:.85rem; color:var(--muted); line-height:1.65; margin-bottom:.25rem; font-family:var(--fb); }
+        .dp-src-list a { color:var(--accent-strong); text-decoration:none; word-break:break-all; }
+        .dp-src-list a:hover { text-decoration:underline; }
+
+        /* ══ LIGHTBOX ═══════════════════════════════════ */
+        .lb { display:none; position:fixed; inset:0; background:rgba(0,0,0,.96); z-index:9000; align-items:center; justify-content:center; padding:1rem; }
+        .lb.open { display:flex; animation:lbIn .18s ease; }
+        @keyframes lbIn { from{opacity:0;} to{opacity:1;} }
+        .lb-img { max-width:93vw; max-height:93vh; border-radius:6px; box-shadow:0 24px 80px rgba(0,0,0,.8); animation:lbScale .22s ease; }
+        @keyframes lbScale { from{transform:scale(.94);opacity:0;} to{transform:scale(1);opacity:1;} }
+        .lb-close { position:fixed; top:1rem; right:1rem; background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.2); color:#fff; font-size:1.6rem; width:44px; height:44px; border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background .2s; line-height:1; }
+        .lb-close:hover,.lb-nav:hover { background:rgba(255,255,255,.22); }
+        .lb-nav { position:fixed; top:50%; transform:translateY(-50%); background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.2); color:#fff; font-size:1.5rem; width:48px; height:48px; border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background .2s; }
+        .lb-nav.prev { left:1rem; } .lb-nav.next { right:4rem; }
+        .lb-nav:disabled { opacity:.2; pointer-events:none; }
+
+        /* ══ MOBILE ═════════════════════════════════════ */
+        @media (max-width: 768px) {
+            /* strip: hero takes full width in a row with thumbs beside it */
+            .gh { height: clamp(180px, 52vw, 300px); padding: 0 6px; gap: 6px; }
+            /* hide desktop overlay on mobile — title block takes over */
+            .gh-overlay { display: none; }
+            .gh-hero::before { display: none; }
+            /* show the below-strip title block */
+            .gh-title-block { display: block; }
+            /* thumbs: visible but narrower */
+            .gh-thumbs { max-width:38%; gap:6px; }
+            .gh-thumb { border-radius:7px; }
+            .gh-hero { border-radius:7px; }
+            .gh-count { top:.6rem; right:.6rem; font-size:.6rem; }
+
+            .dp-body { padding:1.5rem 1rem 3rem; }
+            .dp-bio-wrap { grid-template-columns:1fr; gap:1.5rem; }
+            .dp-portrait-col { flex-direction:row; align-items:flex-start; gap:1.25rem; }
+            .dp-portrait { width:140px; height:176px; }
+            .dp-portrait-caption { display:none; }
+            .dp-info-card { gap:.6rem 1.25rem; }
+            .lb-nav.next { right:1rem; }
+        }
+        @media (max-width: 480px) {
+            .gh { height: clamp(160px, 55vw, 240px); }
+            .gh-thumbs { max-width:34%; gap:5px; }
+            .dp-portrait { width:120px; height:150px; }
+        }
+    </style>
 </head>
-<script>
-function handleEmailClick(event) {
-    if (window.innerWidth <= 768) {
-        return; 
-    }
-    
-    // On desktop, show modal
-    event.preventDefault();
-    showEmailModal();
-}
-
-function showEmailModal() {
-    var modal = document.getElementById('emailModal');
-    if (!modal) {
-        modal = document.createElement('div');
-        modal.id = 'emailModal';
-        modal.className = 'email-modal';
-        modal.innerHTML = `
-            <div class="email-modal-content">
-                <h3>📧 Свържете се с нас</h3>
-                <div class="email-address-display" id="emailDisplay">historyaddressbg@gmail.com</div>
-                <div class="email-modal-buttons">
-                    <button class="btn-copy" onclick="copyEmail()">
-                        <span id="copyText">📋 Копирай Email</span>
-                    </button>
-                    <button class="btn-close" onclick="closeEmailModal()">✕ Затвори</button>
-                </div>
-                <p>Можете да ни пишете за въпроси или подкрепа</p>
-            </div>
-        `;
-        document.body.appendChild(modal);
-        
-        modal.addEventListener('click', function(e) {
-            if (e.target === modal) {
-                closeEmailModal();
-            }
-        });
-    }
-    
-    modal.style.display = 'flex';
-    document.body.style.overflow = 'hidden';
-}
-
-function closeEmailModal() {
-    var modal = document.getElementById('emailModal');
-    if (modal) {
-        modal.style.display = 'none';
-        document.body.style.overflow = '';
-    }
-}
-
-function copyEmail() {
-    var email = 'historyaddressbg@gmail.com';
-    navigator.clipboard.writeText(email).then(function() {
-        var btn = document.querySelector('.btn-copy');
-        var text = document.getElementById('copyText');
-        
-        btn.classList.add('copied');
-        text.textContent = '✓ Копирано!';
-        
-        setTimeout(function() {
-            btn.classList.remove('copied');
-            text.textContent = '📋 Копирай Email';
-        }, 2000);
-    }).catch(function(err) {
-        alert('Email: ' + email);
-    });
-}
-
-// Close modal on ESC key
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') {
-        closeEmailModal();
-    }
-});
-</script>
 <body>
-  <header class="site-header">
+
+<script>
+function handleEmailClick(e) { if (window.innerWidth <= 768) return; e.preventDefault(); showEmailModal(); }
+function showEmailModal() {
+    var m = document.getElementById('emailModal');
+    if (!m) {
+        m = document.createElement('div'); m.id='emailModal'; m.className='email-modal';
+        m.innerHTML='<div class="email-modal-content"><h3>📧 Свържете се с нас</h3><div class="email-address-display">historyaddressbg@gmail.com</div><div class="email-modal-buttons"><button class="btn-copy" onclick="copyEmail()"><span id="copyText">📋 Копирай Email</span></button><button class="btn-close" onclick="closeEmailModal()">✕ Затвори</button></div><p>Можете да ни пишете за въпроси или подкрепа</p></div>';
+        document.body.appendChild(m);
+        m.addEventListener('click', function(e) { if (e.target===m) closeEmailModal(); });
+    }
+    m.style.display='flex'; document.body.style.overflow='hidden';
+}
+function closeEmailModal() { var m=document.getElementById('emailModal'); if(m){m.style.display='none';document.body.style.overflow='';} }
+function copyEmail() {
+    navigator.clipboard.writeText('historyaddressbg@gmail.com').then(function() {
+        var b=document.querySelector('.btn-copy'),t=document.getElementById('copyText');
+        b.classList.add('copied'); t.textContent='✓ Копирано!';
+        setTimeout(function(){b.classList.remove('copied');t.textContent='📋 Копирай Email';},2000);
+    }).catch(function(){alert('Email: historyaddressbg@gmail.com');});
+}
+document.addEventListener('keydown', function(e) { if (e.key==='Escape') closeEmailModal(); });
+</script>
+
+<header class="site-header">
     <a class="logo-link" href="index.html">
         <img src="assets/img/HistAdrLogo.png" alt="Адресът на историята" class="header-logo">
         <span class="logo-text">Адресът на историята</span>
     </a>
-<nav class="nav">
-    <a href="index.html">Начало</a>
-    <a href="map.html">Карта</a>
-    <a href="addresses.html">Адреси</a>
-    <a href="calendar.html">Календар</a>
-    <a href="news.html">Новини</a>
-    <a href="about.html">За Нас</a>
-</nav>
+    <nav class="nav">
+        <a href="index.html">Начало</a>
+        <a href="map.html">Карта</a>
+        <a href="addresses.html">Адреси</a>
+        <a href="calendar.html">Календар</a>
+        <a href="news.html">Новини</a>
+        <a href="about.html">За Нас</a>
+    </nav>
     <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode"></button>
 </header>
 
-    <main class="container">
-        <div id="detail" class="detail">
-            <p>Зареждане...</p>
-        </div>
-    </main>
+<div id="pageRoot"></div>
 
 <footer class="site-footer">
     <div class="footer-inner">
@@ -155,220 +273,238 @@ document.addEventListener('keydown', function(e) {
                 Email
             </a>
         </div>
-
         <p class="footer-links">
-            <a href="privacy.html">Поверителност</a>
-            <span>•</span>
-            <a href="terms.html">Условия</a>
-            <span>•</span>
+            <a href="privacy.html">Поверителност</a> <span>•</span>
+            <a href="terms.html">Условия</a> <span>•</span>
             <a href="copyright.html">Авторски права</a>
         </p>
-
         <p class="footer-copy">© <span id="year"></span> Адресът на историята</p>
     </div>
 </footer>
 
-    <div id="lightbox" class="lightbox-backdrop" style="display:none;">
-        <div class="lightbox-content">
-            <button id="closeLightbox" class="close-btn" aria-label="Close" title="Close">×</button>
-            <img id="lightboxImage" src="" alt="Enlarged image" style="max-width: 90vw; max-height: 90vh;">
-        </div>
-    </div>
+<div id="lb" class="lb">
+    <button class="lb-close" id="lbClose">×</button>
+    <button class="lb-nav prev" id="lbPrev">‹</button>
+    <img id="lbImg" class="lb-img" src="" alt="Увеличена снимка">
+    <button class="lb-nav next" id="lbNext">›</button>
+</div>
 
-    <script>
-    (function() {
-        function q(name) {
-            var url = window.location.href;
-            name = name.replace(/[\[\]]/g, '\\$&');
-            var regex = new RegExp('[?&]' + name + '(=([^&#]*)|&|#|$)'),
-                results = regex.exec(url);
-            if (!results) return null;
-            if (!results[2]) return '';
-            return decodeURIComponent(results[2].replace(/\+/g, ' '));
+<script>
+(function () {
+    function qs(name) {
+        var r = new RegExp('[?&]'+name.replace(/[\[\]]/g,'\\$&')+'(=([^&#]*)|&|#|$)').exec(location.href);
+        return r ? decodeURIComponent((r[2]||'').replace(/\+/g,' ')) : null;
+    }
+    function el(tag,cls){ var e=document.createElement(tag); if(cls) e.className=cls; return e; }
+    function fmt(ds) { if(!ds) return null; var d=new Date(ds); return isNaN(d)?ds:d.toLocaleDateString('bg-BG',{year:'numeric',month:'long',day:'numeric'}); }
+    function firstSentence(t) { if(!t) return ''; var m=t.match(/^.+?[.!?](?:\s|$)/); return m?m[0].trim():t.substring(0,160); }
+
+    var ph='assets/img/placeholder.svg', slug=qs('slug');
+    var root=document.getElementById('pageRoot');
+    var apiBase=location.protocol==='file:'?'http://localhost:3000':location.origin;
+    var allSrcs=[], lbIdx=0;
+
+    document.getElementById('year').textContent=new Date().getFullYear();
+
+    if (!slug) { root.innerHTML='<main class="container"><p style="padding:3rem;color:var(--muted);">Не е посочен адрес.</p></main>'; return; }
+    root.innerHTML='<div style="padding:5rem;text-align:center;color:var(--muted);font-family:Mulish,sans-serif;">Зареждане…</div>';
+
+    fetch(apiBase+'/api/homes/'+encodeURIComponent(slug))
+        .then(function(r){ if(!r.ok) throw new Error(r.status===404?'Адресът не е намерен':'Сървърна грешка'); return r.json(); })
+        .then(function(p){ renderPage(p); updateMeta(p); addSchema(p); })
+        .catch(function(err){ root.innerHTML='<main class="container"><p style="padding:3rem;color:#ff6b6b;">Грешка: '+err.message+'</p></main>'; });
+
+    function renderPage(p) {
+        var gallery=p.images||[];
+        var hasMap=p.coordinates&&p.coordinates.lat&&p.coordinates.lng;
+        var mapHref=hasMap?'map.html?slug='+encodeURIComponent(p.slug||p.id):'';
+        gallery.forEach(function(img){ if(img.path) allSrcs.push(img.path); });
+
+        var frag=document.createDocumentFragment();
+
+        /* ── GALLERY HEADER ───────────────────────────── */
+        var gh=el('div','gh');
+
+        if (gallery.length===0) {
+            var gph=el('div','gh-placeholder'); gph.textContent='🏛️'; gh.appendChild(gph);
+        } else {
+            /* hero cell */
+            var hero=el('div','gh-hero');
+            var hImg=el('img');
+            hImg.src=gallery[0].path; hImg.alt=gallery[0].alt||('Сграда — '+p.name); hImg.loading='eager';
+            hImg.onerror=function(){ hero.innerHTML='<div class="gh-placeholder" style="flex:1">🏛️</div>'; };
+            hero.appendChild(hImg);
+            hero.addEventListener('click',function(){ openLb(0); });
+
+            if (gallery.length>1) {
+                var cnt=el('div','gh-count');
+                cnt.textContent=gallery.length+' снимки  📷';
+                hero.appendChild(cnt);
+            }
+
+            /* overlay: back + eyebrow + name + tags */
+            var ov=el('div','gh-overlay');
+            var back=el('a','gh-back'); back.href='addresses.html';
+            back.innerHTML='<span class="gh-back-arr">←</span> Всички адреси';
+            ov.appendChild(back);
+            var ey=el('p','gh-eyebrow'); ey.textContent='Адресът на историята'; ov.appendChild(ey);
+            var nm=el('h1','gh-name'); nm.textContent=p.name||'—'; ov.appendChild(nm);
+            if (p.tags&&p.tags.length>0) {
+                var tg=el('div','gh-tags');
+                p.tags.forEach(function(t){ var a=el('a','gh-tag'); a.href='addresses.html?tag='+encodeURIComponent(t); a.textContent=t; tg.appendChild(a); });
+                ov.appendChild(tg);
+            }
+            hero.appendChild(ov);
+            gh.appendChild(hero);
+
+            /* thumbnail column — show up to 3, badge last if more remain */
+            if (gallery.length>1) {
+                var thumbs=el('div','gh-thumbs');
+                var shown=gallery.slice(1,4);
+                var remaining=gallery.length-1-shown.length;
+                shown.forEach(function(img,i){
+                    var isLast=(i===shown.length-1)&&remaining>0;
+                    var th=el('div',isLast?'gh-thumb gh-thumb-more':'gh-thumb');
+                    if(isLast) th.setAttribute('data-more','+'+(remaining+1));
+                    var ti=el('img'); ti.src=img.path; ti.alt=img.alt||('Снимка '+(i+2)); ti.loading='lazy';
+                    ti.onerror=function(){ this.style.display='none'; };
+                    th.appendChild(ti);
+                    var gi=i+1;
+                    th.addEventListener('click',function(){ openLb(gi); });
+                    thumbs.appendChild(th);
+                });
+                gh.appendChild(thumbs);
+            }
         }
-
-        var slug = q('slug');
-        var root = document.getElementById('detail');
-        var ph = 'assets/img/placeholder.svg';
-
-        if (!slug) {
-            root.innerHTML = '<p>Не е посочен адрес.</p>';
-            return;
+        /* ── MOBILE TITLE BLOCK (below strip, hidden on desktop) ── */
+        var titleBlock=el('div','gh-title-block');
+        var tbBack=el('a','gh-back'); tbBack.href='addresses.html';
+        tbBack.innerHTML='<span class="gh-back-arr">←</span> Всички адреси';
+        titleBlock.appendChild(tbBack);
+        var tbEy=el('p','gh-eyebrow'); tbEy.textContent='Адресът на историята'; titleBlock.appendChild(tbEy);
+        var tbNm=el('h1','gh-name'); tbNm.textContent=p.name||'—'; titleBlock.appendChild(tbNm);
+        if(p.tags&&p.tags.length>0){
+            var tbTg=el('div','gh-tags');
+            p.tags.forEach(function(t){ var a=el('a','gh-tag'); a.href='addresses.html?tag='+encodeURIComponent(t); a.textContent=t; tbTg.appendChild(a); });
+            titleBlock.appendChild(tbTg);
         }
-        
-        var apiBase = window.location.protocol === 'file:' ? 'http://localhost:3000' : window.location.origin;
-        var API_URL = apiBase + '/api/homes/' + encodeURIComponent(slug);
+        frag.appendChild(titleBlock);
+        frag.appendChild(gh);
 
-        fetch(API_URL)
-            .then(function(res){
-                if (!res.ok) {
-                    if (res.status === 404) throw new Error('Адресът не е намерен');
-                    throw new Error('Сървърна грешка');
+        /* ── CONTENT BODY ─────────────────────────────── */
+        var main=el('main','container'), body=el('div','dp-body');
+
+        if (p.biography||p.portrait_url||p.address||p.birth_date||p.death_date) {
+            var bioLabel=el('div','dp-section-label'); bioLabel.textContent='Биография'; body.appendChild(bioLabel);
+            var bioWrap=el('div','dp-bio-wrap');
+            if(!p.portrait_url) bioWrap.style.gridTemplateColumns='1fr';
+
+            if(p.portrait_url){
+                var portCol=el('div','dp-portrait-col');
+                var portImg=el('img','dp-portrait'); portImg.src=p.portrait_url; portImg.alt='Портрет на '+p.name; portImg.loading='lazy';
+                portImg.onerror=function(){ portCol.style.display='none'; };
+                var portCap=el('div','dp-portrait-caption'); portCap.textContent=p.name;
+                portCol.appendChild(portImg); portCol.appendChild(portCap); bioWrap.appendChild(portCol);
+            }
+
+            var btc=el('div');
+
+            /* info card: address + dates + map btn */
+            var hasInfo=p.address||p.birth_date||p.death_date||p.photo_date||mapHref;
+            if(hasInfo){
+                var card=el('div','dp-info-card');
+                function addInfo(icon,label,value){
+                    if(!value) return;
+                    var item=el('div','dp-info-item');
+                    var ic=el('span','dp-info-icon'); ic.textContent=icon;
+                    var txt=el('div');
+                    var lbl=el('div','dp-info-label'); lbl.textContent=label;
+                    var val=el('div','dp-info-value'); val.textContent=value;
+                    txt.appendChild(lbl); txt.appendChild(val); item.appendChild(ic); item.appendChild(txt); card.appendChild(item);
                 }
-                return res.json();
-            })
-            .then(function(person){
-                renderHome(person);
-                updateMetaTags(person);
-                addStructuredData(person);
-            })
-            .catch(function(err){
-                console.error('Error loading home:', err);
-                root.innerHTML = '<p>Грешка: ' + err.message + '. Моля, проверете връзката.</p>';
+                addInfo('📍','Адрес',p.address);
+                addInfo('🎂','Роден',fmt(p.birth_date));
+                addInfo('🕯️','Починал',fmt(p.death_date));
+                if(p.photo_date) addInfo('📷','Снимка',p.photo_date);
+                if(mapHref){
+                    var mbtn=el('a','dp-map-btn'); mbtn.href=mapHref;
+                    mbtn.innerHTML='🗺️ Карта <span class="dp-map-arr">→</span>';
+                    card.appendChild(mbtn);
+                }
+                btc.appendChild(card);
+            }
+
+            if(p.biography){
+                var first=firstSentence(p.biography);
+                var pq=el('blockquote','dp-pull-quote'); pq.textContent=first; btc.appendChild(pq);
+                var rest=p.biography.replace(first,'').trim();
+                if(rest){ var bt=el('p','dp-bio-body'); bt.textContent=rest; btc.appendChild(bt); }
+            }
+            bioWrap.appendChild(btc); body.appendChild(bioWrap);
+        }
+
+        if (p.sources&&p.sources.length>0) {
+            var srcLabel=el('div','dp-section-label'); srcLabel.textContent='Източници'; body.appendChild(srcLabel);
+            var srcSec=el('div');
+            var srcTog=el('button','dp-src-toggle');
+            srcTog.innerHTML='📚 Виж всички източници <span style="color:var(--muted);font-weight:400;font-size:.8em;">('+p.sources.length+')</span><span class="dp-src-chevron">▼</span>';
+            var srcBod=el('div','dp-src-body'), srcUl=el('ul','dp-src-list');
+            p.sources.forEach(function(s){
+                s=s.trim(); var li=el('li');
+                if(/^https?:\/\//i.test(s)){ var a=el('a'); a.href=s; a.target='_blank'; a.rel='noopener noreferrer'; a.textContent=s; li.appendChild(a); }
+                else { li.textContent=s; }
+                srcUl.appendChild(li);
             });
-
-        function updateMetaTags(person) {
-            var pageUrl = 'https://historyaddress.bg/address.html?slug=' + encodeURIComponent(slug);
-            var description = person.biography ? person.biography.substring(0, 155) : 'Исторически адрес: ' + person.address;
-            var imageUrl = (person.images && person.images[0] && person.images[0].path) 
-                ? 'https://historyaddress.bg/' + person.images[0].path 
-                : 'https://historyaddress.bg/assets/img/HistAdrLogo.png';
-
-            document.title = person.name + ' — Адресът на историята';
-
-            var metaDesc = document.querySelector('meta[name="description"]');
-            if (metaDesc) metaDesc.setAttribute('content', description);
-
-            var canonical = document.querySelector('link[rel="canonical"]');
-            if (canonical) canonical.setAttribute('href', pageUrl);
-            
-            var ogUrl = document.querySelector('meta[property="og:url"]');
-            if (ogUrl) ogUrl.setAttribute('content', pageUrl);
-            
-            var ogTitle = document.querySelector('meta[property="og:title"]');
-            if (ogTitle) ogTitle.setAttribute('content', person.name);
-            
-            var ogDesc = document.querySelector('meta[property="og:description"]');
-            if (ogDesc) ogDesc.setAttribute('content', description);
-            
-            var ogImage = document.querySelector('meta[property="og:image"]');
-            if (ogImage) ogImage.setAttribute('content', imageUrl);
-
-            var twitterUrl = document.querySelector('meta[property="twitter:url"]');
-            if (twitterUrl) twitterUrl.setAttribute('content', pageUrl);
-            
-            var twitterTitle = document.querySelector('meta[property="twitter:title"]');
-            if (twitterTitle) twitterTitle.setAttribute('content', person.name);
-            
-            var twitterDesc = document.querySelector('meta[property="twitter:description"]');
-            if (twitterDesc) twitterDesc.setAttribute('content', description);
-            
-            var twitterImage = document.querySelector('meta[property="twitter:image"]');
-            if (twitterImage) twitterImage.setAttribute('content', imageUrl);
+            srcBod.appendChild(srcUl);
+            srcTog.addEventListener('click',function(){ var o=srcBod.classList.toggle('open'); srcTog.classList.toggle('open',o); });
+            srcSec.appendChild(srcTog); srcSec.appendChild(srcBod); body.appendChild(srcSec);
         }
 
-        function addStructuredData(person) {
-            var script = document.createElement('script');
-            script.type = 'application/ld+json';
-            var structuredData = {
-                "@context": "https://schema.org",
-                "@type": "Place",
-                "name": person.name,
-                "description": person.biography || '',
-                "address": {
-                    "@type": "PostalAddress",
-                    "streetAddress": person.address || '',
-                    "addressCountry": "BG"
-                }
-            };
-            if (person.coordinates && person.coordinates.lat && person.coordinates.lng) {
-                structuredData.geo = {
-                    "@type": "GeoCoordinates",
-                    "latitude": person.coordinates.lat,
-                    "longitude": person.coordinates.lng
-                };
-            }
-            if (person.images && person.images[0] && person.images[0].path) {
-                structuredData.image = 'https://historyaddress.bg/' + person.images[0].path;
-            }
-            script.textContent = JSON.stringify(structuredData);
-            document.head.appendChild(script);
-        }
-        
-        function renderHome(person) {
-            document.title = person.name + ' — Адресът на историята';
-            
-            var portraitHtml = '';
-            if (person.portrait_url) {
-                portraitHtml = '<div class="portrait-container slide-in-left"><img class="portrait-image" alt="Портрет на ' + person.name + '" src="' + person.portrait_url + '" loading="lazy"></div>';
-            }
-            
-            var gallery = (person.images||[]);
-            var hero = gallery[0] || null;
-            var imgHtml = hero ? 
-                '<img class="zoomable-image" alt="'+((hero && hero.alt) || ('Фасада на '+person.name))+'" loading="lazy" src="'+((hero && hero.path) || ph)+'" onerror="this.onerror=null;this.src=\''+ph+'\';">' : '';
+        main.appendChild(body); frag.appendChild(main);
+        root.innerHTML=''; root.appendChild(frag);
+    }
 
-            var galleryHtml = '';
-            if ((gallery||[]).length > 1) {
-                galleryHtml = '<div class="gallery slide-up">' + gallery.slice(1).map(function(i){ 
-                    var s = (i && i.path) || ph; 
-                    var a = (i && i.alt) || ('Фасада на '+person.name); 
-                    return '<img class="zoomable-image" alt="'+a+'" loading="lazy" src="'+s+'" onerror="this.onerror=null;this.src=\''+ph+'\';">'; 
-                }).join('') + '</div>';
-            }
-            
-            var tags = (person.tags||[]).map(function(t){ return '<a class="tag" href="addresses.html?tag='+encodeURIComponent(t)+'">'+t+'</a>'; }).join(' ');
-            var mapLink = (person.coordinates && person.coordinates.lat && person.coordinates.lng) ? ('map.html?slug=' + encodeURIComponent(person.slug||person.id)) : '';
-            
-            var sources = (person.sources||[]).map(function(s){
-                var isUrl = /^https?:\/\//i.test(s.trim());
-                return isUrl ? '<li><a href="'+s.trim()+'" rel="noopener" target="_blank">'+s.trim()+'</a></li>' : '<li>'+s.trim()+'</li>';
-            }).join('');
-            
-            root.innerHTML =
-                (imgHtml ? ('<p class="fade-in">'+imgHtml+'</p>') : '') +
-                galleryHtml +
-                '<h1 class="gradient-text slide-up">'+person.name+'</h1>'+
-                '<p class="meta slide-up">Адрес: '+(person.address||'')+(mapLink ? ' — <a href="'+mapLink+'">Виж на картата</a>' : '')+'</p>'+
-                '<div class="content-split">'+
-                    portraitHtml +
-                    '<div class="biography-text slide-up">'+
-                        '<p>'+ (person.biography||'') +'</p>'+
-                    '</div>'+
-                '</div>'+
-                (person.photo_date ? ('<p class="meta slide-up">Дата на снимката: '+person.photo_date+'</p>') : '')+
-                (sources ? ('<h3 class="slide-up">Източници</h3><ul class="slide-up">'+sources+'</ul>') : '')+
-                (tags ? ('<p class="tags slide-up">'+tags+'</p>') : '');
-            
-            document.getElementById('year').textContent = new Date().getFullYear();
-        }
-        
+    /* ── LIGHTBOX ───────────────────────────────────── */
+    var lb=document.getElementById('lb'), lbImg=document.getElementById('lbImg');
+    var lbPrev=document.getElementById('lbPrev'), lbNext=document.getElementById('lbNext');
+    function openLb(idx){ lbIdx=idx; lbImg.src=allSrcs[lbIdx]||''; lb.classList.add('open'); document.body.style.overflow='hidden'; updateLbNav(); }
+    function closeLb(){ lb.classList.remove('open'); document.body.style.overflow=''; lbImg.src=''; }
+    function updateLbNav(){ lbPrev.disabled=lbIdx<=0; lbNext.disabled=lbIdx>=allSrcs.length-1; }
+    document.getElementById('lbClose').addEventListener('click',closeLb);
+    lb.addEventListener('click',function(e){ if(e.target===lb) closeLb(); });
+    lbPrev.addEventListener('click',function(e){ e.stopPropagation(); if(lbIdx>0){lbIdx--;lbImg.src=allSrcs[lbIdx];updateLbNav();} });
+    lbNext.addEventListener('click',function(e){ e.stopPropagation(); if(lbIdx<allSrcs.length-1){lbIdx++;lbImg.src=allSrcs[lbIdx];updateLbNav();} });
+    document.addEventListener('keydown',function(e){
+        if(!lb.classList.contains('open')){ if(e.key==='Escape') closeEmailModal(); return; }
+        if(e.key==='ArrowLeft'&&lbIdx>0){ lbIdx--;lbImg.src=allSrcs[lbIdx];updateLbNav(); }
+        if(e.key==='ArrowRight'&&lbIdx<allSrcs.length-1){ lbIdx++;lbImg.src=allSrcs[lbIdx];updateLbNav(); }
+        if(e.key==='Escape') closeLb();
+    });
 
-        var lightbox = document.getElementById('lightbox');
-        var lightboxImage = document.getElementById('lightboxImage');
-        var closeLightbox = document.getElementById('closeLightbox');
-        var detailContainer = document.getElementById('detail');
+    /* ── META / SEO ─────────────────────────────────── */
+    function updateMeta(p){
+        var pageUrl='https://historyaddress.bg/address.html?slug='+encodeURIComponent(slug);
+        var desc=p.biography?p.biography.substring(0,155):'Исторически адрес: '+(p.address||'');
+        var img=(p.images&&p.images[0]&&p.images[0].path)?'https://historyaddress.bg/'+p.images[0].path:'https://historyaddress.bg/assets/img/HistAdrLogo.png';
+        document.title=p.name+' — Адресът на историята';
+        var map={
+            'meta[name="description"]':['content',desc],'link[rel="canonical"]':['href',pageUrl],
+            'meta[property="og:url"]':['content',pageUrl],'meta[property="og:title"]':['content',p.name],
+            'meta[property="og:description"]':['content',desc],'meta[property="og:image"]':['content',img],
+            'meta[property="twitter:url"]':['content',pageUrl],'meta[property="twitter:title"]':['content',p.name],
+            'meta[property="twitter:description"]':['content',desc],'meta[property="twitter:image"]':['content',img]
+        };
+        Object.keys(map).forEach(function(sel){ var n=document.querySelector(sel); if(n) n.setAttribute(map[sel][0],map[sel][1]); });
+    }
 
-        function openLightbox(src) {
-            lightboxImage.src = src;
-            lightbox.style.display = 'flex';
-            document.body.style.overflow = 'hidden'; 
-        }
-
-        function closeLightboxModal() {
-            lightbox.style.display = 'none';
-            document.body.style.overflow = '';
-        }
-
-        detailContainer.addEventListener('click', function(e) {
-            var target = e.target;
-            if (target.classList.contains('zoomable-image')) {
-                var imgSrc = target.getAttribute('src');
-                if (imgSrc && imgSrc.indexOf(ph) === -1) { 
-                    openLightbox(imgSrc);
-                }
-            }
-        });
-
-        closeLightbox.addEventListener('click', closeLightboxModal);
-        lightbox.addEventListener('click', function(e) {
-            if (e.target.id === 'lightbox') closeLightboxModal();
-        });
-
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape' && lightbox.style.display === 'flex') closeLightboxModal();
-        });
-    })();
-    </script>
+    function addSchema(p){
+        var s=document.createElement('script'); s.type='application/ld+json';
+        var d={'@context':'https://schema.org','@type':'Place',name:p.name,description:p.biography||'',address:{'@type':'PostalAddress',streetAddress:p.address||'',addressCountry:'BG'}};
+        if(p.coordinates&&p.coordinates.lat) d.geo={'@type':'GeoCoordinates',latitude:p.coordinates.lat,longitude:p.coordinates.lng};
+        if(p.images&&p.images[0]) d.image='https://historyaddress.bg/'+p.images[0].path;
+        s.textContent=JSON.stringify(d); document.head.appendChild(s);
+    }
+})();
+</script>
 </body>
 </html>
