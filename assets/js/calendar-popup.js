@@ -31,7 +31,7 @@ function showPopup(events) {
         // --- МИНИ РЕЖИМ ---
         var miniContent = document.createElement('div');
         miniContent.style.cssText = 'display:flex;justify-content:space-between;align-items:center;';
-        miniContent.innerHTML = '<span style="font-weight:700;color:var(--fg);display:flex;align-items:center;">📅 ' + events.length + ' събития днес</span>' +
+        miniContent.innerHTML = '<span style="font-weight:700;color:var(--fg);display:flex;align-items:center;">📅 ' + events.length + (events.length === 1 ? ' събитие' : ' събития') + ' днес</span>' +
                                 '<span style="font-size:0.8rem;color:var(--accent-soft);animation:pulse 2s infinite;">детайли ↑</span>';
 
         // --- ПЪЛЕН РЕЖИМ ---
