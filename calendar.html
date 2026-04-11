@@ -135,11 +135,22 @@
             background: transparent;
         }
         
-        .calendar-day.today {
-            border: 2px solid var(--accent-strong);
-            box-shadow: 0 0 15px rgba(205, 133, 63, 0.3);
-            background: rgba(205, 133, 63, 0.08);
-        }
+/* "Today" - Clean Border Style */
+.calendar-day.today {
+    /* Keep the exact same structure as other boxes */
+    background: var(--card) !important; 
+    border: 2px solid #c2bdb1 !important; /* Clean white border */
+    
+    /* Remove all extra effects that were causing "noise" */
+    box-shadow: none !important;
+    transform: none !important;
+}
+
+/* Make the date number white to match the border */
+.calendar-day.today .calendar-day-number {
+    color: #c2bdb1 !important;
+    text-shadow: none !important;
+}
         
         .calendar-day.has-events {
             cursor: pointer;
