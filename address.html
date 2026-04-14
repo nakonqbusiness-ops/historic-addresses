@@ -116,16 +116,23 @@
 .lb img{max-width:93vw;max-height:85vh;border-radius:6px;box-shadow:0 24px 80px rgba(0,0,0,.8);animation:lbScale .22s ease}
 @keyframes lbScale{from{transform:scale(.94);opacity:0}to{transform:scale(1);opacity:1}}
 
-/* X BUTTON — perfect circle on all screen sizes */
-.lb-x{position:fixed;top:1rem;right:1rem;background:rgba(30,30,30,.85);border:1px solid rgba(255,255,255,.25);color:#fff;width:36px;height:36px;padding:0;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s;backdrop-filter:blur(6px)}
+/* X BUTTON */
+.lb-x{position:fixed;top:1.5rem;right:1.5rem;background:rgba(30,30,30,.85);border:1px solid rgba(255,255,255,.25);color:#fff;width:48px;height:48px;padding:0;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s;backdrop-filter:blur(6px);z-index:100}
 .lb-x:hover{background:rgba(180,40,40,.8)}
-.lb-x svg{display:block;width:12px;height:12px;flex-shrink:0}
+.lb-x svg{display:block;width:18px;height:18px;flex-shrink:0}
 
-.lb-nav{position:fixed;top:50%;transform:translateY(-50%);background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;font-size:1.5rem;width:48px;height:48px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s}
+/* NAV ARROWS — desktop: fixed left/right of viewport */
+.lb-nav{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;font-size:1.5rem;width:48px;height:48px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s;outline:none}
 .lb-nav:hover{background:rgba(255,255,255,.22)}
-#lbPrev{left:1rem}#lbNext{right:1rem}
 .lb-nav:disabled{opacity:.2;pointer-events:none}
+#lbPrev{position:fixed;left:1.5rem;top:50%;transform:translateY(-50%)}
+#lbNext{position:fixed;right:1.5rem;top:50%;transform:translateY(-50%)}
+
+/* Counter — fixed bottom center */
 .lb-ctr{position:fixed;bottom:1.25rem;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.55);color:rgba(255,255,255,.75);font-family:var(--fb);font-size:.72rem;font-weight:700;padding:.3rem .9rem;border-radius:999px;backdrop-filter:blur(6px);pointer-events:none}
+
+/* The row div is invisible on desktop — arrows have escaped it via fixed positioning */
+.lb-nav-row{display:contents}
 
 /* MOBILE LIGHTBOX */
 @media(max-width:768px){
@@ -134,11 +141,67 @@
   .lb img{max-width:90vw;max-height:65vh;width:auto;height:auto;display:block;margin:0 auto}
   .lb-x{position:absolute !important;top:10px !important;right:10px !important;left:auto !important;width:28px !important;height:28px !important}
   .lb-x svg{width:10px !important;height:10px !important}
-  .lb-nav{position:static;transform:none;width:44px;height:44px}
+  /* Reset arrows back into the row */
+  #lbPrev,#lbNext{position:static;transform:none}
+  .lb-nav{width:44px;height:44px}
+  /* Restore the row as a visible flex container */
   .lb-nav-row{display:flex;gap:1.5rem;align-items:center;margin-top:1rem}
+  /* Counter back into normal flow */
   .lb-ctr{position:static;transform:none}
 }
+/* --- KILL THE OVAL & HIGHLIGHTS --- */
+* {
+  /* This stops the browser from creating that massive "tap oval" when you click */
+  -webkit-tap-highlight-color: transparent; 
+  -webkit-touch-callout: none;
+}
 
+/* --- KILL THE ORANGE SIDE-BAR --- */
+html, body {
+  overflow-x: hidden !important;
+  width: 100% !important;
+  position: relative;
+  margin: 0;
+  padding: 0;
+}
+
+/* --- LIGHTBOX MOBILE CLEANUP --- */
+@media(max-width:768px){
+  .lb {
+    /* Ensure the lightbox doesn't trigger horizontal scrolling */
+    width: 100%;
+    overflow: hidden;
+    padding: 0;
+  }
+  
+  .lb-img-wrap {
+    width: 100%;
+    /* Prevents the wrap from expanding beyond the screen */
+    max-width: 100vw; 
+  }
+
+  .lb img {
+    /* Scale down slightly to ensure it never touches the edges */
+    max-width: 95vw;
+    max-height: 70vh;
+  }
+
+  /* Fix for the "Full Bleed" Gallery Strip causing the side-scroll */
+  .gh {
+    width: 100% !important;
+    margin-left: 0 !important;
+    left: 0 !important;
+    /* Use 100% instead of 100vw to avoid the orange bar */
+  }
+
+  /* Navigation Button Clean-up */
+  .lb-nav, .lb-x {
+    outline: none !important;
+    -webkit-appearance: none;
+    /* Extra insurance against the oval on buttons */
+    box-shadow: none !important; 
+  }
+}
 /* MOBILE */
 @media(max-width:768px){
   .gh{height:clamp(180px,52vw,300px);padding:0 6px;gap:6px}
@@ -159,6 +222,7 @@
   .gh-thumbs{max-width:34%;gap:5px}
   .dp-portrait{width:120px;height:150px}
 }
+
 </style>
 </head>
 <body>
@@ -375,16 +439,6 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')closeEmailMo
     lb.classList.add('open');
     document.body.style.overflow='hidden';
     upLb();
-
-    var btn=document.getElementById('lbClose');
-    function posX(){
-      if(window.innerWidth<=768){btn.style.top='';btn.style.left='';return;}
-      var r=lbImg.getBoundingClientRect();
-      var pr=lbImg.parentElement.getBoundingClientRect();
-      btn.style.top=(r.top-pr.top+6)+'px';
-      btn.style.left=(r.left-pr.left+6)+'px';
-    }
-    if(lbImg.complete)posX();else lbImg.onload=posX;
   }
 
   function closeLb(){lb.classList.remove('open');document.body.style.overflow='';lbImg.src='';}
