@@ -109,18 +109,35 @@
 .dp-src-body a:hover{text-decoration:underline}
 
 /* LIGHTBOX */
+.lb, .lb * { box-sizing: border-box; }
 .lb{display:none;position:fixed;inset:0;background:rgba(0,0,0,.96);z-index:9000;align-items:center;justify-content:center;padding:1rem}
 .lb.open{display:flex;animation:lbIn .18s ease}
 @keyframes lbIn{from{opacity:0}to{opacity:1}}
 .lb img{max-width:93vw;max-height:85vh;border-radius:6px;box-shadow:0 24px 80px rgba(0,0,0,.8);animation:lbScale .22s ease}
 @keyframes lbScale{from{transform:scale(.94);opacity:0}to{transform:scale(1);opacity:1}}
-.lb-x{position:fixed;top:1rem;right:1rem;background:rgba(30,30,30,.85);border:1px solid rgba(255,255,255,.25);color:#fff;font-size:.78rem;font-weight:700;font-family:var(--fb);letter-spacing:.05em;height:36px;padding:0 1rem;border-radius:999px;cursor:pointer;display:flex;align-items:center;gap:.4rem;transition:background .2s;backdrop-filter:blur(6px)}
+
+/* X BUTTON — perfect circle on all screen sizes */
+.lb-x{position:fixed;top:1rem;right:1rem;background:rgba(30,30,30,.85);border:1px solid rgba(255,255,255,.25);color:#fff;width:36px;height:36px;padding:0;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s;backdrop-filter:blur(6px)}
 .lb-x:hover{background:rgba(180,40,40,.8)}
+.lb-x svg{display:block;width:12px;height:12px;flex-shrink:0}
+
 .lb-nav{position:fixed;top:50%;transform:translateY(-50%);background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;font-size:1.5rem;width:48px;height:48px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s}
 .lb-nav:hover{background:rgba(255,255,255,.22)}
-#lbPrev{left:1rem}#lbNext{right:4rem}
+#lbPrev{left:1rem}#lbNext{right:1rem}
 .lb-nav:disabled{opacity:.2;pointer-events:none}
 .lb-ctr{position:fixed;bottom:1.25rem;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.55);color:rgba(255,255,255,.75);font-family:var(--fb);font-size:.72rem;font-weight:700;padding:.3rem .9rem;border-radius:999px;backdrop-filter:blur(6px);pointer-events:none}
+
+/* MOBILE LIGHTBOX */
+@media(max-width:768px){
+  .lb{padding:1rem;flex-direction:column;justify-content:center;align-items:center;overflow-x:hidden}
+  .lb-img-wrap{position:relative;display:flex;align-items:center;justify-content:center;width:100%;max-width:100%;line-height:0}
+  .lb img{max-width:90vw;max-height:65vh;width:auto;height:auto;display:block;margin:0 auto}
+  .lb-x{position:absolute !important;top:10px !important;right:10px !important;left:auto !important;width:28px !important;height:28px !important}
+  .lb-x svg{width:10px !important;height:10px !important}
+  .lb-nav{position:static;transform:none;width:44px;height:44px}
+  .lb-nav-row{display:flex;gap:1.5rem;align-items:center;margin-top:1rem}
+  .lb-ctr{position:static;transform:none}
+}
 
 /* MOBILE */
 @media(max-width:768px){
@@ -136,7 +153,6 @@
   .dp-portrait{width:140px;height:176px}
   .dp-portrait-cap{display:none}
   .dp-card{gap:.6rem 1.25rem}
-  #lbNext{right:1rem}
 }
 @media(max-width:480px){
   .gh{height:clamp(160px,55vw,240px)}
@@ -196,11 +212,17 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')closeEmailMo
 </footer>
 
 <div id="lb" class="lb">
-  <button class="lb-x" id="lbClose"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1 1l10 10M11 1L1 11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>Затвори</button>
-  <button class="lb-nav" id="lbPrev">‹</button>
-  <img id="lbImg" src="" alt="Увеличена снимка">
-  <button class="lb-nav" id="lbNext">›</button>
-  <div class="lb-ctr" id="lbCtr"></div>
+  <div class="lb-img-wrap">
+    <button class="lb-x" id="lbClose">
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1 1l10 10M11 1L1 11" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/></svg>
+    </button>
+    <img id="lbImg" src="" alt="Увеличена снимка">
+  </div>
+  <div class="lb-nav-row">
+    <button class="lb-nav" id="lbPrev">‹</button>
+    <div class="lb-ctr" id="lbCtr"></div>
+    <button class="lb-nav" id="lbNext">›</button>
+  </div>
 </div>
 
 <script>
@@ -346,7 +368,25 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')closeEmailMo
   /* LIGHTBOX */
   var lb=document.getElementById('lb'),lbImg=document.getElementById('lbImg'),lbCtr=document.getElementById('lbCtr');
   var lbPrev=document.getElementById('lbPrev'),lbNext=document.getElementById('lbNext');
-  function openLb(i){lbIdx=i;lbImg.src=srcs[i]||'';lb.classList.add('open');document.body.style.overflow='hidden';upLb();}
+
+  function openLb(i){
+    lbIdx=i;
+    lbImg.src=srcs[i]||'';
+    lb.classList.add('open');
+    document.body.style.overflow='hidden';
+    upLb();
+
+    var btn=document.getElementById('lbClose');
+    function posX(){
+      if(window.innerWidth<=768){btn.style.top='';btn.style.left='';return;}
+      var r=lbImg.getBoundingClientRect();
+      var pr=lbImg.parentElement.getBoundingClientRect();
+      btn.style.top=(r.top-pr.top+6)+'px';
+      btn.style.left=(r.left-pr.left+6)+'px';
+    }
+    if(lbImg.complete)posX();else lbImg.onload=posX;
+  }
+
   function closeLb(){lb.classList.remove('open');document.body.style.overflow='';lbImg.src='';}
   function upLb(){lbPrev.disabled=lbIdx<=0;lbNext.disabled=lbIdx>=srcs.length-1;lbCtr.textContent=srcs.length>1?(lbIdx+1)+' / '+srcs.length:'';}
   document.getElementById('lbClose').addEventListener('click',closeLb);
@@ -359,6 +399,15 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')closeEmailMo
     if(e.key==='ArrowRight'&&lbIdx<srcs.length-1){lbIdx++;lbImg.src=srcs[lbIdx];upLb();}
     if(e.key==='Escape')closeLb();
   });
+  /* swipe */
+  var tx=0;
+  lb.addEventListener('touchstart',function(e){tx=e.touches[0].clientX;},{passive:true});
+  lb.addEventListener('touchend',function(e){
+    var dx=e.changedTouches[0].clientX-tx;
+    if(Math.abs(dx)<40)return;
+    if(dx<0&&lbIdx<srcs.length-1){lbIdx++;lbImg.src=srcs[lbIdx];upLb();}
+    else if(dx>0&&lbIdx>0){lbIdx--;lbImg.src=srcs[lbIdx];upLb();}
+  },{passive:true});
 
   /* SEO */
   function seo(p){
