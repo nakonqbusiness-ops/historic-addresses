@@ -1,514 +1,386 @@
 <!doctype html>
 <html lang="bg" data-theme="dark">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="robots" content="index, follow">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="index, follow">
+<link rel="icon" type="image/png" href="/assets/img/favicon-96x96.png" sizes="96x96"/>
+<link rel="icon" type="image/svg+xml" href="/assets/img/favicon.svg"/>
+<link rel="shortcut icon" href="/assets/img/favicon.ico"/>
+<link rel="apple-touch-icon" sizes="180x180" href="/assets/img/apple-touch-icon.png"/>
+<link rel="manifest" href="/assets/img/site.webmanifest"/>
+<meta name="msapplication-TileImage" content="/assets/img/Historyaddress.bg2.png">
+<title>Адресът на историята</title>
+<meta name="description" content="Исторически адреси и домове в България">
+<link rel="canonical" href="https://historyaddress.bg/address.html">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://historyaddress.bg/address.html">
+<meta property="og:title" content="Адресът на историята">
+<meta property="og:description" content="Исторически адреси и домове в България">
+<meta property="og:image" content="https://historyaddress.bg/assets/img/HistAdrLogo.png">
+<meta property="twitter:card" content="summary_large_image">
+<meta property="twitter:url" content="https://historyaddress.bg/address.html">
+<meta property="twitter:title" content="Адресът на историята">
+<meta property="twitter:description" content="Исторически адреси и домове в България">
+<meta property="twitter:image" content="https://historyaddress.bg/assets/img/HistAdrLogo.png">
+<script>(function(){try{var s=localStorage.getItem('theme-preference');if(s==='system')s='dark';document.documentElement.setAttribute('data-theme',(s==='dark'||s==='light')?s:'dark');}catch(e){}})()</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400;1,600&family=Mulish:wght@300;400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/styles.css">
+<script defer src="assets/js/theme.js"></script>
+<script defer src="assets/js/transitions.js"></script>
+<script defer src="assets/js/calendar-popup.js"></script>
+<style>
+:root{--fd:'Cormorant Garamond',Georgia,serif;--fb:'Mulish',sans-serif}
+#pageRoot,#pageRoot *{box-sizing:border-box}
+#pageRoot{font-family:var(--fb)}
+#pageRoot .container{max-width:100%;padding-left:2.5rem;padding-right:2.5rem}
 
-    <link rel="icon" type="image/png" href="/assets/img/favicon-96x96.png" sizes="96x96" />
-    <link rel="icon" type="image/svg+xml" href="/assets/img/favicon.svg" />
-    <link rel="shortcut icon" href="/assets/img/favicon.ico" />
-    <link rel="apple-touch-icon" sizes="180x180" href="/assets/img/apple-touch-icon.png" />
-    <link rel="manifest" href="/assets/img/site.webmanifest" />
-    <meta name="msapplication-TileImage" content="/assets/img/Historyaddress.bg2.png">
+/* GALLERY STRIP */
+.gh{margin-left:calc(-50vw + 50%);width:100vw;display:flex;height:clamp(300px,42vw,520px);gap:8px;padding:0 8px;background:var(--bg,#111);animation:ghIn .6s ease both;position:relative}
+@keyframes ghIn{from{opacity:0}to{opacity:1}}
+.gh-hero{position:relative;flex:2;overflow:hidden;border-radius:10px;cursor:zoom-in;min-width:0}
+.gh-hero img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .7s ease}
+.gh-hero:hover img{transform:scale(1.04)}
+.gh-hero::before{content:'';position:absolute;inset:0;pointer-events:none;z-index:1;background:linear-gradient(to top,rgba(0,0,0,.78) 0%,rgba(0,0,0,.35) 35%,transparent 60%),linear-gradient(to right,rgba(0,0,0,.25) 0%,transparent 50%)}
+.gh-overlay{position:absolute;bottom:0;left:0;right:0;padding:1.75rem 1.75rem 1.5rem;z-index:2}
+.gh-back{display:inline-flex;align-items:center;gap:.35rem;color:rgba(255,255,255,.6);text-decoration:none;font-size:.65rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin-bottom:.85rem;transition:color .2s}
+.gh-back:hover{color:#fff}
+.gh-back:hover .arr{transform:translateX(-3px)}
+.arr{transition:transform .2s;display:inline-block}
+.gh-eyebrow{font-family:var(--fb);font-size:.58rem;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:rgba(205,133,63,.9);margin:0 0 .4rem}
+.gh-name{font-family:var(--fd);font-size:clamp(1.6rem,3.2vw,2.9rem);font-weight:700;color:#fff;line-height:1.06;margin:0 0 .7rem;text-shadow:0 2px 10px rgba(0,0,0,.5)}
+.gh-tags{display:flex;flex-wrap:wrap;gap:.3rem}
+.gh-tag{padding:.16rem .6rem;border-radius:999px;border:1px solid rgba(205,133,63,.5);background:rgba(205,133,63,.15);color:rgba(255,220,150,.9);font-size:.65rem;font-weight:700;text-decoration:none;transition:all .2s;font-family:var(--fb)}
+.gh-tag:hover{background:var(--accent-strong);color:#fff;border-color:var(--accent-strong)}
+.gh-thumbs{display:flex;flex-direction:column;gap:8px;flex:1;min-width:0;max-width:35%}
+.gh-thumb{position:relative;flex:1;overflow:hidden;border-radius:10px;cursor:zoom-in;min-height:0}
+.gh-thumb img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .5s ease}
+.gh-thumb:hover img{transform:scale(1.07)}
+.gh-thumb::after{content:'⊕';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:1.5rem;color:rgba(255,255,255,.85);background:rgba(0,0,0,.22);opacity:0;transition:opacity .2s}
+.gh-thumb:hover::after{opacity:1}
+.gh-thumb-more::after{content:attr(data-more);background:rgba(0,0,0,.6);color:#fff;font-size:1.4rem;font-weight:700;font-family:var(--fb);opacity:1}
+.gh-thumb-more:hover::after{background:rgba(0,0,0,.72)}
+.gh-placeholder{flex:2;border-radius:10px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,rgba(205,133,63,.09),rgba(205,133,63,.02));font-size:5rem;opacity:.18}
 
-    <title>Адресът на историята</title>
-    <meta name="description" content="Исторически адреси и домове в България">
-    <link rel="canonical" href="https://historyaddress.bg/address.html">
-    <meta property="og:type" content="article">
-    <meta property="og:url" content="https://historyaddress.bg/address.html">
-    <meta property="og:title" content="Адресът на историята">
-    <meta property="og:description" content="Исторически адреси и домове в България">
-    <meta property="og:image" content="https://historyaddress.bg/assets/img/HistAdrLogo.png">
-    <meta property="twitter:card" content="summary_large_image">
-    <meta property="twitter:url" content="https://historyaddress.bg/address.html">
-    <meta property="twitter:title" content="Адресът на историята">
-    <meta property="twitter:description" content="Исторически адреси и домове в България">
-    <meta property="twitter:image" content="https://historyaddress.bg/assets/img/HistAdrLogo.png">
+/* SCROLL CUE */
+.gh-cue{position:absolute;bottom:-19px;left:50%;transform:translateX(-50%);z-index:10;width:38px;height:38px;border-radius:50%;background:var(--card);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,.25);transition:border-color .2s,transform .2s;animation:cuePop .5s 1s ease both;text-decoration:none;color:var(--accent-strong)}
+@keyframes cuePop{from{opacity:0;transform:translateX(-50%) scale(.7)}to{opacity:1;transform:translateX(-50%) scale(1)}}
+.gh-cue:hover{border-color:var(--accent-strong);transform:translateX(-50%) translateY(2px)}
+.gh-cue svg{animation:cueFloat .9s ease-in-out infinite alternate;display:block}
+@keyframes cueFloat{from{transform:translateY(0)}to{transform:translateY(3px)}}
 
-    <script>
-        (function() {
-            try {
-                var s = localStorage.getItem('theme-preference');
-                if (s === 'system') s = 'dark';
-                document.documentElement.setAttribute('data-theme', (s==='dark'||s==='light')?s:'dark');
-            } catch(e) {}
-        })();
-    </script>
+/* MOBILE TITLE BLOCK */
+.gh-title{display:none;padding:1.25rem 1rem .5rem;border-bottom:1px solid var(--border)}
+.gh-title .gh-back{color:var(--muted);margin-bottom:.6rem}
+.gh-title .gh-back:hover{color:var(--accent-strong)}
+.gh-title .gh-eyebrow{color:var(--accent-strong)}
+.gh-title .gh-name{color:var(--fg);text-shadow:none;font-size:clamp(1.5rem,6vw,2.2rem);margin-bottom:.6rem}
+.gh-title .gh-tag{border-color:rgba(205,133,63,.35);background:rgba(205,133,63,.07);color:var(--accent-strong)}
 
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400;1,600&family=Mulish:wght@300;400;600;700&display=swap" rel="stylesheet">
+/* CONTENT */
+.dp-body{max-width:100%;padding:2.5rem 2rem 5rem}
+.dp-lbl{font-family:var(--fb);font-size:.65rem;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin-bottom:1rem;display:flex;align-items:center;gap:.75rem}
+.dp-lbl::after{content:'';flex:1;height:1px;background:var(--border)}
+.dp-bio{display:grid;grid-template-columns:260px 1fr;gap:3rem;align-items:flex-start;margin-bottom:3rem}
+.dp-portrait-col{display:flex;flex-direction:column;align-items:center;gap:.75rem}
+.dp-portrait{width:240px;height:300px;border-radius:10px;object-fit:cover;object-position:center top;border:3px solid var(--accent-strong);box-shadow:0 8px 28px rgba(0,0,0,.35);display:block}
+.dp-portrait-cap{font-family:var(--fd);font-size:.85rem;font-style:italic;color:var(--muted);text-align:center;line-height:1.3}
+.dp-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:1rem 1.25rem;display:flex;flex-wrap:wrap;gap:.75rem 1.75rem;margin-bottom:1.5rem}
+.dp-ci{display:flex;align-items:center;gap:.45rem}
+.dp-ci-icon{font-size:.85rem;opacity:.65;flex-shrink:0}
+.dp-ci-lbl{font-size:.58rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:.05rem}
+.dp-ci-val{font-size:.83rem;color:var(--fg);line-height:1.3}
+.dp-map{display:inline-flex;align-items:center;gap:.4rem;padding:.4rem .9rem;border-radius:7px;border:1px solid var(--accent-strong);color:var(--accent-strong);text-decoration:none;font-size:.75rem;font-weight:700;font-family:var(--fb);transition:all .2s;white-space:nowrap;align-self:center}
+.dp-map:hover{background:var(--accent-strong);color:#fff}
+.dp-map:hover .arr{transform:translateX(3px)}
+.dp-quote{font-family:var(--fd);font-size:clamp(1.25rem,2.2vw,1.65rem);font-style:italic;font-weight:300;color:var(--fg);line-height:1.45;margin:0 0 1.25rem;padding-left:1.1rem;border-left:3px solid var(--accent-strong);opacity:.92}
+.dp-bio-body{font-family:var(--fb);font-size:1rem;line-height:1.85;color:var(--fg);opacity:.88;margin:0;white-space:pre-line}
+.dp-src-btn{display:flex;align-items:center;justify-content:space-between;width:100%;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:.9rem 1.25rem;cursor:pointer;color:var(--fg);font-family:var(--fb);font-size:.88rem;font-weight:600;text-align:left;transition:border-color .2s,background .2s}
+.dp-src-btn:hover{border-color:var(--accent-strong);background:rgba(205,133,63,.04)}
+.dp-src-chev{font-size:.7rem;color:var(--muted);transition:transform .28s}
+.dp-src-btn.open .dp-src-chev{transform:rotate(180deg)}
+.dp-src-body{display:none;background:var(--card);border:1px solid var(--border);border-top:none;border-radius:0 0 10px 10px;padding:.9rem 1.25rem 1.1rem}
+.dp-src-body.open{display:block}
+.dp-src-body ul{margin:0;padding:0 0 0 1.1rem;list-style:disc}
+.dp-src-body li{font-size:.85rem;color:var(--muted);line-height:1.65;margin-bottom:.25rem;font-family:var(--fb)}
+.dp-src-body a{color:var(--accent-strong);text-decoration:none;word-break:break-all}
+.dp-src-body a:hover{text-decoration:underline}
 
-    <link rel="stylesheet" href="assets/css/styles.css">
-    <script defer src="assets/js/theme.js"></script>
-    <script defer src="assets/js/transitions.js"></script>
-    <script defer src="assets/js/calendar-popup.js"></script>
+/* LIGHTBOX */
+.lb{display:none;position:fixed;inset:0;background:rgba(0,0,0,.96);z-index:9000;align-items:center;justify-content:center;padding:1rem}
+.lb.open{display:flex;animation:lbIn .18s ease}
+@keyframes lbIn{from{opacity:0}to{opacity:1}}
+.lb img{max-width:93vw;max-height:85vh;border-radius:6px;box-shadow:0 24px 80px rgba(0,0,0,.8);animation:lbScale .22s ease}
+@keyframes lbScale{from{transform:scale(.94);opacity:0}to{transform:scale(1);opacity:1}}
+.lb-x{position:fixed;top:1rem;right:1rem;background:rgba(30,30,30,.85);border:1px solid rgba(255,255,255,.25);color:#fff;font-size:.78rem;font-weight:700;font-family:var(--fb);letter-spacing:.05em;height:36px;padding:0 1rem;border-radius:999px;cursor:pointer;display:flex;align-items:center;gap:.4rem;transition:background .2s;backdrop-filter:blur(6px)}
+.lb-x:hover{background:rgba(180,40,40,.8)}
+.lb-nav{position:fixed;top:50%;transform:translateY(-50%);background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;font-size:1.5rem;width:48px;height:48px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s}
+.lb-nav:hover{background:rgba(255,255,255,.22)}
+#lbPrev{left:1rem}#lbNext{right:4rem}
+.lb-nav:disabled{opacity:.2;pointer-events:none}
+.lb-ctr{position:fixed;bottom:1.25rem;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.55);color:rgba(255,255,255,.75);font-family:var(--fb);font-size:.72rem;font-weight:700;padding:.3rem .9rem;border-radius:999px;backdrop-filter:blur(6px);pointer-events:none}
 
-    <style>
-        :root { --fd: 'Cormorant Garamond', Georgia, serif; --fb: 'Mulish', sans-serif; }
-        #pageRoot, #pageRoot * { box-sizing: border-box; }
-        #pageRoot { font-family: var(--fb); }
-
-        /* ══ GALLERY STRIP ═══════════════════════════════
-           Hero (2 parts) + thumb column (1 part), 8px gaps,
-           rounded corners on each cell. Overlay only on desktop.
-           On mobile: strip shows clean photos, title appears below.
-        ════════════════════════════════════════════════ */
-        .gh {
-            margin-left: calc(-50vw + 50%);
-            width: 100vw;
-            display: flex;
-            height: clamp(300px, 42vw, 520px);
-            gap: 8px;
-            padding: 0 8px;
-            background: var(--bg, #111);
-            animation: ghIn .6s ease both;
-        }
-        @keyframes ghIn { from{opacity:0;} to{opacity:1;} }
-
-        /* hero: 2 parts wide */
-        .gh-hero {
-            position: relative; flex: 2; overflow: hidden;
-            border-radius: 10px; cursor: zoom-in; min-width: 0;
-        }
-        .gh-hero img { width:100%; height:100%; object-fit:cover; display:block; transition:transform .7s ease; }
-        .gh-hero:hover img { transform:scale(1.04); }
-
-        /* gradient only on desktop where overlay text lives */
-        .gh-hero::before {
-            content:''; position:absolute; inset:0; pointer-events:none; z-index:1;
-            background:
-                linear-gradient(to top, rgba(0,0,0,.78) 0%, rgba(0,0,0,.35) 35%, transparent 60%),
-                linear-gradient(to right, rgba(0,0,0,.25) 0%, transparent 50%);
-        }
-
-        /* overlay: back + eyebrow + name + tags — hidden on mobile */
-        .gh-overlay {
-            position:absolute; bottom:0; left:0; right:0;
-            padding: 1.75rem 1.75rem 1.5rem; z-index:2;
-        }
-        .gh-back {
-            display:inline-flex; align-items:center; gap:.35rem;
-            color:rgba(255,255,255,.6); text-decoration:none;
-            font-size:.65rem; font-weight:700; letter-spacing:.1em;
-            text-transform:uppercase; margin-bottom:.85rem; transition:color .2s;
-        }
-        .gh-back:hover { color:#fff; }
-        .gh-back:hover .gh-back-arr { transform:translateX(-3px); }
-        .gh-back-arr { transition:transform .2s; display:inline-block; }
-        .gh-eyebrow { font-family:var(--fb); font-size:.58rem; font-weight:700; letter-spacing:.22em; text-transform:uppercase; color:rgba(205,133,63,.9); margin:0 0 .4rem; }
-        .gh-name { font-family:var(--fd); font-size:clamp(1.6rem,3.2vw,2.9rem); font-weight:700; color:#fff; line-height:1.06; margin:0 0 .7rem; text-shadow:0 2px 10px rgba(0,0,0,.5); }
-        .gh-tags { display:flex; flex-wrap:wrap; gap:.3rem; }
-        .gh-tag { padding:.16rem .6rem; border-radius:999px; border:1px solid rgba(205,133,63,.5); background:rgba(205,133,63,.15); color:rgba(255,220,150,.9); font-size:.65rem; font-weight:700; text-decoration:none; transition:all .2s; font-family:var(--fb); }
-        .gh-tag:hover { background:var(--accent-strong); color:#fff; border-color:var(--accent-strong); }
-
-        /* photo count badge */
-        .gh-count { position:absolute; top:.9rem; right:.9rem; z-index:3; background:rgba(0,0,0,.55); color:rgba(255,255,255,.8); font-family:var(--fb); font-size:.65rem; font-weight:700; letter-spacing:.06em; padding:.25rem .7rem; border-radius:999px; backdrop-filter:blur(6px); }
-
-        /* thumbnail column: 1 part wide, stacked vertically */
-        .gh-thumbs { display:flex; flex-direction:column; gap:8px; flex:1; min-width:0; max-width:35%; }
-        .gh-thumb { position:relative; flex:1; overflow:hidden; border-radius:10px; cursor:zoom-in; min-height:0; }
-        .gh-thumb img { width:100%; height:100%; object-fit:cover; display:block; transition:transform .5s ease; }
-        .gh-thumb:hover img { transform:scale(1.07); }
-        .gh-thumb::after { content:'⊕'; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:1.5rem; color:rgba(255,255,255,.85); background:rgba(0,0,0,.22); opacity:0; transition:opacity .2s; }
-        .gh-thumb:hover::after { opacity:1; }
-        .gh-thumb-more::after { content:attr(data-more); background:rgba(0,0,0,.6); color:#fff; font-size:1.4rem; font-weight:700; font-family:var(--fb); opacity:1; }
-        .gh-thumb-more:hover::after { background:rgba(0,0,0,.72); }
-
-        .gh-placeholder { flex:2; border-radius:10px; display:flex; align-items:center; justify-content:center; background:linear-gradient(135deg,rgba(205,133,63,.09),rgba(205,133,63,.02)); font-size:5rem; opacity:.18; }
-
-        /* ══ MOBILE TITLE BLOCK ═════════════════════════
-           Below the strip on mobile — replaces the overlay.
-        ════════════════════════════════════════════════ */
-        .gh-title-block {
-            display: none; /* shown only on mobile via media query */
-            padding: 1.25rem 1rem .5rem;
-            border-bottom: 1px solid var(--border);
-        }
-        .gh-title-block .gh-back {
-            color: var(--muted); margin-bottom: .6rem;
-        }
-        .gh-title-block .gh-back:hover { color: var(--accent-strong); }
-        .gh-title-block .gh-eyebrow { color: var(--accent-strong); }
-        .gh-title-block .gh-name { color: var(--fg); text-shadow: none; font-size: clamp(1.5rem,6vw,2.2rem); margin-bottom:.6rem; }
-        .gh-title-block .gh-tag { border-color: rgba(205,133,63,.35); background: rgba(205,133,63,.07); color: var(--accent-strong); }
-
-        /* ══ CONTENT ════════════════════════════════════ */
-        .dp-body { max-width:100%; padding:2.5rem 2rem 5rem; }
-        #pageRoot .container {
-    max-width: 100%;
-    padding-left: 2.5rem;
-    padding-right: 2.5rem;
+/* MOBILE */
+@media(max-width:768px){
+  .gh{height:clamp(180px,52vw,300px);padding:0 6px;gap:6px}
+  .gh-overlay,.gh-hero::before{display:none}
+  .gh-title{display:block}
+  .gh-thumbs{max-width:38%;gap:6px}
+  .gh-thumb,.gh-hero{border-radius:7px}
+  .gh-cue{display:none}
+  .dp-body{padding:1.5rem 1rem 3rem}
+  .dp-bio{grid-template-columns:1fr;gap:1.5rem}
+  .dp-portrait-col{flex-direction:row;align-items:flex-start;gap:1.25rem}
+  .dp-portrait{width:140px;height:176px}
+  .dp-portrait-cap{display:none}
+  .dp-card{gap:.6rem 1.25rem}
+  #lbNext{right:1rem}
 }
-        .dp-section-label { font-family:var(--fb); font-size:.65rem; font-weight:700; letter-spacing:.18em; text-transform:uppercase; color:var(--muted); margin-bottom:1rem; display:flex; align-items:center; gap:.75rem; }
-        .dp-section-label::after { content:''; flex:1; height:1px; background:var(--border); }
-
-        /* biography: portrait | info card + text */
-        .dp-bio-wrap { display:grid; grid-template-columns:260px 1fr; gap:3rem; align-items:flex-start; margin-bottom:3rem; }
-
-        .dp-portrait-col { display:flex; flex-direction:column; align-items:center; gap:.75rem; }
-        .dp-portrait { width:240px; height:300px; border-radius:10px; object-fit:cover; object-position:center top; border:3px solid var(--accent-strong); box-shadow:0 8px 28px rgba(0,0,0,.35); display:block; }
-        .dp-portrait-caption { font-family:var(--fd); font-size:.85rem; font-style:italic; color:var(--muted); text-align:center; line-height:1.3; }
-
-        /* info card: dates, address, map — sits above bio text */
-        .dp-info-card {
-            background:var(--card); border:1px solid var(--border);
-            border-radius:10px; padding:1rem 1.25rem;
-            display:flex; flex-wrap:wrap; gap:.75rem 1.75rem;
-            margin-bottom:1.5rem;
-        }
-        .dp-info-item { display:flex; align-items:center; gap:.45rem; }
-        .dp-info-icon { font-size:.85rem; opacity:.65; flex-shrink:0; }
-        .dp-info-label { font-size:.58rem; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); display:block; margin-bottom:.05rem; }
-        .dp-info-value { font-size:.83rem; color:var(--fg); line-height:1.3; }
-        .dp-map-btn { display:inline-flex; align-items:center; gap:.4rem; padding:.4rem .9rem; border-radius:7px; border:1px solid var(--accent-strong); color:var(--accent-strong); text-decoration:none; font-size:.75rem; font-weight:700; font-family:var(--fb); transition:all .2s; white-space:nowrap; align-self:center; }
-        .dp-map-btn:hover { background:var(--accent-strong); color:#fff; }
-        .dp-map-btn:hover .dp-map-arr { transform:translateX(3px); }
-        .dp-map-arr { transition:transform .2s; }
-
-        .dp-pull-quote { font-family:var(--fd); font-size:clamp(1.25rem,2.2vw,1.65rem); font-style:italic; font-weight:300; color:var(--fg); line-height:1.45; margin:0 0 1.25rem; padding-left:1.1rem; border-left:3px solid var(--accent-strong); opacity:.92; }
-        .dp-bio-body { font-family:var(--fb); font-size:1rem; line-height:1.85; color:var(--fg); opacity:.88; margin:0; white-space:pre-line; }
-
-        .dp-src-toggle { display:flex; align-items:center; justify-content:space-between; width:100%; background:var(--card); border:1px solid var(--border); border-radius:10px; padding:.9rem 1.25rem; cursor:pointer; color:var(--fg); font-family:var(--fb); font-size:.88rem; font-weight:600; text-align:left; transition:border-color .2s,background .2s; }
-        .dp-src-toggle:hover { border-color:var(--accent-strong); background:rgba(205,133,63,.04); }
-        .dp-src-chevron { font-size:.7rem; color:var(--muted); transition:transform .28s; }
-        .dp-src-toggle.open .dp-src-chevron { transform:rotate(180deg); }
-        .dp-src-body { display:none; background:var(--card); border:1px solid var(--border); border-top:none; border-radius:0 0 10px 10px; padding:.9rem 1.25rem 1.1rem; }
-        .dp-src-body.open { display:block; }
-        .dp-src-list { margin:0; padding:0 0 0 1.1rem; list-style:disc; }
-        .dp-src-list li { font-size:.85rem; color:var(--muted); line-height:1.65; margin-bottom:.25rem; font-family:var(--fb); }
-        .dp-src-list a { color:var(--accent-strong); text-decoration:none; word-break:break-all; }
-        .dp-src-list a:hover { text-decoration:underline; }
-
-        /* ══ LIGHTBOX ═══════════════════════════════════ */
-        .lb { display:none; position:fixed; inset:0; background:rgba(0,0,0,.96); z-index:9000; align-items:center; justify-content:center; padding:1rem; }
-        .lb.open { display:flex; animation:lbIn .18s ease; }
-        @keyframes lbIn { from{opacity:0;} to{opacity:1;} }
-        .lb-img { max-width:93vw; max-height:93vh; border-radius:6px; box-shadow:0 24px 80px rgba(0,0,0,.8); animation:lbScale .22s ease; }
-        @keyframes lbScale { from{transform:scale(.94);opacity:0;} to{transform:scale(1);opacity:1;} }
-        .lb-close { position:fixed; top:1rem; right:1rem; background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.2); color:#fff; font-size:1.6rem; width:44px; height:44px; border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background .2s; line-height:1; }
-        .lb-close:hover,.lb-nav:hover { background:rgba(255,255,255,.22); }
-        .lb-nav { position:fixed; top:50%; transform:translateY(-50%); background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.2); color:#fff; font-size:1.5rem; width:48px; height:48px; border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background .2s; }
-        .lb-nav.prev { left:1rem; } .lb-nav.next { right:4rem; }
-        .lb-nav:disabled { opacity:.2; pointer-events:none; }
-
-        /* ══ MOBILE ═════════════════════════════════════ */
-        @media (max-width: 768px) {
-            /* strip: hero takes full width in a row with thumbs beside it */
-            .gh { height: clamp(180px, 52vw, 300px); padding: 0 6px; gap: 6px; }
-            /* hide desktop overlay on mobile — title block takes over */
-            .gh-overlay { display: none; }
-            .gh-hero::before { display: none; }
-            /* show the below-strip title block */
-            .gh-title-block { display: block; }
-            /* thumbs: visible but narrower */
-            .gh-thumbs { max-width:38%; gap:6px; }
-            .gh-thumb { border-radius:7px; }
-            .gh-hero { border-radius:7px; }
-            .gh-count { top:.6rem; right:.6rem; font-size:.6rem; }
-
-            .dp-body { padding:1.5rem 1rem 3rem; }
-            .dp-bio-wrap { grid-template-columns:1fr; gap:1.5rem; }
-            .dp-portrait-col { flex-direction:row; align-items:flex-start; gap:1.25rem; }
-            .dp-portrait { width:140px; height:176px; }
-            .dp-portrait-caption { display:none; }
-            .dp-info-card { gap:.6rem 1.25rem; }
-            .lb-nav.next { right:1rem; }
-        }
-        @media (max-width: 480px) {
-            .gh { height: clamp(160px, 55vw, 240px); }
-            .gh-thumbs { max-width:34%; gap:5px; }
-            .dp-portrait { width:120px; height:150px; }
-        }
-    </style>
+@media(max-width:480px){
+  .gh{height:clamp(160px,55vw,240px)}
+  .gh-thumbs{max-width:34%;gap:5px}
+  .dp-portrait{width:120px;height:150px}
+}
+</style>
 </head>
 <body>
-
 <script>
-function handleEmailClick(e) { if (window.innerWidth <= 768) return; e.preventDefault(); showEmailModal(); }
-function showEmailModal() {
-    var m = document.getElementById('emailModal');
-    if (!m) {
-        m = document.createElement('div'); m.id='emailModal'; m.className='email-modal';
-        m.innerHTML='<div class="email-modal-content"><h3>📧 Свържете се с нас</h3><div class="email-address-display">historyaddressbg@gmail.com</div><div class="email-modal-buttons"><button class="btn-copy" onclick="copyEmail()"><span id="copyText">📋 Копирай Email</span></button><button class="btn-close" onclick="closeEmailModal()">✕ Затвори</button></div><p>Можете да ни пишете за въпроси или подкрепа</p></div>';
-        document.body.appendChild(m);
-        m.addEventListener('click', function(e) { if (e.target===m) closeEmailModal(); });
-    }
-    m.style.display='flex'; document.body.style.overflow='hidden';
+function handleEmailClick(e){if(window.innerWidth<=768)return;e.preventDefault();showEmailModal()}
+function showEmailModal(){
+  var m=document.getElementById('emailModal');
+  if(!m){m=document.createElement('div');m.id='emailModal';m.className='email-modal';
+  m.innerHTML='<div class="email-modal-content"><h3>📧 Свържете се с нас</h3><div class="email-address-display">historyaddressbg@gmail.com</div><div class="email-modal-buttons"><button class="btn-copy" onclick="copyEmail()"><span id="copyText">📋 Копирай Email</span></button><button class="btn-close" onclick="closeEmailModal()">✕ Затвори</button></div><p>Можете да ни пишете за въпроси или подкрепа</p></div>';
+  document.body.appendChild(m);m.addEventListener('click',function(e){if(e.target===m)closeEmailModal()});}
+  m.style.display='flex';document.body.style.overflow='hidden';
 }
-function closeEmailModal() { var m=document.getElementById('emailModal'); if(m){m.style.display='none';document.body.style.overflow='';} }
-function copyEmail() {
-    navigator.clipboard.writeText('historyaddressbg@gmail.com').then(function() {
-        var b=document.querySelector('.btn-copy'),t=document.getElementById('copyText');
-        b.classList.add('copied'); t.textContent='✓ Копирано!';
-        setTimeout(function(){b.classList.remove('copied');t.textContent='📋 Копирай Email';},2000);
-    }).catch(function(){alert('Email: historyaddressbg@gmail.com');});
+function closeEmailModal(){var m=document.getElementById('emailModal');if(m){m.style.display='none';document.body.style.overflow='';}}
+function copyEmail(){
+  navigator.clipboard.writeText('historyaddressbg@gmail.com').then(function(){
+    var b=document.querySelector('.btn-copy'),t=document.getElementById('copyText');
+    b.classList.add('copied');t.textContent='✓ Копирано!';
+    setTimeout(function(){b.classList.remove('copied');t.textContent='📋 Копирай Email';},2000);
+  }).catch(function(){alert('Email: historyaddressbg@gmail.com');});
 }
-document.addEventListener('keydown', function(e) { if (e.key==='Escape') closeEmailModal(); });
+document.addEventListener('keydown',function(e){if(e.key==='Escape')closeEmailModal();});
 </script>
 
 <header class="site-header">
-    <a class="logo-link" href="index.html">
-        <img src="assets/img/HistAdrLogo.png" alt="Адресът на историята" class="header-logo">
-        <span class="logo-text">Адресът на историята</span>
-    </a>
-    <nav class="nav">
-        <a href="index.html">Начало</a>
-        <a href="map.html">Карта</a>
-        <a href="addresses.html">Адреси</a>
-        <a href="calendar.html">Календар</a>
-        <a href="news.html">Новини</a>
-        <a href="about.html">За Нас</a>
-    </nav>
-    <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode"></button>
+  <a class="logo-link" href="index.html">
+    <img src="assets/img/HistAdrLogo.png" alt="Адресът на историята" class="header-logo">
+    <span class="logo-text">Адресът на историята</span>
+  </a>
+  <nav class="nav">
+    <a href="index.html">Начало</a><a href="map.html">Карта</a><a href="addresses.html">Адреси</a>
+    <a href="calendar.html">Календар</a><a href="news.html">Новини</a><a href="about.html">За Нас</a>
+  </nav>
+  <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode"></button>
 </header>
 
 <div id="pageRoot"></div>
 
 <footer class="site-footer">
-    <div class="footer-inner">
-        <div class="footer-social">
-            <a href="https://instagram.com/historyaddress.bg" target="_blank" rel="noopener noreferrer" class="social-link">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
-                Instagram
-            </a>
-            <a href="mailto:historyaddressbg@gmail.com" class="social-link" onclick="handleEmailClick(event)">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-                Email
-            </a>
-        </div>
-        <p class="footer-links">
-            <a href="privacy.html">Поверителност</a> <span>•</span>
-            <a href="terms.html">Условия</a> <span>•</span>
-            <a href="copyright.html">Авторски права</a>
-        </p>
-        <p class="footer-copy">© <span id="year"></span> Адресът на историята</p>
+  <div class="footer-inner">
+    <div class="footer-social">
+      <a href="https://instagram.com/historyaddress.bg" target="_blank" rel="noopener noreferrer" class="social-link">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>Instagram
+      </a>
+      <a href="mailto:historyaddressbg@gmail.com" class="social-link" onclick="handleEmailClick(event)">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>Email
+      </a>
     </div>
+    <p class="footer-links"><a href="privacy.html">Поверителност</a> <span>•</span> <a href="terms.html">Условия</a> <span>•</span> <a href="copyright.html">Авторски права</a></p>
+    <p class="footer-copy">© <span id="year"></span> Адресът на историята</p>
+  </div>
 </footer>
 
 <div id="lb" class="lb">
-    <button class="lb-close" id="lbClose">×</button>
-    <button class="lb-nav prev" id="lbPrev">‹</button>
-    <img id="lbImg" class="lb-img" src="" alt="Увеличена снимка">
-    <button class="lb-nav next" id="lbNext">›</button>
+  <button class="lb-x" id="lbClose"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1 1l10 10M11 1L1 11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>Затвори</button>
+  <button class="lb-nav" id="lbPrev">‹</button>
+  <img id="lbImg" src="" alt="Увеличена снимка">
+  <button class="lb-nav" id="lbNext">›</button>
+  <div class="lb-ctr" id="lbCtr"></div>
 </div>
 
 <script>
-(function () {
-    function qs(name) {
-        var r = new RegExp('[?&]'+name.replace(/[\[\]]/g,'\\$&')+'(=([^&#]*)|&|#|$)').exec(location.href);
-        return r ? decodeURIComponent((r[2]||'').replace(/\+/g,' ')) : null;
+(function(){
+  function qs(n){var r=new RegExp('[?&]'+n.replace(/[\[\]]/g,'\\$&')+'(=([^&#]*)|&|#|$)').exec(location.href);return r?decodeURIComponent((r[2]||'').replace(/\+/g,' ')):null;}
+  function el(t,c){var e=document.createElement(t);if(c)e.className=c;return e;}
+  function fmt(d){if(!d)return null;var x=new Date(d);return isNaN(x)?d:x.toLocaleDateString('bg-BG',{year:'numeric',month:'long',day:'numeric'});}
+  function fst(t){if(!t)return '';var m=t.match(/^.+?[.!?](?:\s|$)/);return m?m[0].trim():t.substring(0,160);}
+  function scroll(id){var t=document.getElementById(id);if(t)t.scrollIntoView({behavior:'smooth',block:'start'});}
+
+  var slug=qs('slug'),root=document.getElementById('pageRoot');
+  var apiBase=location.protocol==='file:'?'http://localhost:3000':location.origin;
+  var srcs=[],lbIdx=0;
+
+  document.getElementById('year').textContent=new Date().getFullYear();
+  if(!slug){root.innerHTML='<main class="container"><p style="padding:3rem;color:var(--muted)">Не е посочен адрес.</p></main>';return;}
+  root.innerHTML='<div style="padding:5rem;text-align:center;color:var(--muted);font-family:Mulish,sans-serif">Зареждане…</div>';
+
+  fetch(apiBase+'/api/homes/'+encodeURIComponent(slug))
+    .then(function(r){if(!r.ok)throw new Error(r.status===404?'Адресът не е намерен':'Сървърна грешка');return r.json();})
+    .then(function(p){render(p);seo(p);schema(p);})
+    .catch(function(e){root.innerHTML='<main class="container"><p style="padding:3rem;color:#f66">Грешка: '+e.message+'</p></main>';});
+
+  function mkTags(tags,cls){
+    if(!tags||!tags.length)return '';
+    return '<div class="gh-tags">'+tags.map(function(t){return '<a class="gh-tag '+cls+'" href="addresses.html?tag='+encodeURIComponent(t)+'">'+t+'</a>';}).join('')+'</div>';
+  }
+
+  function render(p){
+    var gal=p.images||[];
+    var hasMap=p.coordinates&&p.coordinates.lat&&p.coordinates.lng;
+    var mapHref=hasMap?'map.html?slug='+encodeURIComponent(p.slug||p.id):'';
+    gal.forEach(function(i){if(i.path)srcs.push(i.path);});
+    var hasBio=p.biography||p.portrait_url||p.address||p.birth_date||p.death_date;
+    var frag=document.createDocumentFragment();
+
+    /* ── GALLERY STRIP ── */
+    var gh=el('div','gh');
+    if(!gal.length){
+      gh.innerHTML='<div class="gh-placeholder">🏛️</div>';
+    } else {
+      /* hero */
+      var hero=el('div','gh-hero');
+      var hi=el('img'); hi.src=gal[0].path; hi.alt=gal[0].alt||'Сграда — '+p.name; hi.loading='eager';
+      hi.onerror=function(){hero.innerHTML='<div class="gh-placeholder" style="flex:1">🏛️</div>';};
+      hero.appendChild(hi);
+      hero.addEventListener('click',function(){openLb(0);});
+      /* overlay */
+      var tagsHtml=p.tags&&p.tags.length?'<div class="gh-tags">'+p.tags.map(function(t){return '<a class="gh-tag" href="addresses.html?tag='+encodeURIComponent(t)+'">'+t+'</a>';}).join('')+'</div>':'';
+      hero.insertAdjacentHTML('beforeend',
+        '<div class="gh-overlay">'+
+          '<a class="gh-back" href="addresses.html"><span class="arr">←</span> Всички адреси</a>'+
+          '<p class="gh-eyebrow">Адресът на историята</p>'+
+          '<h1 class="gh-name">'+(p.name||'—')+'</h1>'+
+          tagsHtml+
+        '</div>');
+      gh.appendChild(hero);
+      /* thumbnails */
+      if(gal.length>1){
+        var tc=el('div','gh-thumbs');
+        var shown=gal.slice(1,4), rem=gal.length-1-shown.length;
+        shown.forEach(function(img,i){
+          var isLast=i===shown.length-1&&rem>0;
+          var th=el('div',isLast?'gh-thumb gh-thumb-more':'gh-thumb');
+          if(isLast)th.setAttribute('data-more','+'+(rem+1));
+          var ti=el('img'); ti.src=img.path; ti.alt=img.alt||'Снимка '+(i+2); ti.loading='lazy';
+          ti.onerror=function(){this.style.display='none';};
+          th.appendChild(ti);
+          (function(gi){th.addEventListener('click',function(){openLb(gi);});})(i+1);
+          tc.appendChild(th);
+        });
+        gh.appendChild(tc);
+      }
     }
-    function el(tag,cls){ var e=document.createElement(tag); if(cls) e.className=cls; return e; }
-    function fmt(ds) { if(!ds) return null; var d=new Date(ds); return isNaN(d)?ds:d.toLocaleDateString('bg-BG',{year:'numeric',month:'long',day:'numeric'}); }
-    function firstSentence(t) { if(!t) return ''; var m=t.match(/^.+?[.!?](?:\s|$)/); return m?m[0].trim():t.substring(0,160); }
-
-    var ph='assets/img/placeholder.svg', slug=qs('slug');
-    var root=document.getElementById('pageRoot');
-    var apiBase=location.protocol==='file:'?'http://localhost:3000':location.origin;
-    var allSrcs=[], lbIdx=0;
-
-    document.getElementById('year').textContent=new Date().getFullYear();
-
-    if (!slug) { root.innerHTML='<main class="container"><p style="padding:3rem;color:var(--muted);">Не е посочен адрес.</p></main>'; return; }
-    root.innerHTML='<div style="padding:5rem;text-align:center;color:var(--muted);font-family:Mulish,sans-serif;">Зареждане…</div>';
-
-    fetch(apiBase+'/api/homes/'+encodeURIComponent(slug))
-        .then(function(r){ if(!r.ok) throw new Error(r.status===404?'Адресът не е намерен':'Сървърна грешка'); return r.json(); })
-        .then(function(p){ renderPage(p); updateMeta(p); addSchema(p); })
-        .catch(function(err){ root.innerHTML='<main class="container"><p style="padding:3rem;color:#ff6b6b;">Грешка: '+err.message+'</p></main>'; });
-
-    function renderPage(p) {
-        var gallery=p.images||[];
-        var hasMap=p.coordinates&&p.coordinates.lat&&p.coordinates.lng;
-        var mapHref=hasMap?'map.html?slug='+encodeURIComponent(p.slug||p.id):'';
-        gallery.forEach(function(img){ if(img.path) allSrcs.push(img.path); });
-
-        var frag=document.createDocumentFragment();
-
-        /* ── GALLERY HEADER ───────────────────────────── */
-        var gh=el('div','gh');
-
-        if (gallery.length===0) {
-            var gph=el('div','gh-placeholder'); gph.textContent='🏛️'; gh.appendChild(gph);
-        } else {
-            /* hero cell */
-            var hero=el('div','gh-hero');
-            var hImg=el('img');
-            hImg.src=gallery[0].path; hImg.alt=gallery[0].alt||('Сграда — '+p.name); hImg.loading='eager';
-            hImg.onerror=function(){ hero.innerHTML='<div class="gh-placeholder" style="flex:1">🏛️</div>'; };
-            hero.appendChild(hImg);
-            hero.addEventListener('click',function(){ openLb(0); });
-
-            if (gallery.length>1) {
-                var cnt=el('div','gh-count');
-                cnt.textContent=gallery.length+' снимки  📷';
-                hero.appendChild(cnt);
-            }
-
-            /* overlay: back + eyebrow + name + tags */
-            var ov=el('div','gh-overlay');
-            var back=el('a','gh-back'); back.href='addresses.html';
-            back.innerHTML='<span class="gh-back-arr">←</span> Всички адреси';
-            ov.appendChild(back);
-            var ey=el('p','gh-eyebrow'); ey.textContent='Адресът на историята'; ov.appendChild(ey);
-            var nm=el('h1','gh-name'); nm.textContent=p.name||'—'; ov.appendChild(nm);
-            if (p.tags&&p.tags.length>0) {
-                var tg=el('div','gh-tags');
-                p.tags.forEach(function(t){ var a=el('a','gh-tag'); a.href='addresses.html?tag='+encodeURIComponent(t); a.textContent=t; tg.appendChild(a); });
-                ov.appendChild(tg);
-            }
-            hero.appendChild(ov);
-            gh.appendChild(hero);
-
-            /* thumbnail column — show up to 3, badge last if more remain */
-            if (gallery.length>1) {
-                var thumbs=el('div','gh-thumbs');
-                var shown=gallery.slice(1,4);
-                var remaining=gallery.length-1-shown.length;
-                shown.forEach(function(img,i){
-                    var isLast=(i===shown.length-1)&&remaining>0;
-                    var th=el('div',isLast?'gh-thumb gh-thumb-more':'gh-thumb');
-                    if(isLast) th.setAttribute('data-more','+'+(remaining+1));
-                    var ti=el('img'); ti.src=img.path; ti.alt=img.alt||('Снимка '+(i+2)); ti.loading='lazy';
-                    ti.onerror=function(){ this.style.display='none'; };
-                    th.appendChild(ti);
-                    var gi=i+1;
-                    th.addEventListener('click',function(){ openLb(gi); });
-                    thumbs.appendChild(th);
-                });
-                gh.appendChild(thumbs);
-            }
-        }
-        /* ── MOBILE TITLE BLOCK (below strip, hidden on desktop) ── */
-        var titleBlock=el('div','gh-title-block');
-        var tbBack=el('a','gh-back'); tbBack.href='addresses.html';
-        tbBack.innerHTML='<span class="gh-back-arr">←</span> Всички адреси';
-        titleBlock.appendChild(tbBack);
-        var tbEy=el('p','gh-eyebrow'); tbEy.textContent='Адресът на историята'; titleBlock.appendChild(tbEy);
-        var tbNm=el('h1','gh-name'); tbNm.textContent=p.name||'—'; titleBlock.appendChild(tbNm);
-        if(p.tags&&p.tags.length>0){
-            var tbTg=el('div','gh-tags');
-            p.tags.forEach(function(t){ var a=el('a','gh-tag'); a.href='addresses.html?tag='+encodeURIComponent(t); a.textContent=t; tbTg.appendChild(a); });
-            titleBlock.appendChild(tbTg);
-        }
-        frag.appendChild(titleBlock);
-        frag.appendChild(gh);
-
-        /* ── CONTENT BODY ─────────────────────────────── */
-        var main=el('main','container'), body=el('div','dp-body');
-
-        if (p.biography||p.portrait_url||p.address||p.birth_date||p.death_date) {
-            var bioLabel=el('div','dp-section-label'); bioLabel.textContent='Биография'; body.appendChild(bioLabel);
-            var bioWrap=el('div','dp-bio-wrap');
-            if(!p.portrait_url) bioWrap.style.gridTemplateColumns='1fr';
-
-            if(p.portrait_url){
-                var portCol=el('div','dp-portrait-col');
-                var portImg=el('img','dp-portrait'); portImg.src=p.portrait_url; portImg.alt='Портрет на '+p.name; portImg.loading='lazy';
-                portImg.onerror=function(){ portCol.style.display='none'; };
-                var portCap=el('div','dp-portrait-caption'); portCap.textContent=p.name;
-                portCol.appendChild(portImg); portCol.appendChild(portCap); bioWrap.appendChild(portCol);
-            }
-
-            var btc=el('div');
-
-            /* info card: address + dates + map btn */
-            var hasInfo=p.address||p.birth_date||p.death_date||p.photo_date||mapHref;
-            if(hasInfo){
-                var card=el('div','dp-info-card');
-                function addInfo(icon,label,value){
-                    if(!value) return;
-                    var item=el('div','dp-info-item');
-                    var ic=el('span','dp-info-icon'); ic.textContent=icon;
-                    var txt=el('div');
-                    var lbl=el('div','dp-info-label'); lbl.textContent=label;
-                    var val=el('div','dp-info-value'); val.textContent=value;
-                    txt.appendChild(lbl); txt.appendChild(val); item.appendChild(ic); item.appendChild(txt); card.appendChild(item);
-                }
-                addInfo('📍','Адрес',p.address);
-                addInfo('🎂','Роден',fmt(p.birth_date));
-                addInfo('🕯️','Починал',fmt(p.death_date));
-                if(p.photo_date) addInfo('📷','Снимка',p.photo_date);
-                if(mapHref){
-                    var mbtn=el('a','dp-map-btn'); mbtn.href=mapHref;
-                    mbtn.innerHTML='🗺️ Карта <span class="dp-map-arr">→</span>';
-                    card.appendChild(mbtn);
-                }
-                btc.appendChild(card);
-            }
-
-            if(p.biography){
-                var first=firstSentence(p.biography);
-                var pq=el('blockquote','dp-pull-quote'); pq.textContent=first; btc.appendChild(pq);
-                var rest=p.biography.replace(first,'').trim();
-                if(rest){ var bt=el('p','dp-bio-body'); bt.textContent=rest; btc.appendChild(bt); }
-            }
-            bioWrap.appendChild(btc); body.appendChild(bioWrap);
-        }
-
-        if (p.sources&&p.sources.length>0) {
-            var srcLabel=el('div','dp-section-label'); srcLabel.textContent='Източници'; body.appendChild(srcLabel);
-            var srcSec=el('div');
-            var srcTog=el('button','dp-src-toggle');
-            srcTog.innerHTML='📚 Виж всички източници <span style="color:var(--muted);font-weight:400;font-size:.8em;">('+p.sources.length+')</span><span class="dp-src-chevron">▼</span>';
-            var srcBod=el('div','dp-src-body'), srcUl=el('ul','dp-src-list');
-            p.sources.forEach(function(s){
-                s=s.trim(); var li=el('li');
-                if(/^https?:\/\//i.test(s)){ var a=el('a'); a.href=s; a.target='_blank'; a.rel='noopener noreferrer'; a.textContent=s; li.appendChild(a); }
-                else { li.textContent=s; }
-                srcUl.appendChild(li);
-            });
-            srcBod.appendChild(srcUl);
-            srcTog.addEventListener('click',function(){ var o=srcBod.classList.toggle('open'); srcTog.classList.toggle('open',o); });
-            srcSec.appendChild(srcTog); srcSec.appendChild(srcBod); body.appendChild(srcSec);
-        }
-
-        main.appendChild(body); frag.appendChild(main);
-        root.innerHTML=''; root.appendChild(frag);
+    /* scroll cue */
+    if(hasBio){
+      var cue=el('a','gh-cue'); cue.href='#dp-bio'; cue.title='Биография';
+      cue.innerHTML='<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3.5 6.5l5.5 5.5 5.5-5.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      cue.addEventListener('click',function(e){e.preventDefault();scroll('dp-bio');});
+      gh.appendChild(cue);
     }
 
-    /* ── LIGHTBOX ───────────────────────────────────── */
-    var lb=document.getElementById('lb'), lbImg=document.getElementById('lbImg');
-    var lbPrev=document.getElementById('lbPrev'), lbNext=document.getElementById('lbNext');
-    function openLb(idx){ lbIdx=idx; lbImg.src=allSrcs[lbIdx]||''; lb.classList.add('open'); document.body.style.overflow='hidden'; updateLbNav(); }
-    function closeLb(){ lb.classList.remove('open'); document.body.style.overflow=''; lbImg.src=''; }
-    function updateLbNav(){ lbPrev.disabled=lbIdx<=0; lbNext.disabled=lbIdx>=allSrcs.length-1; }
-    document.getElementById('lbClose').addEventListener('click',closeLb);
-    lb.addEventListener('click',function(e){ if(e.target===lb) closeLb(); });
-    lbPrev.addEventListener('click',function(e){ e.stopPropagation(); if(lbIdx>0){lbIdx--;lbImg.src=allSrcs[lbIdx];updateLbNav();} });
-    lbNext.addEventListener('click',function(e){ e.stopPropagation(); if(lbIdx<allSrcs.length-1){lbIdx++;lbImg.src=allSrcs[lbIdx];updateLbNav();} });
-    document.addEventListener('keydown',function(e){
-        if(!lb.classList.contains('open')){ if(e.key==='Escape') closeEmailModal(); return; }
-        if(e.key==='ArrowLeft'&&lbIdx>0){ lbIdx--;lbImg.src=allSrcs[lbIdx];updateLbNav(); }
-        if(e.key==='ArrowRight'&&lbIdx<allSrcs.length-1){ lbIdx++;lbImg.src=allSrcs[lbIdx];updateLbNav(); }
-        if(e.key==='Escape') closeLb();
-    });
+    /* mobile title block */
+    var mTagsHtml=p.tags&&p.tags.length?'<div class="gh-tags">'+p.tags.map(function(t){return '<a class="gh-tag" href="addresses.html?tag='+encodeURIComponent(t)+'">'+t+'</a>';}).join('')+'</div>':'';
+    var titleBlock=el('div','gh-title');
+    titleBlock.innerHTML=
+      '<a class="gh-back" href="addresses.html"><span class="arr">←</span> Всички адреси</a>'+
+      '<p class="gh-eyebrow">Адресът на историята</p>'+
+      '<h1 class="gh-name">'+(p.name||'—')+'</h1>'+
+      mTagsHtml;
+    frag.appendChild(titleBlock);
+    frag.appendChild(gh);
 
-    /* ── META / SEO ─────────────────────────────────── */
-    function updateMeta(p){
-        var pageUrl='https://historyaddress.bg/address.html?slug='+encodeURIComponent(slug);
-        var desc=p.biography?p.biography.substring(0,155):'Исторически адрес: '+(p.address||'');
-        var img=(p.images&&p.images[0]&&p.images[0].path)?'https://historyaddress.bg/'+p.images[0].path:'https://historyaddress.bg/assets/img/HistAdrLogo.png';
-        document.title=p.name+' — Адресът на историята';
-        var map={
-            'meta[name="description"]':['content',desc],'link[rel="canonical"]':['href',pageUrl],
-            'meta[property="og:url"]':['content',pageUrl],'meta[property="og:title"]':['content',p.name],
-            'meta[property="og:description"]':['content',desc],'meta[property="og:image"]':['content',img],
-            'meta[property="twitter:url"]':['content',pageUrl],'meta[property="twitter:title"]':['content',p.name],
-            'meta[property="twitter:description"]':['content',desc],'meta[property="twitter:image"]':['content',img]
-        };
-        Object.keys(map).forEach(function(sel){ var n=document.querySelector(sel); if(n) n.setAttribute(map[sel][0],map[sel][1]); });
+    /* ── CONTENT ── */
+    var main=el('main','container'), body=el('div','dp-body');
+
+    if(hasBio){
+      var lbl=el('div','dp-lbl'); lbl.id='dp-bio'; lbl.textContent='Биография'; body.appendChild(lbl);
+      var wrap=el('div','dp-bio');
+      if(!p.portrait_url) wrap.style.gridTemplateColumns='1fr';
+      if(p.portrait_url){
+        var pc=el('div','dp-portrait-col');
+        var pi=el('img','dp-portrait'); pi.src=p.portrait_url; pi.alt='Портрет на '+p.name; pi.loading='lazy';
+        pi.onerror=function(){pc.style.display='none';};
+        var cap=el('div','dp-portrait-cap'); cap.textContent=p.name;
+        pc.appendChild(pi); pc.appendChild(cap); wrap.appendChild(pc);
+      }
+      var col=el('div');
+      /* info card */
+      var infoItems=[
+        p.address?'<div class="dp-ci"><span class="dp-ci-icon">📍</span><div><div class="dp-ci-lbl">Адрес</div><div class="dp-ci-val">'+p.address+'</div></div></div>':'',
+        fmt(p.birth_date)?'<div class="dp-ci"><span class="dp-ci-icon">🎂</span><div><div class="dp-ci-lbl">Роден</div><div class="dp-ci-val">'+fmt(p.birth_date)+'</div></div></div>':'',
+        fmt(p.death_date)?'<div class="dp-ci"><span class="dp-ci-icon">🕯️</span><div><div class="dp-ci-lbl">Починал</div><div class="dp-ci-val">'+fmt(p.death_date)+'</div></div></div>':'',
+        p.photo_date?'<div class="dp-ci"><span class="dp-ci-icon">📷</span><div><div class="dp-ci-lbl">Снимка</div><div class="dp-ci-val">'+p.photo_date+'</div></div></div>':'',
+        mapHref?'<a class="dp-map" href="'+mapHref+'">🗺️ Карта <span class="arr">→</span></a>':''
+      ].join('');
+      if(infoItems.trim()) col.insertAdjacentHTML('beforeend','<div class="dp-card">'+infoItems+'</div>');
+      if(p.biography){
+        var first=fst(p.biography), rest=p.biography.replace(first,'').trim();
+        col.insertAdjacentHTML('beforeend','<blockquote class="dp-quote">'+first+'</blockquote>'+(rest?'<p class="dp-bio-body">'+rest+'</p>':''));
+      }
+      wrap.appendChild(col); body.appendChild(wrap);
     }
 
-    function addSchema(p){
-        var s=document.createElement('script'); s.type='application/ld+json';
-        var d={'@context':'https://schema.org','@type':'Place',name:p.name,description:p.biography||'',address:{'@type':'PostalAddress',streetAddress:p.address||'',addressCountry:'BG'}};
-        if(p.coordinates&&p.coordinates.lat) d.geo={'@type':'GeoCoordinates',latitude:p.coordinates.lat,longitude:p.coordinates.lng};
-        if(p.images&&p.images[0]) d.image='https://historyaddress.bg/'+p.images[0].path;
-        s.textContent=JSON.stringify(d); document.head.appendChild(s);
+    if(p.sources&&p.sources.length){
+      var sl=el('div','dp-lbl'); sl.textContent='Източници'; body.appendChild(sl);
+      var ss=el('div');
+      var sb=el('button','dp-src-btn');
+      sb.innerHTML='📚 Виж всички източници <span style="color:var(--muted);font-weight:400;font-size:.8em;">('+p.sources.length+')</span><span class="dp-src-chev">▼</span>';
+      var sd=el('div','dp-src-body');
+      sd.innerHTML='<ul>'+p.sources.map(function(s){
+        s=s.trim();
+        return '<li>'+(/^https?:\/\//i.test(s)?'<a href="'+s+'" target="_blank" rel="noopener noreferrer">'+s+'</a>':s)+'</li>';
+      }).join('')+'</ul>';
+      sb.addEventListener('click',function(){var o=sd.classList.toggle('open');sb.classList.toggle('open',o);});
+      ss.appendChild(sb); ss.appendChild(sd); body.appendChild(ss);
     }
+
+    main.appendChild(body); frag.appendChild(main);
+    root.innerHTML=''; root.appendChild(frag);
+  }
+
+  /* LIGHTBOX */
+  var lb=document.getElementById('lb'),lbImg=document.getElementById('lbImg'),lbCtr=document.getElementById('lbCtr');
+  var lbPrev=document.getElementById('lbPrev'),lbNext=document.getElementById('lbNext');
+  function openLb(i){lbIdx=i;lbImg.src=srcs[i]||'';lb.classList.add('open');document.body.style.overflow='hidden';upLb();}
+  function closeLb(){lb.classList.remove('open');document.body.style.overflow='';lbImg.src='';}
+  function upLb(){lbPrev.disabled=lbIdx<=0;lbNext.disabled=lbIdx>=srcs.length-1;lbCtr.textContent=srcs.length>1?(lbIdx+1)+' / '+srcs.length:'';}
+  document.getElementById('lbClose').addEventListener('click',closeLb);
+  lb.addEventListener('click',function(e){if(e.target===lb)closeLb();});
+  lbPrev.addEventListener('click',function(e){e.stopPropagation();if(lbIdx>0){lbIdx--;lbImg.src=srcs[lbIdx];upLb();}});
+  lbNext.addEventListener('click',function(e){e.stopPropagation();if(lbIdx<srcs.length-1){lbIdx++;lbImg.src=srcs[lbIdx];upLb();}});
+  document.addEventListener('keydown',function(e){
+    if(!lb.classList.contains('open')){if(e.key==='Escape')closeEmailModal();return;}
+    if(e.key==='ArrowLeft'&&lbIdx>0){lbIdx--;lbImg.src=srcs[lbIdx];upLb();}
+    if(e.key==='ArrowRight'&&lbIdx<srcs.length-1){lbIdx++;lbImg.src=srcs[lbIdx];upLb();}
+    if(e.key==='Escape')closeLb();
+  });
+
+  /* SEO */
+  function seo(p){
+    var u='https://historyaddress.bg/address.html?slug='+encodeURIComponent(slug);
+    var d=p.biography?p.biography.substring(0,155):'Исторически адрес: '+(p.address||'');
+    var i=(p.images&&p.images[0]&&p.images[0].path)?'https://historyaddress.bg/'+p.images[0].path:'https://historyaddress.bg/assets/img/HistAdrLogo.png';
+    document.title=p.name+' — Адресът на историята';
+    [['meta[name="description"]','content',d],['link[rel="canonical"]','href',u],
+     ['meta[property="og:url"]','content',u],['meta[property="og:title"]','content',p.name],
+     ['meta[property="og:description"]','content',d],['meta[property="og:image"]','content',i],
+     ['meta[property="twitter:url"]','content',u],['meta[property="twitter:title"]','content',p.name],
+     ['meta[property="twitter:description"]','content',d],['meta[property="twitter:image"]','content',i]
+    ].forEach(function(x){var n=document.querySelector(x[0]);if(n)n.setAttribute(x[1],x[2]);});
+  }
+  function schema(p){
+    var s=document.createElement('script'); s.type='application/ld+json';
+    var d={'@context':'https://schema.org','@type':'Place',name:p.name,description:p.biography||'',
+      address:{'@type':'PostalAddress',streetAddress:p.address||'',addressCountry:'BG'}};
+    if(p.coordinates&&p.coordinates.lat)d.geo={'@type':'GeoCoordinates',latitude:p.coordinates.lat,longitude:p.coordinates.lng};
+    if(p.images&&p.images[0])d.image='https://historyaddress.bg/'+p.images[0].path;
+    s.textContent=JSON.stringify(d); document.head.appendChild(s);
+  }
 })();
 </script>
 </body>
