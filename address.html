@@ -412,5 +412,24 @@ html,body{overflow-x:hidden !important;width:100% !important;position:relative;m
   }
 })();
 </script>
+  <script>
+// THIS IS THE ONE-TIME FIX
+// It runs automatically when the page loads
+window.addEventListener('DOMContentLoaded', (event) => {
+    const R2_URL = "https://pub-b40e453eddaf4bc5b299af8f6d7b7de2.r2.dev/";
+    
+    // Find every image on the page
+    const images = document.querySelectorAll('img');
+    images.forEach(img => {
+        // If the image is currently pointing to a local path (e.g., /assets/...), 
+        // redirect it to the R2 Bucket
+        if (img.src.includes('assets/')) {
+            // Extract the filename (e.g., "img_001.jpg")
+            const filename = img.src.split('/').pop();
+            img.src = R2_URL + filename;
+        }
+    });
+});
+</script>
 </body>
 </html>
