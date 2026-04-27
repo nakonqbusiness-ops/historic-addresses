@@ -705,64 +705,79 @@ document.addEventListener('keydown', function(e) { if (e.key === 'Escape') close
         if (wrap) wrap.innerHTML = '<div class="addr-card-placeholder">🏛️</div>';
     };
 
-    /* ── Render ─────────────────────────────────────────── */
-    function renderHomes() {
-        var grid = document.getElementById('grid');
-        grid.innerHTML = '';
+  /* ── Render ─────────────────────────────────────────── */
+function renderHomes() {
+    var grid = document.getElementById('grid');
+    grid.innerHTML = '';
+    
+    // Define your Cloudflare R2 base URL
+    var R2_URL = "https://pub-b40e453eddaf4bc5b299af8f6d7b7de2.r2.dev/";
 
-        if (state.currentHomes.length === 0) {
-            var msg = state.searchQuery
-                ? 'Няма намерени резултати за „' + state.searchQuery + '".'
-                : 'Няма намерени адреси.';
-            grid.innerHTML = '<div class="addr-state"><span class="addr-state-icon">🔍</span>' +
-                '<p class="addr-state-text">' + msg + '</p></div>';
-            return;
-        }
-
-        state.currentHomes.forEach(function(p) {
-            var finalSlug = (typeof p.slug === 'string' && p.slug) ? p.slug
-                          : (typeof p.id === 'string' && p.id) ? p.id : '';
-            if (!finalSlug) return;
-
-            var placeholder = 'assets/img/placeholder.svg';
-            var imgSrc = placeholder;
-            var imgAlt = 'Адресът на ' + p.name;
-            if (p.images && p.images[0]) {
-                imgSrc = p.images[0].thumb || p.images[0].path || placeholder;
-                if (p.images[0].alt) imgAlt = p.images[0].alt;
-            }
-
-            var card = document.createElement('a');
-            card.className = 'addr-card';
-            card.href = 'address.html?slug=' + encodeURIComponent(finalSlug);
-
-            var hasImage = imgSrc !== placeholder;
-
-            card.innerHTML =
-                '<div class="addr-card-img-wrap">' +
-                    (hasImage
-                        ? '<img class="addr-card-img" src="' + imgSrc + '" alt="' + imgAlt + '" loading="lazy" onerror="addrImgError(this)">'
-                        : '<div class="addr-card-placeholder">🏛️</div>') +
-                    '<span class="addr-card-view">Разгледай</span>' +
-                '</div>' +
-                '<div class="addr-card-body">' +
-                    '<div class="addr-card-name">' + (p.name || '—') + '</div>' +
-                    (p.address
-                        ? '<div class="addr-card-address">' +
-                          '<span class="addr-card-address-icon">📍</span>' +
-                          '<span>' + p.address + '</span>' +
-                          '</div>'
-                        : '') +
-                    '<div class="addr-card-divider"></div>' +
-                    '<div class="addr-card-cta">' +
-                        '<span>Виж повече</span>' +
-                        '<span class="addr-card-arrow">→</span>' +
-                    '</div>' +
-                '</div>';
-
-            grid.appendChild(card);
-        });
+    if (state.currentHomes.length === 0) {
+        var msg = state.searchQuery 
+            ? 'Няма намерени резултати за „' + state.searchQuery + '".' 
+            : 'Няма намерени адреси.';
+        grid.innerHTML = '<div class="addr-state"><span class="addr-state-icon">🔍</span>' +
+            '<p class="addr-state-text">' + msg + '</p></div>';
+        return;
     }
+
+    state.currentHomes.forEach(function(p) {
+        var finalSlug = (typeof p.slug === 'string' && p.slug) ? p.slug
+                      : (typeof p.id === 'string' && p.id) ? p.id : '';
+        if (!finalSlug) return;
+
+        var placeholder = 'assets/img/placeholder.svg';
+        var imgSrc = placeholder;
+        var imgAlt = 'Адресът на ' + p.name;
+        
+        // --- UPDATED IMAGE LOGIC ---
+        if (p.images && p.images[0]) {
+            var rawPath = p.images[0].thumb || p.images[0].path;
+            if (rawPath) {
+                // If it's not a full URL, add the R2 prefix
+                if (!rawPath.startsWith('http')) {
+                    var cleanPath = rawPath.startsWith('/') ? rawPath.substring(1) : rawPath;
+                    imgSrc = R2_URL + cleanPath;
+                } else {
+                    imgSrc = rawPath;
+                }
+            }
+            if (p.images[0].alt) imgAlt = p.images[0].alt;
+        }
+        // ---------------------------
+
+        var card = document.createElement('a');
+        card.className = 'addr-card';
+        card.href = 'address.html?slug=' + encodeURIComponent(finalSlug);
+
+        var hasImage = imgSrc !== placeholder;
+
+        card.innerHTML =
+            '<div class="addr-card-img-wrap">' +
+                (hasImage
+                    ? '<img class="addr-card-img" src="' + imgSrc + '" alt="' + imgAlt + '" loading="lazy" onerror="addrImgError(this)">'
+                    : '<div class="addr-card-placeholder">🏛️</div>') +
+                '<span class="addr-card-view">Разгледай</span>' +
+            '</div>' +
+            '<div class="addr-card-body">' +
+                '<div class="addr-card-name">' + (p.name || '—') + '</div>' +
+                (p.address
+                    ? '<div class="addr-card-address">' +
+                      '<span class="addr-card-address-icon">📍</span>' +
+                      '<span>' + p.address + '</span>' +
+                      '</div>'
+                    : '') +
+                '<div class="addr-card-divider"></div>' +
+                '<div class="addr-card-cta">' +
+                    '<span>Виж повече</span>' +
+                    '<span class="addr-card-arrow">→</span>' +
+                '</div>' +
+            '</div>';
+
+        grid.appendChild(card);
+    });
+}
 
     /* ── Pagination ─────────────────────────────────────── */
     function updatePagination() {
