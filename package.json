@@ -4,7 +4,7 @@
 	"description": "Historic Homes website with database backend",
 	"main": "server.js",
 	"scripts": {
-		"start": "node --expose-gc --max-old-space-size=512 server.js",
+		"start": "node download-db.js && node --expose-gc --max-old-space-size=1800 server.js",
 		"dev": "nodemon server.js"
 	},
 	"keywords": [
@@ -15,11 +15,9 @@
 	"author": "",
 	"license": "ISC",
 	"dependencies": {
-		"@aws-sdk/client-s3": "^3.1037.0",
-		"better-sqlite3": "^12.9.0",
-		"cors": "^2.8.5",
 		"express": "^4.18.2",
-		"sqlite3": "^5.1.6"
+		"sqlite3": "^5.1.6",
+		"cors": "^2.8.5"
 	},
 	"devDependencies": {
 		"nodemon": "^3.0.1"
