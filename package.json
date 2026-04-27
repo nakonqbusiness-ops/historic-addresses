@@ -4,8 +4,9 @@
 	"description": "Historic Homes website with database backend",
 	"main": "server.js",
 	"scripts": {
-		"start": "node --expose-gc --max-old-space-size=512 server.js",
-		"dev": "nodemon server.js"
+    "start": "cp database.db /app/database.db && node --expose-gc --max-old-space-size=512 server.js",
+    "dev": "nodemon server.js"
+},
 	},
 	"keywords": [
 		"historic",
@@ -22,4 +23,5 @@
 	"devDependencies": {
 		"nodemon": "^3.0.1"
 	}
+	
 }
