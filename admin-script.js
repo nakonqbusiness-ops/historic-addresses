@@ -1,6 +1,13 @@
 (function(){
-    const PASSWORD_HASH = '135a21d2896b3b414a72f31aa2ada261c499b0740bc747b731dcfbd4315619ec';
+    // owner = full access, editor = homes + news only
+    const ACCOUNTS = {
+        '135a21d2896b3b414a72f31aa2ada261c499b0740bc747b731dcfbd4315619ec': { role: 'owner', name: 'Георги' },
+        'f31f00416e795e7c9f539624a907f8dd0e7a363d58a2a406e8f73f1702ab6826': { role: 'editor', name: 'Божидар' }
+    };
     const SESSION_KEY = 'sys_auth_token';
+    const SESSION_ROLE = 'sys_auth_role';
+
+    let currentRole = 'editor'; // default safe
 
     async function hashPassword(password) {
         const msgBuffer = new TextEncoder().encode(password);
@@ -13,24 +20,18 @@
         const input = document.getElementById('authPassword').value;
         const errorEl = document.getElementById('authError');
         const buttonEl = document.getElementById('authButton');
-        
-        if (!input) {
-            errorEl.textContent = 'Please enter password';
-            return;
-        }
-
+        if (!input) { errorEl.textContent = 'Please enter password'; return; }
         buttonEl.disabled = true;
         buttonEl.textContent = 'Checking...';
-
         const hash = await hashPassword(input);
-        
-        if (hash === PASSWORD_HASH) {
+        const account = ACCOUNTS[hash];
+        if (account) {
             sessionStorage.setItem(SESSION_KEY, hash);
-            showAdminPanel();
+            sessionStorage.setItem(SESSION_ROLE, account.role);
+            showAdminPanel(account.role);
         } else {
             errorEl.textContent = '❌ Invalid password';
             document.getElementById('authPassword').value = '';
-            
             setTimeout(() => {
                 buttonEl.disabled = false;
                 buttonEl.textContent = 'Access';
@@ -39,21 +40,35 @@
         }
     }
 
-    function showAdminPanel() {
+    function showAdminPanel(role) {
+        currentRole = role || 'editor';
         document.getElementById('authOverlay').style.display = 'none';
         document.getElementById('adminContent').style.display = 'block';
+
+        // Hide Partners and Team tabs for editors
+        if (currentRole === 'editor') {
+            document.getElementById('tabPartners').style.display = 'none';
+            document.getElementById('tabTeam').style.display = 'none';
+        } else {
+            document.getElementById('tabPartners').style.display = '';
+            document.getElementById('tabTeam').style.display = '';
+        }
+
         loadHomes(1);
     }
 
     function logout() {
         sessionStorage.removeItem(SESSION_KEY);
+        sessionStorage.removeItem(SESSION_ROLE);
         location.reload();
     }
 
     window.addEventListener('DOMContentLoaded', function() {
         const stored = sessionStorage.getItem(SESSION_KEY);
-        if (stored === PASSWORD_HASH) {
-            showAdminPanel();
+        const storedRole = sessionStorage.getItem(SESSION_ROLE);
+        const account = stored ? ACCOUNTS[stored] : null;
+        if (account) {
+            showAdminPanel(storedRole || account.role);
         } else {
             document.getElementById('authPassword').focus();
         }
@@ -66,13 +81,47 @@
     window.logout = logout;
     window.checkAuth = checkAuth;
 
+    // ── R2 Upload Helper ──────────────────────────────────────────
+    // watermark=true  → applies © photographer watermark (home gallery, news)
+    // watermark=false → uploads clean (portrait, logo, team photo)
+    async function uploadToR2(file, photographer, homeSlug, watermark) {
+        const formData = new FormData();
+        formData.append('image', file);
+        formData.append('photographer', watermark ? (photographer || '') : '');
+        formData.append('homeSlug', homeSlug || 'img');
+        formData.append('watermark', watermark ? 'true' : 'false');
+
+        const response = await fetch('/api/upload', {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!response.ok) {
+            const err = await response.json().catch(() => ({}));
+            throw new Error(err.error || `Upload failed (${response.status})`);
+        }
+
+        const data = await response.json();
+        return data.url;
+    }
+
+    function getPhotographer() {
+        return (document.getElementById('photographerName') || {}).value || '';
+    }
+
+    function setUploadStatus(msg) {
+        var el = document.getElementById('uploadStatus');
+        if (el) el.textContent = msg;
+    }
+
+    // ── API base URLs ─────────────────────────────────────────────
     var apiBase = window.location.origin;
     var API_URL = apiBase + '/api/homes';
     var PARTNERS_API = apiBase + '/api/partners';
     var NEWS_API = apiBase + '/api/news';
     var TEAM_API = apiBase + '/api/team';
 
-    var state = { 
+    var state = {
         currentPage: 1,
         totalPages: 1,
         totalHomes: 0,
@@ -89,26 +138,16 @@
 
     // ── Tab switching ─────────────────────────────────────────────
     document.getElementById('tabHomes').addEventListener('click', function() {
-        showSection('homesSection');
-        setActiveTab('tabHomes');
+        showSection('homesSection'); setActiveTab('tabHomes');
     });
-    
     document.getElementById('tabPartners').addEventListener('click', function() {
-        showSection('partnersSection');
-        setActiveTab('tabPartners');
-        loadPartners();
+        showSection('partnersSection'); setActiveTab('tabPartners'); loadPartners();
     });
-
     document.getElementById('tabNews').addEventListener('click', function() {
-        showSection('newsSection');
-        setActiveTab('tabNews');
-        loadNews();
+        showSection('newsSection'); setActiveTab('tabNews'); loadNews();
     });
-
     document.getElementById('tabTeam').addEventListener('click', function() {
-        showSection('teamSection');
-        setActiveTab('tabTeam');
-        loadTeam();
+        showSection('teamSection'); setActiveTab('tabTeam'); loadTeam();
     });
 
     function showSection(id) {
@@ -116,7 +155,6 @@
             document.getElementById(s).style.display = s === id ? '' : 'none';
         });
     }
-
     function setActiveTab(id) {
         ['tabHomes','tabPartners','tabNews','tabTeam'].forEach(function(t) {
             document.getElementById(t).classList.toggle('active', t === id);
@@ -124,69 +162,51 @@
     }
 
     // ── Homes ─────────────────────────────────────────────────────
-    function loadHomes(page){
+    function loadHomes(page) {
         page = page || state.currentPage;
         var url = API_URL + '?all=true&page=' + page + '&limit=6';
-        if (state.searchQuery) {
-            url += '&search=' + encodeURIComponent(state.searchQuery);
-        }
-        
+        if (state.searchQuery) url += '&search=' + encodeURIComponent(state.searchQuery);
         fetch(url)
-            .then(function(res){ 
-                if (!res.ok) throw new Error('Server error');
-                return res.json(); 
-            })
-            .then(function(response){
+            .then(function(res) { if (!res.ok) throw new Error('Server error'); return res.json(); })
+            .then(function(response) {
                 var homes = response.data || response;
-                var pagination = response.pagination || { 
-                    page: 1, 
-                    totalPages: Math.max(1, Math.ceil(homes.length / 6)), 
-                    total: homes.length 
-                };
-                
+                var pagination = response.pagination || { page: 1, totalPages: Math.max(1, Math.ceil(homes.length / 6)), total: homes.length };
                 state.currentHomes = homes;
                 state.currentPage = pagination.page;
                 state.totalPages = pagination.totalPages;
                 state.totalHomes = pagination.total;
-                
                 renderList();
                 updatePagination();
             })
-            .catch(function(err){
-                console.error('Error loading homes:', err);
-                alert('Error loading data');
-            });
+            .catch(function(err) { console.error('Error loading homes:', err); alert('Error loading data'); });
     }
 
-    function renderList(){
+    function renderList() {
         var list = document.getElementById('list');
         list.innerHTML = '';
-        
         if (state.currentHomes.length === 0) {
             list.innerHTML = '<p style="text-align:center;padding:2rem;color:#999;">No homes found.</p>';
             return;
         }
-        
-        state.currentHomes.forEach(function(p){
+        state.currentHomes.forEach(function(p) {
             var card = document.createElement('div');
             card.className = 'thumb';
-            var img = (p.images&&p.images[0])? p.images[0].path : '';
-            card.innerHTML = '<img alt="" loading="lazy" src="'+img+'" onerror="this.style.display=\'none\'">' +
-                '<div class="meta"><strong>'+(p.name||'(no name)')+'</strong><div class="muted">'+(p.address||'')+'</div>'+
-                '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">'
-                + '<button data-act="edit" data-id="'+(p.slug||p.id)+'" class="theme-toggle">Edit</button>'
-                + '<button data-act="toggle" data-id="'+(p.slug||p.id)+'" class="theme-toggle">'+(p.published? 'Unpublish':'Publish')+'</button>'
-                + '<button data-act="delete" data-id="'+(p.slug||p.id)+'" class="theme-toggle">Delete</button>'
-                + '</div></div>';
+            var img = (p.images && p.images[0]) ? p.images[0].path : '';
+            card.innerHTML = '<img alt="" loading="lazy" src="' + img + '" onerror="this.style.display=\'none\'">' +
+                '<div class="meta"><strong>' + (p.name || '(no name)') + '</strong>' +
+                '<div class="muted">' + (p.address || '') + '</div>' +
+                '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">' +
+                '<button data-act="edit" data-id="' + (p.slug || p.id) + '" class="theme-toggle">Edit</button>' +
+                '<button data-act="toggle" data-id="' + (p.slug || p.id) + '" class="theme-toggle">' + (p.published ? 'Unpublish' : 'Publish') + '</button>' +
+                '<button data-act="delete" data-id="' + (p.slug || p.id) + '" class="theme-toggle">Delete</button>' +
+                '</div></div>';
             list.appendChild(card);
         });
     }
 
-    function updatePagination(){
+    function updatePagination() {
         var info = 'Page ' + state.currentPage + ' of ' + state.totalPages;
-        if (state.totalHomes > 0) {
-            info += ' (' + state.totalHomes + ' total)';
-        }
+        if (state.totalHomes > 0) info += ' (' + state.totalHomes + ' total)';
         document.getElementById('pageInfo').textContent = info;
         document.getElementById('firstPage').disabled = state.currentPage === 1;
         document.getElementById('prevPage').disabled = state.currentPage === 1;
@@ -194,7 +214,7 @@
         document.getElementById('lastPage').disabled = state.currentPage >= state.totalPages;
     }
 
-    function goToPage(page){
+    function goToPage(page) {
         if (page < 1) page = 1;
         if (page > state.totalPages) page = state.totalPages;
         state.currentPage = page;
@@ -202,43 +222,38 @@
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-    document.getElementById('firstPage').addEventListener('click', function(){ goToPage(1); });
-    document.getElementById('prevPage').addEventListener('click', function(){ goToPage(state.currentPage - 1); });
-    document.getElementById('nextPage').addEventListener('click', function(){ goToPage(state.currentPage + 1); });
-    document.getElementById('lastPage').addEventListener('click', function(){ goToPage(state.totalPages); });
+    document.getElementById('firstPage').addEventListener('click', function() { goToPage(1); });
+    document.getElementById('prevPage').addEventListener('click', function() { goToPage(state.currentPage - 1); });
+    document.getElementById('nextPage').addEventListener('click', function() { goToPage(state.currentPage + 1); });
+    document.getElementById('lastPage').addEventListener('click', function() { goToPage(state.totalPages); });
 
-    document.getElementById('search').addEventListener('input', function(){
+    document.getElementById('search').addEventListener('input', function() {
         clearTimeout(searchTimeout);
-        searchTimeout = setTimeout(function(){
+        searchTimeout = setTimeout(function() {
             state.searchQuery = document.getElementById('search').value;
             state.currentPage = 1;
             loadHomes(1);
         }, 500);
     });
 
-    function openModal(title){ 
-        document.getElementById('dlgTitle').textContent = title; 
-        document.getElementById('modal').style.display='flex'; 
-    }
-    function closeModal(){ 
-        document.getElementById('modal').style.display='none'; 
-    }
+    function openModal(title) { document.getElementById('dlgTitle').textContent = title; document.getElementById('modal').style.display = 'flex'; }
+    function closeModal() { document.getElementById('modal').style.display = 'none'; }
 
-    function syncImageField(){ document.getElementById('f_imgs').value = imageSources.join('\n'); }
-    
-    function renderImageList(){
+    function syncImageField() { document.getElementById('f_imgs').value = imageSources.join('\n'); }
+
+    function renderImageList() {
         var wrap = document.getElementById('imgPrevWrap');
         var cont = document.getElementById('imgPreview');
         cont.innerHTML = '';
         if (!imageSources.length) { wrap.style.display = 'none'; return; }
         wrap.style.display = '';
         var ph = 'assets/img/placeholder.svg';
-        imageSources.forEach(function(src, idx){
+        imageSources.forEach(function(src, idx) {
             var item = document.createElement('div');
             item.className = 'preview-item';
             var safe = src || ph;
-            item.innerHTML = '<img alt="Image preview" loading="lazy" src="'+safe+'" onerror="this.onerror=null;this.src=\''+ph+'\';">' +
-                '<button type="button" data-remove="'+idx+'">×</button>';
+            item.innerHTML = '<img alt="Image preview" loading="lazy" src="' + safe + '" onerror="this.onerror=null;this.src=\'' + ph + '\';">' +
+                '<button type="button" data-remove="' + idx + '">×</button>';
             cont.appendChild(item);
         });
     }
@@ -250,65 +265,63 @@
             var img = document.createElement('img');
             img.src = url;
             img.alt = 'Portrait Preview';
-            img.style.maxWidth = '100px';
-            img.style.maxHeight = '100px';
-            img.style.objectFit = 'contain';
-            img.style.borderRadius = '50%';
-            img.style.border = '2px solid var(--accent)';
-            
+            img.style.cssText = 'max-width:100px;max-height:100px;object-fit:contain;border-radius:50%;border:2px solid var(--accent)';
             var clearBtn = document.createElement('button');
             clearBtn.textContent = '× Clear';
             clearBtn.className = 'theme-toggle';
             clearBtn.style.marginLeft = '10px';
-            clearBtn.onclick = function() {
-                fPortraitEl.value = '';
-                renderPortraitPreview();
-            };
-
+            clearBtn.onclick = function() { fPortraitEl.value = ''; renderPortraitPreview(); };
             portraitPreviewEl.appendChild(img);
             portraitPreviewEl.appendChild(clearBtn);
         }
     }
-    
-    function loadPortraitFile(file) {
+
+    // Portrait upload — no watermark
+    async function loadPortraitFile(file) {
         if (!file) return;
         if (!/^image\//.test(file.type)) { alert('Please select an image file'); return; }
-        if (file.size > 5 * 1024 * 1024) { alert('File size exceeds 5MB'); return; }
-
-        var fr = new FileReader();
-        fr.onload = function(){
-            fPortraitEl.value = fr.result;
+        const homeSlug = document.getElementById('f_slug').value.trim() || 'portrait';
+        try {
+            setUploadStatus('Uploading portrait...');
+            const url = await uploadToR2(file, '', homeSlug, false);
+            fPortraitEl.value = url;
             renderPortraitPreview();
-        };
-        fr.readAsDataURL(file);
+            setUploadStatus('✓ Portrait uploaded');
+        } catch (err) {
+            alert('Portrait upload failed: ' + err.message);
+            setUploadStatus('');
+        }
     }
 
-    function fillForm(p){
-        document.getElementById('f_name').value = p.name||'';
+    function fillForm(p) {
+        document.getElementById('f_name').value = p.name || '';
         document.getElementById('f_slug').value = p.slug || p.id || '';
-        fPortraitEl.value = p.portrait_url||'';
+        fPortraitEl.value = p.portrait_url || '';
         document.getElementById('f_birth_date').value = p.birth_date || '';
         document.getElementById('f_death_date').value = p.death_date || '';
-        
         renderPortraitPreview();
-        document.getElementById('f_bio').value = p.biography||'';
-        document.getElementById('f_addr').value = p.address||'';
+        document.getElementById('f_bio').value = p.biography || '';
+        document.getElementById('f_addr').value = p.address || '';
         document.getElementById('f_lat').value = p.coordinates && p.coordinates.lat || '';
         document.getElementById('f_lng').value = p.coordinates && p.coordinates.lng || '';
-        imageSources = (p.images||[]).map(function(i){ return i && i.path; }).filter(Boolean);
+        imageSources = (p.images || []).map(function(i) { return i && i.path; }).filter(Boolean);
         syncImageField();
-        document.getElementById('f_date').value = p.photo_date||'';
-        document.getElementById('f_sources').value = (p.sources||[]).join('; ');
-        document.getElementById('f_tags').value = (p.tags||[]).join(', ');
+        document.getElementById('f_date').value = p.photo_date || '';
+        document.getElementById('f_sources').value = (p.sources || []).join('; ');
+        document.getElementById('f_tags').value = (p.tags || []).join(', ');
         document.getElementById('f_published').checked = (typeof p.published === 'boolean') ? p.published : true;
+        // Clear photographer field and status when opening a form
+        var pEl = document.getElementById('photographerName');
+        if (pEl) pEl.value = '';
+        setUploadStatus('');
         renderImageList();
     }
 
-    function slugify(text){
-        return (text||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
+    function slugify(text) {
+        return (text || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
     }
 
-    function readForm(existing){
+    function readForm(existing) {
         var p = existing || {};
         p.name = document.getElementById('f_name').value.trim();
         var slugInput = document.getElementById('f_slug').value.trim();
@@ -317,24 +330,21 @@
         p.portrait_url = fPortraitEl.value.trim() || null;
         p.birth_date = document.getElementById('f_birth_date').value || null;
         p.death_date = document.getElementById('f_death_date').value || null;
-
         p.biography = document.getElementById('f_bio').value.trim();
         p.address = document.getElementById('f_addr').value.trim();
         var lat = document.getElementById('f_lat').value.trim();
         var lng = document.getElementById('f_lng').value.trim();
         if (lat && lng) p.coordinates = { lat: parseFloat(lat), lng: parseFloat(lng) };
-        var txtSources = document.getElementById('f_imgs').value.split(/\r?\n/).map(function(s){ return s.trim(); }).filter(Boolean);
+        var txtSources = document.getElementById('f_imgs').value.split(/\r?\n/).map(function(s) { return s.trim(); }).filter(Boolean);
         imageSources = txtSources.slice();
-        if (imageSources.length) {
-            p.images = imageSources.map(function(src){ return { path: src, caption: '', alt: 'Facade of '+(p.name||'') }; });
-        } else {
-            p.images = [];
-        }
+        p.images = imageSources.length
+            ? imageSources.map(function(src) { return { path: src, caption: '', alt: 'Facade of ' + (p.name || '') }; })
+            : [];
         p.photo_date = document.getElementById('f_date').value.trim();
         var sources = document.getElementById('f_sources').value.trim();
-        p.sources = sources ? sources.split(';').map(function(s){ return s.trim(); }).filter(Boolean) : [];
+        p.sources = sources ? sources.split(';').map(function(s) { return s.trim(); }).filter(Boolean) : [];
         var tags = document.getElementById('f_tags').value.trim();
-        p.tags = tags ? tags.split(',').map(function(s){ return s.trim(); }).filter(Boolean) : [];
+        p.tags = tags ? tags.split(',').map(function(s) { return s.trim(); }).filter(Boolean) : [];
         if (!p.id) p.id = p.slug || slugify(p.name);
         var now = new Date().toISOString();
         if (!p.created_at) p.created_at = now;
@@ -343,55 +353,59 @@
         return p;
     }
 
-    function addNew(){
+    function addNew() {
         document.getElementById('f_id').value = '';
         fillForm({ published: true });
         openModal('Add Home');
     }
 
-    function editHome(id){
+    function editHome(id) {
         fetch(API_URL + '/' + id)
-            .then(function(res){ return res.json(); })
-            .then(function(home){
+            .then(function(res) { return res.json(); })
+            .then(function(home) {
                 document.getElementById('f_id').value = home.id || home.slug;
                 fillForm(home);
                 openModal('Edit Home');
             })
-            .catch(function(err){
-                console.error('Error loading home:', err);
-                alert('Error loading home');
-            });
+            .catch(function(err) { console.error('Error loading home:', err); alert('Error loading home'); });
     }
 
     document.getElementById('addBtn').addEventListener('click', addNew);
     document.getElementById('cancelDlg').addEventListener('click', closeModal);
     document.getElementById('closeDlg').addEventListener('click', closeModal);
 
-    function loadImageFile(file){
+    // Gallery images upload — watermark applied
+    async function loadImageFile(file) {
         if (!file) return;
         if (!/^image\//.test(file.type)) { alert('Please select an image'); return; }
-        if (file.size > 10 * 1024 * 1024) { alert('Image exceeds 10MB'); return; }
-        var fr = new FileReader();
-        fr.onload = function(){
-            imageSources.push(fr.result);
+        const homeSlug = document.getElementById('f_slug').value.trim() || 'img';
+        const photographer = getPhotographer();
+        try {
+            setUploadStatus('Uploading...');
+            const url = await uploadToR2(file, photographer, homeSlug, true);
+            imageSources.push(url);
             syncImageField();
             renderImageList();
-        };
-        fr.readAsDataURL(file);
+            setUploadStatus('✓ ' + imageSources.length + ' image(s) ready');
+        } catch (err) {
+            alert('Upload failed: ' + err.message);
+            setUploadStatus('');
+        }
     }
 
-    document.getElementById('imgDrop').addEventListener('dragover', function(e){ e.preventDefault(); });
-    document.getElementById('imgDrop').addEventListener('drop', function(e){
+    document.getElementById('imgDrop').addEventListener('dragover', function(e) { e.preventDefault(); });
+    document.getElementById('imgDrop').addEventListener('drop', function(e) {
         e.preventDefault();
-        var files = (e.dataTransfer.files && Array.from(e.dataTransfer.files)) || [];
+        var files = Array.from(e.dataTransfer.files || []);
         files.forEach(loadImageFile);
     });
-    document.getElementById('imgPick').addEventListener('click', function(){ document.getElementById('imgFile').click(); });
-    document.getElementById('imgFile').addEventListener('change', function(e){ 
-        var files = (e.target.files && Array.from(e.target.files)) || []; 
-        files.forEach(loadImageFile); 
+    document.getElementById('imgPick').addEventListener('click', function() { document.getElementById('imgFile').click(); });
+    document.getElementById('imgFile').addEventListener('change', function(e) {
+        var files = Array.from(e.target.files || []);
+        files.forEach(loadImageFile);
+        e.target.value = '';
     });
-    document.getElementById('imgPreview').addEventListener('click', function(e){
+    document.getElementById('imgPreview').addEventListener('click', function(e) {
         var btn = e.target.closest && e.target.closest('button[data-remove]');
         if (!btn) return;
         var idx = parseInt(btn.getAttribute('data-remove'), 10);
@@ -399,47 +413,42 @@
         syncImageField();
         renderImageList();
     });
-    document.getElementById('f_imgs').addEventListener('input', function(){
-        imageSources = this.value.split(/\r?\n/).map(function(s){ return s.trim(); }).filter(Boolean);
+    document.getElementById('f_imgs').addEventListener('input', function() {
+        imageSources = this.value.split(/\r?\n/).map(function(s) { return s.trim(); }).filter(Boolean);
         renderImageList();
     });
 
-    document.getElementById('portraitDrop').addEventListener('dragover', function(e){ e.preventDefault(); });
-    document.getElementById('portraitDrop').addEventListener('drop', function(e){
+    document.getElementById('portraitDrop').addEventListener('dragover', function(e) { e.preventDefault(); });
+    document.getElementById('portraitDrop').addEventListener('drop', function(e) {
         e.preventDefault();
         var file = (e.dataTransfer.files && e.dataTransfer.files[0]) || null;
         if (file) loadPortraitFile(file);
     });
-    document.getElementById('portraitPick').addEventListener('click', function(){ document.getElementById('portraitFile').click(); });
-    document.getElementById('portraitFile').addEventListener('change', function(e){ 
+    document.getElementById('portraitPick').addEventListener('click', function() { document.getElementById('portraitFile').click(); });
+    document.getElementById('portraitFile').addEventListener('change', function(e) {
         var file = (e.target.files && e.target.files[0]) || null;
         if (file) loadPortraitFile(file);
         e.target.value = '';
     });
     fPortraitEl.addEventListener('input', renderPortraitPreview);
 
-    document.getElementById('objForm').addEventListener('submit', function(e){
+    document.getElementById('objForm').addEventListener('submit', function(e) {
         e.preventDefault();
         var homeId = document.getElementById('f_id').value;
         var homeData = readForm({});
-        
         if (!homeId) {
             fetch(API_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(homeData)
             })
-            .then(function(res){ return res.json(); })
-            .then(function(){
-                closeModal();
-                loadHomes(1);
-                alert('Home created!');
-            })
-            .catch(function(err){ console.error(err); alert('Error creating home'); });
+            .then(function(res) { return res.json(); })
+            .then(function() { closeModal(); loadHomes(1); alert('Home created!'); })
+            .catch(function(err) { console.error(err); alert('Error creating home'); });
         } else {
             fetch(API_URL + '/' + homeId)
-                .then(function(res){ return res.json(); })
-                .then(function(existing){
+                .then(function(res) { return res.json(); })
+                .then(function(existing) {
                     var updated = readForm(existing);
                     return fetch(API_URL + '/' + homeId, {
                         method: 'PUT',
@@ -447,54 +456,41 @@
                         body: JSON.stringify(updated)
                     });
                 })
-                .then(function(res){ return res.json(); })
-                .then(function(){
-                    closeModal();
-                    loadHomes(state.currentPage);
-                    alert('Home updated!');
-                })
-                .catch(function(err){ console.error(err); alert('Error updating home'); });
+                .then(function(res) { return res.json(); })
+                .then(function() { closeModal(); loadHomes(state.currentPage); alert('Home updated!'); })
+                .catch(function(err) { console.error(err); alert('Error updating home'); });
         }
     });
 
     // ── Partners ──────────────────────────────────────────────────
     function loadPartners() {
         var search = (document.getElementById('partnerSearch').value || '').toLowerCase();
-        
         fetch(PARTNERS_API + '?all=true')
             .then(function(res) { return res.json(); })
             .then(function(partners) {
                 currentPartners = partners;
-                
                 if (search) {
                     partners = partners.filter(function(p) {
                         return p.name.toLowerCase().includes(search) ||
-                               (p.description && p.description.toLowerCase().includes(search));
+                            (p.description && p.description.toLowerCase().includes(search));
                     });
                 }
-                
                 renderPartners(partners);
             })
-            .catch(function(err) {
-                console.error('Error loading partners:', err);
-                alert('Error loading partners');
-            });
+            .catch(function(err) { console.error('Error loading partners:', err); alert('Error loading partners'); });
     }
-    
+
     function renderPartners(partners) {
         var list = document.getElementById('partnersList');
         list.innerHTML = '';
-        
         if (partners.length === 0) {
             list.innerHTML = '<p style="text-align:center;padding:2rem;color:#999;">No partners found.</p>';
             return;
         }
-        
         partners.forEach(function(p) {
             var card = document.createElement('div');
             card.className = 'thumb';
             var logo = p.logo_url || 'assets/img/placeholder.svg';
-            
             card.innerHTML = '<img alt="' + p.name + '" loading="lazy" src="' + logo + '" style="object-fit:contain;background:#fff;padding:10px;">' +
                 '<div class="meta"><strong>' + p.name + '</strong>' +
                 '<div class="muted" style="margin-top:4px;font-size:0.9rem;">' + (p.description ? p.description.substring(0, 60) + '...' : 'No description') + '</div>' +
@@ -513,15 +509,28 @@
         partnerSearchTimeout = setTimeout(loadPartners, 300);
     });
 
-    function openPartnerModal(title) {
-        document.getElementById('partnerDlgTitle').textContent = title;
-        document.getElementById('partnerModal').style.display = 'flex';
+    function openPartnerModal(title) { document.getElementById('partnerDlgTitle').textContent = title; document.getElementById('partnerModal').style.display = 'flex'; }
+    function closePartnerModal() { document.getElementById('partnerModal').style.display = 'none'; }
+
+    function renderLogoPreview() {
+        var preview = document.getElementById('logoPreview');
+        var url = document.getElementById('p_logo').value.trim();
+        preview.innerHTML = '';
+        if (url) {
+            var img = document.createElement('img');
+            img.src = url;
+            img.alt = 'Logo Preview';
+            img.style.cssText = 'max-width:150px;max-height:150px;object-fit:contain;background:#fff;padding:10px;border-radius:8px;';
+            var clearBtn = document.createElement('button');
+            clearBtn.textContent = '× Clear';
+            clearBtn.className = 'theme-toggle';
+            clearBtn.style.marginLeft = '10px';
+            clearBtn.onclick = function() { document.getElementById('p_logo').value = ''; renderLogoPreview(); };
+            preview.appendChild(img);
+            preview.appendChild(clearBtn);
+        }
     }
-    
-    function closePartnerModal() {
-        document.getElementById('partnerModal').style.display = 'none';
-    }
-    
+
     function fillPartnerForm(p) {
         document.getElementById('p_name').value = p.name || '';
         document.getElementById('p_desc').value = p.description || '';
@@ -533,81 +542,43 @@
         document.getElementById('p_published').checked = p.published !== false;
         renderLogoPreview();
     }
-    
-    function renderLogoPreview() {
-        var preview = document.getElementById('logoPreview');
-        var url = document.getElementById('p_logo').value.trim();
-        preview.innerHTML = '';
-        
-        if (url) {
-            var img = document.createElement('img');
-            img.src = url;
-            img.alt = 'Logo Preview';
-            img.style.maxWidth = '150px';
-            img.style.maxHeight = '150px';
-            img.style.objectFit = 'contain';
-            img.style.background = '#fff';
-            img.style.padding = '10px';
-            img.style.borderRadius = '8px';
-            
-            var clearBtn = document.createElement('button');
-            clearBtn.textContent = '× Clear';
-            clearBtn.className = 'theme-toggle';
-            clearBtn.style.marginLeft = '10px';
-            clearBtn.onclick = function() {
-                document.getElementById('p_logo').value = '';
-                renderLogoPreview();
-            };
-            
-            preview.appendChild(img);
-            preview.appendChild(clearBtn);
-        }
-    }
-    
-    function loadLogoFile(file) {
+
+    // Logo upload — no watermark
+    async function loadLogoFile(file) {
         if (!file) return;
         if (!/^image\//.test(file.type)) { alert('Please select an image'); return; }
-        if (file.size > 5 * 1024 * 1024) { alert('Logo exceeds 5MB'); return; }
-        
-        var fr = new FileReader();
-        fr.onload = function() {
-            document.getElementById('p_logo').value = fr.result;
+        try {
+            const url = await uploadToR2(file, '', 'logo', false);
+            document.getElementById('p_logo').value = url;
             renderLogoPreview();
-        };
-        fr.readAsDataURL(file);
+        } catch (err) {
+            alert('Logo upload failed: ' + err.message);
+        }
     }
-    
+
     document.getElementById('addPartnerBtn').addEventListener('click', function() {
         document.getElementById('p_id').value = '';
         fillPartnerForm({ published: true, display_order: 0 });
         openPartnerModal('Add Partner');
     });
-    
     document.getElementById('closePartnerDlg').addEventListener('click', closePartnerModal);
     document.getElementById('cancelPartnerDlg').addEventListener('click', closePartnerModal);
-    
     document.getElementById('p_logo').addEventListener('input', renderLogoPreview);
-    
     document.getElementById('logoDrop').addEventListener('dragover', function(e) { e.preventDefault(); });
     document.getElementById('logoDrop').addEventListener('drop', function(e) {
         e.preventDefault();
         var file = (e.dataTransfer.files && e.dataTransfer.files[0]) || null;
         if (file) loadLogoFile(file);
     });
-    
-    document.getElementById('logoPick').addEventListener('click', function() {
-        document.getElementById('logoFile').click();
-    });
-    
+    document.getElementById('logoPick').addEventListener('click', function() { document.getElementById('logoFile').click(); });
     document.getElementById('logoFile').addEventListener('change', function(e) {
         var file = (e.target.files && e.target.files[0]) || null;
         if (file) loadLogoFile(file);
         e.target.value = '';
     });
-    
+
     document.getElementById('partnerForm').addEventListener('submit', function(e) {
         e.preventDefault();
-        
         var partnerId = document.getElementById('p_id').value;
         var partnerData = {
             id: partnerId || undefined,
@@ -620,89 +591,49 @@
             display_order: parseInt(document.getElementById('p_order').value) || 0,
             published: document.getElementById('p_published').checked
         };
-        
-        if (!partnerId) {
-            fetch(PARTNERS_API, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(partnerData)
-            })
+        var method = partnerId ? 'PUT' : 'POST';
+        var url = partnerId ? PARTNERS_API + '/' + partnerId : PARTNERS_API;
+        fetch(url, { method: method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(partnerData) })
             .then(function(res) { return res.json(); })
-            .then(function() {
-                closePartnerModal();
-                loadPartners();
-                alert('Partner created!');
-            })
-            .catch(function(err) {
-                console.error(err);
-                alert('Error creating partner');
-            });
-        } else {
-            fetch(PARTNERS_API + '/' + partnerId, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(partnerData)
-            })
-            .then(function(res) { return res.json(); })
-            .then(function() {
-                closePartnerModal();
-                loadPartners();
-                alert('Partner updated!');
-            })
-            .catch(function(err) {
-                console.error(err);
-                alert('Error updating partner');
-            });
-        }
+            .then(function() { closePartnerModal(); loadPartners(); alert(partnerId ? 'Partner updated!' : 'Partner created!'); })
+            .catch(function(err) { console.error(err); alert('Error saving partner'); });
     });
 
     // ── News ──────────────────────────────────────────────────────
     function loadNews() {
         var search = (document.getElementById('newsSearch').value || '').toLowerCase();
-        
         fetch(NEWS_API + '?all=true&limit=100')
             .then(function(res) { return res.json(); })
             .then(function(response) {
                 var news = response.data || [];
                 currentNews = news;
-                
                 if (search) {
                     news = news.filter(function(n) {
                         return n.title.toLowerCase().includes(search) ||
-                               (n.excerpt && n.excerpt.toLowerCase().includes(search)) ||
-                               (n.content && n.content.toLowerCase().includes(search));
+                            (n.excerpt && n.excerpt.toLowerCase().includes(search));
                     });
                 }
-                
                 renderNews(news);
             })
-            .catch(function(err) {
-                console.error('Error loading news:', err);
-                alert('Error loading news');
-            });
+            .catch(function(err) { console.error('Error loading news:', err); alert('Error loading news'); });
     }
 
     function renderNews(news) {
         var list = document.getElementById('newsList');
         list.innerHTML = '';
-        
         if (news.length === 0) {
             list.innerHTML = '<p style="text-align:center;padding:2rem;color:#999;">No news articles found.</p>';
             return;
         }
-        
         news.forEach(function(n) {
             var card = document.createElement('div');
             card.className = 'thumb';
             var cover = n.cover_image || 'assets/img/placeholder.svg';
-            
-            var publishedLabel = n.is_published ? 'Published' : 'Draft';
             var statusColor = n.is_published ? '#28a745' : '#ffc107';
-            
             card.innerHTML = '<img alt="' + n.title + '" loading="lazy" src="' + cover + '" style="object-fit:cover;height:180px;">' +
                 '<div class="meta"><strong>' + n.title + '</strong>' +
                 '<div class="muted" style="margin-top:4px;font-size:0.85rem;">📅 ' + n.published_date + '</div>' +
-                '<div style="margin-top:4px;font-size:0.85rem;color:' + statusColor + ';">● ' + publishedLabel + '</div>' +
+                '<div style="margin-top:4px;font-size:0.85rem;color:' + statusColor + ';">● ' + (n.is_published ? 'Published' : 'Draft') + '</div>' +
                 '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">' +
                 '<button data-act="editNews" data-id="' + n.id + '" class="theme-toggle">Edit</button>' +
                 '<button data-act="toggleNews" data-id="' + n.id + '" class="theme-toggle">' + (n.is_published ? 'Unpublish' : 'Publish') + '</button>' +
@@ -718,13 +649,26 @@
         newsSearchTimeout = setTimeout(loadNews, 300);
     });
 
-    function openNewsModal(title) {
-        document.getElementById('newsDlgTitle').textContent = title;
-        document.getElementById('newsModal').style.display = 'flex';
-    }
+    function openNewsModal(title) { document.getElementById('newsDlgTitle').textContent = title; document.getElementById('newsModal').style.display = 'flex'; }
+    function closeNewsModal() { document.getElementById('newsModal').style.display = 'none'; }
 
-    function closeNewsModal() {
-        document.getElementById('newsModal').style.display = 'none';
+    function renderNewsCoverPreview() {
+        var preview = document.getElementById('newsCoverPreview');
+        var url = document.getElementById('n_cover').value.trim();
+        preview.innerHTML = '';
+        if (url) {
+            var img = document.createElement('img');
+            img.src = url;
+            img.alt = 'Cover Preview';
+            img.style.cssText = 'max-width:200px;max-height:150px;object-fit:cover;border-radius:8px;';
+            var clearBtn = document.createElement('button');
+            clearBtn.textContent = '× Clear';
+            clearBtn.className = 'theme-toggle';
+            clearBtn.style.marginLeft = '10px';
+            clearBtn.onclick = function() { document.getElementById('n_cover').value = ''; renderNewsCoverPreview(); };
+            preview.appendChild(img);
+            preview.appendChild(clearBtn);
+        }
     }
 
     function fillNewsForm(n) {
@@ -739,101 +683,52 @@
         renderNewsCoverPreview();
     }
 
-    function renderNewsCoverPreview() {
-        var preview = document.getElementById('newsCoverPreview');
-        var url = document.getElementById('n_cover').value.trim();
-        preview.innerHTML = '';
-        
-        if (url) {
-            var img = document.createElement('img');
-            img.src = url;
-            img.alt = 'Cover Preview';
-            img.style.maxWidth = '200px';
-            img.style.maxHeight = '150px';
-            img.style.objectFit = 'cover';
-            img.style.borderRadius = '8px';
-            
-            var clearBtn = document.createElement('button');
-            clearBtn.textContent = '× Clear';
-            clearBtn.className = 'theme-toggle';
-            clearBtn.style.marginLeft = '10px';
-            clearBtn.onclick = function() {
-                document.getElementById('n_cover').value = '';
-                renderNewsCoverPreview();
-            };
-            
-            preview.appendChild(img);
-            preview.appendChild(clearBtn);
-        }
-    }
-
-    function loadNewsCoverFile(file) {
+    // News cover upload — watermark applied
+    async function loadNewsCoverFile(file) {
         if (!file) return;
         if (!/^image\//.test(file.type)) { alert('Please select an image'); return; }
-        if (file.size > 5 * 1024 * 1024) { alert('Image exceeds 5MB'); return; }
-        
-        var fr = new FileReader();
-        fr.onload = function() {
-            document.getElementById('n_cover').value = fr.result;
+        try {
+            const url = await uploadToR2(file, 'Адресът на историята', 'news', true);
+            document.getElementById('n_cover').value = url;
             renderNewsCoverPreview();
-        };
-        fr.readAsDataURL(file);
+        } catch (err) {
+            alert('Cover upload failed: ' + err.message);
+        }
     }
 
     document.getElementById('addNewsBtn').addEventListener('click', function() {
         document.getElementById('n_id').value = '';
-        fillNewsForm({ 
-            is_published: 1,
-            published_date: new Date().toISOString().split('T')[0],
-            author: 'Екипът на Адресът на историята'
-        });
+        fillNewsForm({ is_published: 1, published_date: new Date().toISOString().split('T')[0], author: 'Екипът на Адресът на историята' });
         openNewsModal('Add News Article');
     });
-
     document.getElementById('closeNewsDlg').addEventListener('click', closeNewsModal);
     document.getElementById('cancelNewsDlg').addEventListener('click', closeNewsModal);
-
     document.getElementById('n_cover').addEventListener('input', renderNewsCoverPreview);
-
     document.getElementById('newsCoverDrop').addEventListener('dragover', function(e) { e.preventDefault(); });
     document.getElementById('newsCoverDrop').addEventListener('drop', function(e) {
         e.preventDefault();
         var file = (e.dataTransfer.files && e.dataTransfer.files[0]) || null;
         if (file) loadNewsCoverFile(file);
     });
-
-    document.getElementById('newsCoverPick').addEventListener('click', function() {
-        document.getElementById('newsCoverFile').click();
-    });
-
+    document.getElementById('newsCoverPick').addEventListener('click', function() { document.getElementById('newsCoverFile').click(); });
     document.getElementById('newsCoverFile').addEventListener('change', function(e) {
         var file = (e.target.files && e.target.files[0]) || null;
         if (file) loadNewsCoverFile(file);
         e.target.value = '';
     });
-
     document.getElementById('n_title').addEventListener('input', function() {
         var slugField = document.getElementById('n_slug');
-        if (!slugField.value) {
-            slugField.value = slugify(this.value);
-        }
+        if (!slugField.value) slugField.value = slugify(this.value);
     });
 
     document.getElementById('newsForm').addEventListener('submit', function(e) {
         e.preventDefault();
-        
         var newsId = document.getElementById('n_id').value;
         var title = document.getElementById('n_title').value.trim();
-        var slug = document.getElementById('n_slug').value.trim();
-        
-        if (!slug) {
-            slug = slugify(title);
-            document.getElementById('n_slug').value = slug;
-        }
-        
+        var slug = document.getElementById('n_slug').value.trim() || slugify(title);
+        document.getElementById('n_slug').value = slug;
         var newsData = {
-            title: title,
-            slug: slug,
+            title: title, slug: slug,
             excerpt: document.getElementById('n_excerpt').value.trim() || '',
             content: document.getElementById('n_content').value.trim(),
             cover_image: document.getElementById('n_cover').value.trim() || '',
@@ -841,93 +736,49 @@
             author: document.getElementById('n_author').value.trim(),
             is_published: document.getElementById('n_published').checked ? 1 : 0
         };
-
-        if (!newsData.title || !newsData.slug || !newsData.content) {
-            alert('Title, slug, and content are required');
-            return;
-        }
-        
-        if (!newsId) {
-            fetch(NEWS_API, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(newsData)
-            })
+        if (!newsData.title || !newsData.slug || !newsData.content) { alert('Title, slug, and content are required'); return; }
+        var method = newsId ? 'PUT' : 'POST';
+        var url = newsId ? NEWS_API + '/' + newsId : NEWS_API;
+        fetch(url, { method: method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newsData) })
             .then(function(res) { return res.json(); })
-            .then(function() {
-                closeNewsModal();
-                loadNews();
-                alert('Article created!');
-            })
-            .catch(function(err) {
-                console.error(err);
-                alert('Error creating article: ' + (err.message || 'Unknown error'));
-            });
-        } else {
-            fetch(NEWS_API + '/' + newsId, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(newsData)
-            })
-            .then(function(res) { return res.json(); })
-            .then(function() {
-                closeNewsModal();
-                loadNews();
-                alert('Article updated!');
-            })
-            .catch(function(err) {
-                console.error(err);
-                alert('Error updating article');
-            });
-        }
+            .then(function() { closeNewsModal(); loadNews(); alert(newsId ? 'Article updated!' : 'Article created!'); })
+            .catch(function(err) { console.error(err); alert('Error saving article: ' + (err.message || '')); });
     });
 
     // ── Team ──────────────────────────────────────────────────────
     function loadTeam() {
         var search = (document.getElementById('teamSearch').value || '').toLowerCase();
-        
         fetch(TEAM_API + '?all=true')
             .then(function(res) { return res.json(); })
             .then(function(team) {
                 currentTeam = team;
-                
                 if (search) {
                     team = team.filter(function(t) {
                         return t.name.toLowerCase().includes(search) ||
-                               (t.role && t.role.toLowerCase().includes(search)) ||
-                               (t.bio && t.bio.toLowerCase().includes(search));
+                            (t.role && t.role.toLowerCase().includes(search));
                     });
                 }
-                
                 renderTeam(team);
             })
-            .catch(function(err) {
-                console.error('Error loading team:', err);
-                alert('Error loading team');
-            });
+            .catch(function(err) { console.error('Error loading team:', err); alert('Error loading team'); });
     }
 
     function renderTeam(team) {
         var list = document.getElementById('teamList');
         list.innerHTML = '';
-        
         if (team.length === 0) {
             list.innerHTML = '<p style="text-align:center;padding:2rem;color:#999;">No team members found.</p>';
             return;
         }
-        
         team.forEach(function(t) {
             var card = document.createElement('div');
             card.className = 'thumb';
             var photo = t.photo || 'assets/img/placeholder.svg';
-            
-            var publishedLabel = t.is_published ? 'Published' : 'Hidden';
             var statusColor = t.is_published ? '#28a745' : '#6c757d';
-            
             card.innerHTML = '<img alt="' + t.name + '" loading="lazy" src="' + photo + '" style="object-fit:cover;height:180px;border-radius:50%;width:180px;margin:0 auto;display:block;">' +
                 '<div class="meta" style="text-align:center;"><strong>' + t.name + '</strong>' +
                 '<div class="muted" style="margin-top:4px;font-size:0.9rem;color:var(--accent-strong);">' + (t.role || 'Member') + '</div>' +
-                '<div style="margin-top:4px;font-size:0.85rem;color:' + statusColor + ';">● ' + publishedLabel + '</div>' +
+                '<div style="margin-top:4px;font-size:0.85rem;color:' + statusColor + ';">● ' + (t.is_published ? 'Published' : 'Hidden') + '</div>' +
                 '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">' +
                 '<button data-act="editTeam" data-id="' + t.id + '" class="theme-toggle">Edit</button>' +
                 '<button data-act="toggleTeam" data-id="' + t.id + '" class="theme-toggle">' + (t.is_published ? 'Hide' : 'Publish') + '</button>' +
@@ -943,13 +794,26 @@
         teamSearchTimeout = setTimeout(loadTeam, 300);
     });
 
-    function openTeamModal(title) {
-        document.getElementById('teamDlgTitle').textContent = title;
-        document.getElementById('teamModal').style.display = 'flex';
-    }
+    function openTeamModal(title) { document.getElementById('teamDlgTitle').textContent = title; document.getElementById('teamModal').style.display = 'flex'; }
+    function closeTeamModal() { document.getElementById('teamModal').style.display = 'none'; }
 
-    function closeTeamModal() {
-        document.getElementById('teamModal').style.display = 'none';
+    function renderTeamPhotoPreview() {
+        var preview = document.getElementById('teamPhotoPreview');
+        var url = document.getElementById('t_photo').value.trim();
+        preview.innerHTML = '';
+        if (url) {
+            var img = document.createElement('img');
+            img.src = url;
+            img.alt = 'Photo Preview';
+            img.style.cssText = 'max-width:120px;max-height:120px;object-fit:cover;border-radius:50%;border:3px solid var(--accent-strong);';
+            var clearBtn = document.createElement('button');
+            clearBtn.textContent = '× Clear';
+            clearBtn.className = 'theme-toggle';
+            clearBtn.style.marginLeft = '10px';
+            clearBtn.onclick = function() { document.getElementById('t_photo').value = ''; renderTeamPhotoPreview(); };
+            preview.appendChild(img);
+            preview.appendChild(clearBtn);
+        }
     }
 
     function fillTeamForm(t) {
@@ -962,46 +826,17 @@
         renderTeamPhotoPreview();
     }
 
-    function renderTeamPhotoPreview() {
-        var preview = document.getElementById('teamPhotoPreview');
-        var url = document.getElementById('t_photo').value.trim();
-        preview.innerHTML = '';
-        
-        if (url) {
-            var img = document.createElement('img');
-            img.src = url;
-            img.alt = 'Photo Preview';
-            img.style.maxWidth = '120px';
-            img.style.maxHeight = '120px';
-            img.style.objectFit = 'cover';
-            img.style.borderRadius = '50%';
-            img.style.border = '3px solid var(--accent-strong)';
-            
-            var clearBtn = document.createElement('button');
-            clearBtn.textContent = '× Clear';
-            clearBtn.className = 'theme-toggle';
-            clearBtn.style.marginLeft = '10px';
-            clearBtn.onclick = function() {
-                document.getElementById('t_photo').value = '';
-                renderTeamPhotoPreview();
-            };
-            
-            preview.appendChild(img);
-            preview.appendChild(clearBtn);
-        }
-    }
-
-    function loadTeamPhotoFile(file) {
+    // Team photo upload — no watermark
+    async function loadTeamPhotoFile(file) {
         if (!file) return;
         if (!/^image\//.test(file.type)) { alert('Please select an image'); return; }
-        if (file.size > 5 * 1024 * 1024) { alert('Photo exceeds 5MB'); return; }
-        
-        var fr = new FileReader();
-        fr.onload = function() {
-            document.getElementById('t_photo').value = fr.result;
+        try {
+            const url = await uploadToR2(file, '', 'team', false);
+            document.getElementById('t_photo').value = url;
             renderTeamPhotoPreview();
-        };
-        fr.readAsDataURL(file);
+        } catch (err) {
+            alert('Photo upload failed: ' + err.message);
+        }
     }
 
     document.getElementById('addTeamBtn').addEventListener('click', function() {
@@ -1009,23 +844,16 @@
         fillTeamForm({ is_published: 1, display_order: 0 });
         openTeamModal('Add Team Member');
     });
-
     document.getElementById('closeTeamDlg').addEventListener('click', closeTeamModal);
     document.getElementById('cancelTeamDlg').addEventListener('click', closeTeamModal);
-
     document.getElementById('t_photo').addEventListener('input', renderTeamPhotoPreview);
-
     document.getElementById('teamPhotoDrop').addEventListener('dragover', function(e) { e.preventDefault(); });
     document.getElementById('teamPhotoDrop').addEventListener('drop', function(e) {
         e.preventDefault();
         var file = (e.dataTransfer.files && e.dataTransfer.files[0]) || null;
         if (file) loadTeamPhotoFile(file);
     });
-
-    document.getElementById('teamPhotoPick').addEventListener('click', function() {
-        document.getElementById('teamPhotoFile').click();
-    });
-
+    document.getElementById('teamPhotoPick').addEventListener('click', function() { document.getElementById('teamPhotoFile').click(); });
     document.getElementById('teamPhotoFile').addEventListener('change', function(e) {
         var file = (e.target.files && e.target.files[0]) || null;
         if (file) loadTeamPhotoFile(file);
@@ -1034,7 +862,6 @@
 
     document.getElementById('teamForm').addEventListener('submit', function(e) {
         e.preventDefault();
-        
         var teamId = document.getElementById('t_id').value;
         var teamData = {
             name: document.getElementById('t_name').value.trim(),
@@ -1044,189 +871,90 @@
             display_order: parseInt(document.getElementById('t_order').value) || 0,
             is_published: document.getElementById('t_published').checked ? 1 : 0
         };
-
-        if (!teamData.name) {
-            alert('Name is required');
-            return;
-        }
-        
-        if (!teamId) {
-            fetch(TEAM_API, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(teamData)
-            })
+        if (!teamData.name) { alert('Name is required'); return; }
+        var method = teamId ? 'PUT' : 'POST';
+        var url = teamId ? TEAM_API + '/' + teamId : TEAM_API;
+        fetch(url, { method: method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(teamData) })
             .then(function(res) { return res.json(); })
-            .then(function() {
-                closeTeamModal();
-                loadTeam();
-                alert('Team member added!');
-            })
-            .catch(function(err) {
-                console.error(err);
-                alert('Error adding team member');
-            });
-        } else {
-            fetch(TEAM_API + '/' + teamId, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(teamData)
-            })
-            .then(function(res) { return res.json(); })
-            .then(function() {
-                closeTeamModal();
-                loadTeam();
-                alert('Team member updated!');
-            })
-            .catch(function(err) {
-                console.error(err);
-                alert('Error updating team member');
-            });
-        }
+            .then(function() { closeTeamModal(); loadTeam(); alert(teamId ? 'Team member updated!' : 'Team member added!'); })
+            .catch(function(err) { console.error(err); alert('Error saving team member'); });
     });
 
-    // ── Unified click handler (homes + partners + news + team) ────
-    document.addEventListener('click', function(e){
+    // ── Unified click handler ─────────────────────────────────────
+    document.addEventListener('click', function(e) {
         var act = e.target && e.target.getAttribute('data-act');
         if (!act) return;
         var id = e.target.getAttribute('data-id');
         if (!id) return;
 
-        // Homes
-        if (act === 'edit') {
-            editHome(id);
-        }
+        if (act === 'edit') { editHome(id); }
         if (act === 'toggle') {
-            fetch(API_URL + '/' + id)
-                .then(function(res){ return res.json(); })
-                .then(function(home){
-                    home.published = !home.published;
-                    return fetch(API_URL + '/' + id, {
-                        method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(home)
-                    });
-                })
-                .then(function(){ loadHomes(state.currentPage); })
-                .catch(function(err){ console.error(err); alert('Error updating'); });
+            fetch(API_URL + '/' + id).then(function(r) { return r.json(); }).then(function(home) {
+                home.published = !home.published;
+                return fetch(API_URL + '/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(home) });
+            }).then(function() { loadHomes(state.currentPage); }).catch(function(err) { console.error(err); alert('Error updating'); });
         }
         if (act === 'delete') {
             if (confirm('Delete this home?')) {
-                fetch(API_URL + '/' + id, { method: 'DELETE' })
-                    .then(function(){ loadHomes(state.currentPage); })
-                    .catch(function(err){ console.error(err); alert('Error deleting'); });
+                fetch(API_URL + '/' + id, { method: 'DELETE' }).then(function() { loadHomes(state.currentPage); }).catch(function(err) { console.error(err); alert('Error deleting'); });
             }
         }
-
-        // Partners
         if (act === 'editPartner') {
-            fetch(PARTNERS_API + '/' + id)
-                .then(function(res) { return res.json(); })
-                .then(function(partner) {
-                    document.getElementById('p_id').value = partner.id;
-                    fillPartnerForm(partner);
-                    openPartnerModal('Edit Partner');
-                })
-                .catch(function(err) { console.error(err); alert('Error loading partner'); });
+            fetch(PARTNERS_API + '/' + id).then(function(r) { return r.json(); }).then(function(partner) {
+                document.getElementById('p_id').value = partner.id;
+                fillPartnerForm(partner);
+                openPartnerModal('Edit Partner');
+            }).catch(function(err) { console.error(err); alert('Error loading partner'); });
         }
         if (act === 'togglePartner') {
-            fetch(PARTNERS_API + '/' + id)
-                .then(function(res) { return res.json(); })
-                .then(function(partner) {
-                    partner.published = !partner.published;
-                    return fetch(PARTNERS_API + '/' + id, {
-                        method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(partner)
-                    });
-                })
-                .then(function() { loadPartners(); })
-                .catch(function(err) { console.error(err); alert('Error updating partner'); });
+            fetch(PARTNERS_API + '/' + id).then(function(r) { return r.json(); }).then(function(p) {
+                p.published = !p.published;
+                return fetch(PARTNERS_API + '/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(p) });
+            }).then(function() { loadPartners(); }).catch(function(err) { console.error(err); alert('Error updating partner'); });
         }
         if (act === 'deletePartner') {
             if (confirm('Delete this partner?')) {
-                fetch(PARTNERS_API + '/' + id, { method: 'DELETE' })
-                    .then(function() { loadPartners(); })
-                    .catch(function(err) { console.error(err); alert('Error deleting partner'); });
+                fetch(PARTNERS_API + '/' + id, { method: 'DELETE' }).then(function() { loadPartners(); }).catch(function(err) { console.error(err); alert('Error deleting partner'); });
             }
         }
-
-        // News
         if (act === 'editNews') {
-            fetch(NEWS_API + '/' + id + '?all=true')
-                .then(function(res) {
-                    if (!res.ok) {
-                        return fetch(NEWS_API + '?all=true&limit=1000')
-                            .then(function(res2) { return res2.json(); })
-                            .then(function(response) {
-                                var article = response.data.find(function(n) { return n.id == id; });
-                                if (!article) throw new Error('Article not found');
-                                return article;
-                            });
-                    }
-                    return res.json();
-                })
-                .then(function(article) {
-                    document.getElementById('n_id').value = article.id;
-                    fillNewsForm(article);
-                    openNewsModal('Edit News Article');
-                })
-                .catch(function(err) { console.error(err); alert('Error loading article'); });
+            fetch(NEWS_API + '?all=true&limit=1000').then(function(r) { return r.json(); }).then(function(response) {
+                var article = (response.data || []).find(function(n) { return n.id == id; });
+                if (!article) throw new Error('Article not found');
+                document.getElementById('n_id').value = article.id;
+                fillNewsForm(article);
+                openNewsModal('Edit News Article');
+            }).catch(function(err) { console.error(err); alert('Error loading article'); });
         }
         if (act === 'toggleNews') {
-            fetch(NEWS_API + '?all=true&limit=1000')
-                .then(function(res) { return res.json(); })
-                .then(function(response) {
-                    var article = response.data.find(function(n) { return n.id == id; });
-                    if (!article) throw new Error('Article not found');
-                    article.is_published = article.is_published ? 0 : 1;
-                    return fetch(NEWS_API + '/' + id, {
-                        method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(article)
-                    });
-                })
-                .then(function() { loadNews(); })
-                .catch(function(err) { console.error(err); alert('Error updating article'); });
+            fetch(NEWS_API + '?all=true&limit=1000').then(function(r) { return r.json(); }).then(function(response) {
+                var article = (response.data || []).find(function(n) { return n.id == id; });
+                if (!article) throw new Error('Article not found');
+                article.is_published = article.is_published ? 0 : 1;
+                return fetch(NEWS_API + '/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(article) });
+            }).then(function() { loadNews(); }).catch(function(err) { console.error(err); alert('Error updating article'); });
         }
         if (act === 'deleteNews') {
             if (confirm('Delete this article?')) {
-                fetch(NEWS_API + '/' + id, { method: 'DELETE' })
-                    .then(function() { loadNews(); })
-                    .catch(function(err) { console.error(err); alert('Error deleting article'); });
+                fetch(NEWS_API + '/' + id, { method: 'DELETE' }).then(function() { loadNews(); }).catch(function(err) { console.error(err); alert('Error deleting article'); });
             }
         }
-
-        // ── Team actions — fixed: now inside the click handler ───
         if (act === 'editTeam') {
-            fetch(TEAM_API + '/' + id)
-                .then(function(res) { return res.json(); })
-                .then(function(member) {
-                    document.getElementById('t_id').value = member.id;
-                    fillTeamForm(member);
-                    openTeamModal('Edit Team Member');
-                })
-                .catch(function(err) { console.error(err); alert('Error loading team member'); });
+            fetch(TEAM_API + '/' + id).then(function(r) { return r.json(); }).then(function(member) {
+                document.getElementById('t_id').value = member.id;
+                fillTeamForm(member);
+                openTeamModal('Edit Team Member');
+            }).catch(function(err) { console.error(err); alert('Error loading team member'); });
         }
         if (act === 'toggleTeam') {
-            fetch(TEAM_API + '/' + id)
-                .then(function(res) { return res.json(); })
-                .then(function(member) {
-                    member.is_published = member.is_published ? 0 : 1;
-                    return fetch(TEAM_API + '/' + id, {
-                        method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(member)
-                    });
-                })
-                .then(function() { loadTeam(); })
-                .catch(function(err) { console.error(err); alert('Error updating team member'); });
+            fetch(TEAM_API + '/' + id).then(function(r) { return r.json(); }).then(function(member) {
+                member.is_published = member.is_published ? 0 : 1;
+                return fetch(TEAM_API + '/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(member) });
+            }).then(function() { loadTeam(); }).catch(function(err) { console.error(err); alert('Error updating team member'); });
         }
         if (act === 'deleteTeam') {
             if (confirm('Delete this team member?')) {
-                fetch(TEAM_API + '/' + id, { method: 'DELETE' })
-                    .then(function() { loadTeam(); })
-                    .catch(function(err) { console.error(err); alert('Error deleting team member'); });
+                fetch(TEAM_API + '/' + id, { method: 'DELETE' }).then(function() { loadTeam(); }).catch(function(err) { console.error(err); alert('Error deleting team member'); });
             }
         }
     });
