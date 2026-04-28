@@ -5,10 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex, nofollow">
     <link rel="icon" type="image/png" href="/assets/img/favicon-96x96.png" sizes="96x96" />
-<link rel="icon" type="image/svg+xml" href="/assets/img/favicon.svg" />
-<link rel="shortcut icon" href="/assets/img/favicon.ico" />
-<link rel="apple-touch-icon" sizes="180x180" href="/assets/img/apple-touch-icon.png" />
-<link rel="manifest" href="/assets/img/site.webmanifest" />
+    <link rel="icon" type="image/svg+xml" href="/assets/img/favicon.svg" />
+    <link rel="shortcut icon" href="/assets/img/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/img/apple-touch-icon.png" />
+    <link rel="manifest" href="/assets/img/site.webmanifest" />
 
     <title>System Panel</title>
     <script>
@@ -33,96 +33,49 @@
             margin: 24px 0;
             flex-wrap: wrap;
         }
-        .pagination button {
-            min-width: 40px;
-        }
-        .pagination .page-info {
-            padding: 8px 16px;
-            color: var(--text);
-        }
+        .pagination button { min-width: 40px; }
+        .pagination .page-info { padding: 8px 16px; color: var(--text); }
         .auth-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.95);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 9999;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.95); display: flex;
+            align-items: center; justify-content: center; z-index: 9999;
         }
         .auth-box {
-            background: var(--card-bg, #1a1a1a);
-            padding: 2rem;
-            border-radius: 8px;
-            box-shadow: 0 4px 24px rgba(0,0,0,0.5);
-            max-width: 400px;
-            width: 90%;
+            background: var(--card-bg, #1a1a1a); padding: 2rem;
+            border-radius: 8px; box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+            max-width: 400px; width: 90%;
         }
-        .auth-box h2 {
-            margin-top: 0;
-            color: var(--text-primary, #fff);
-        }
+        .auth-box h2 { margin-top: 0; color: var(--text-primary, #fff); }
         .auth-box input {
-            width: 100%;
-            padding: 0.75rem;
-            margin: 1rem 0;
-            border: 1px solid var(--border-color, #333);
-            border-radius: 4px;
-            background: var(--input-bg, #0d0d0d);
-            color: var(--text-primary, #fff);
-            font-size: 1rem;
+            width: 100%; padding: 0.75rem; margin: 1rem 0;
+            border: 1px solid var(--border-color, #333); border-radius: 4px;
+            background: var(--input-bg, #0d0d0d); color: var(--text-primary, #fff); font-size: 1rem;
         }
         .auth-box button {
-            width: 100%;
-            padding: 0.75rem;
-            background: #007bff;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 1rem;
-            font-weight: 600;
+            width: 100%; padding: 0.75rem; background: #007bff; color: white;
+            border: none; border-radius: 4px; cursor: pointer; font-size: 1rem; font-weight: 600;
         }
-        .auth-box button:hover {
-            background: #0056b3;
-        }
-        .auth-box button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-        .auth-error {
-            color: #ff4444;
-            margin-top: 0.5rem;
-            font-size: 0.9rem;
-        }
-        #adminContent {
-            display: none;
-        }
-        .tab-buttons {
-            display: flex;
-            gap: 0.5rem;
-            margin-bottom: 1.5rem;
-            flex-wrap: wrap;
-        }
+        .auth-box button:hover { background: #0056b3; }
+        .auth-box button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .auth-error { color: #ff4444; margin-top: 0.5rem; font-size: 0.9rem; }
+        #adminContent { display: none; }
+        .tab-buttons { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
         .tab-buttons button {
-            padding: 0.75rem 1.5rem;
-            background: var(--bg-secondary);
-            border: 1px solid var(--border-color);
-            color: var(--text);
-            cursor: pointer;
-            border-radius: 4px;
-            transition: all 0.2s;
+            padding: 0.75rem 1.5rem; background: var(--bg-secondary);
+            border: 1px solid var(--border-color); color: var(--text);
+            cursor: pointer; border-radius: 4px; transition: all 0.2s;
         }
         .tab-buttons button.active {
-            background: var(--primary-color, #007bff);
-            color: white;
+            background: var(--primary-color, #007bff); color: white;
             border-color: var(--primary-color, #007bff);
         }
-        .tab-buttons button:hover:not(.active) {
-            background: var(--bg-hover);
+        .tab-buttons button:hover:not(.active) { background: var(--bg-hover); }
+        .photographer-row {
+            display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 6px;
         }
+        .photographer-row input { flex: 1; min-width: 160px; }
+        .photographer-row button { white-space: nowrap; }
+        #uploadStatus { margin-top: 4px; font-size: 0.85rem; color: var(--muted); min-height: 1.2em; }
     </style>
 </head>
 <body>
@@ -148,7 +101,7 @@
                 <a href="calendar.html">Calendar</a>
                 <a href="news.html">News</a>
                 <a href="about.html">About</a>
-                <button onclick="logout()" class="theme-toggle" style="background: #dc3545;">Logout</button>
+                <button onclick="logout()" class="theme-toggle" style="background:#dc3545;">Logout</button>
             </nav>
             <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode"></button>
         </header>
@@ -169,9 +122,7 @@
                     <button id="addBtn" class="theme-toggle">Add New Home</button>
                     <input id="search" class="input" placeholder="Search...">
                 </div>
-
                 <div id="list" class="grid"></div>
-                
                 <div class="pagination">
                     <button id="firstPage" class="theme-toggle">First</button>
                     <button id="prevPage" class="theme-toggle">Previous</button>
@@ -187,7 +138,6 @@
                     <button id="addPartnerBtn" class="theme-toggle">Add New Partner</button>
                     <input id="partnerSearch" class="input" placeholder="Search partners...">
                 </div>
-
                 <div id="partnersList" class="grid"></div>
             </section>
 
@@ -197,7 +147,6 @@
                     <button id="addNewsBtn" class="theme-toggle">Add New Article</button>
                     <input id="newsSearch" class="input" placeholder="Search news...">
                 </div>
-
                 <div id="newsList" class="grid"></div>
             </section>
 
@@ -207,7 +156,6 @@
                     <button id="addTeamBtn" class="theme-toggle">Add Team Member</button>
                     <input id="teamSearch" class="input" placeholder="Search team...">
                 </div>
-
                 <div id="teamList" class="grid"></div>
             </section>
         </main>
@@ -227,27 +175,54 @@
                             <label><span class="label">Slug (id)</span><input id="f_slug" class="field" placeholder="address-name"></label>
                             <div class="full" style="margin-top:-8px;color:var(--muted);font-size:.85rem;">Lowercase, URL-friendly identifier. If left blank, it will be generated from the name.</div>
                             <label><span class="label">Published</span><span class="row"><input id="f_published" type="checkbox"><span>Visible</span></span></label>
-                            
-                            <label><span class="label">Birth Date</span><input id="f_birth_date" class="field" type="date" placeholder="YYYY-MM-DD"></label>
-                            <label><span class="label">Death Date</span><input id="f_death_date" class="field" type="date" placeholder="YYYY-MM-DD"></label>
-                            
+
+                            <label><span class="label">Birth Date</span><input id="f_birth_date" class="field" type="date"></label>
+                            <label><span class="label">Death Date</span><input id="f_death_date" class="field" type="date"></label>
+
                             <label class="full">
                                 <span class="label">Portrait URL</span>
                                 <input id="f_portrait" class="field" placeholder="/assets/portraits/person.jpg">
                                 <div class="full drop" id="portraitDrop">
-                                    Drop image or 
+                                    Drop image or
                                     <button type="button" id="portraitPick" class="theme-toggle">Choose file</button>
                                     <input id="portraitFile" type="file" accept="image/*" style="display:none">
                                 </div>
-                                <div id="portraitPreview" style="margin-top: 10px; text-align: center;"></div>
+                                <div id="portraitPreview" style="margin-top:10px;text-align:center;"></div>
                             </label>
+
                             <label class="full"><span class="label">Biography</span><textarea id="f_bio" class="field textarea" placeholder="5–6 sentences"></textarea></label>
                             <label class="full"><span class="label">Address</span><input id="f_addr" class="field"></label>
                             <label><span class="label">Latitude</span><input id="f_lat" class="field" inputmode="decimal"></label>
                             <label><span class="label">Longitude</span><input id="f_lng" class="field" inputmode="decimal"></label>
+
+                            <!-- ── PHOTOGRAPHER FIELD ── -->
+                            <label class="full">
+                                <span class="label">📸 Photographer (watermark on gallery images only)</span>
+                                <div class="photographer-row">
+                                    <input id="photographerName" class="field" placeholder="Type name or pick →">
+                                    <button type="button" class="theme-toggle"
+                                        onclick="document.getElementById('photographerName').value='Георги Петков'">
+                                        Г. Петков
+                                    </button>
+                                    <button type="button" class="theme-toggle"
+                                        onclick="document.getElementById('photographerName').value='Божидар Косев'">
+                                        Б. Косев
+                                    </button>
+                                </div>
+                                <div id="uploadStatus"></div>
+                            </label>
+
                             <label class="full"><span class="label">Image URLs (one per line) or drop/select files below</span><textarea id="f_imgs" class="field textarea"></textarea></label>
-                            <div class="full drop" id="imgDrop">Drop images or <button type="button" id="imgPick" class="theme-toggle">Choose files</button><input id="imgFile" type="file" accept="image/*" multiple style="display:none"></div>
-                            <div class="full" id="imgPrevWrap" style="display:none"><span class="label">Previews</span><div id="imgPreview" class="gallery"></div></div>
+                            <div class="full drop" id="imgDrop">
+                                Drop images or
+                                <button type="button" id="imgPick" class="theme-toggle">Choose files</button>
+                                <input id="imgFile" type="file" accept="image/*" multiple style="display:none">
+                            </div>
+                            <div class="full" id="imgPrevWrap" style="display:none">
+                                <span class="label">Previews</span>
+                                <div id="imgPreview" class="gallery"></div>
+                            </div>
+
                             <label><span class="label">Photo date</span><input id="f_date" class="field" placeholder="YYYY-MM-DD"></label>
                             <label class="full"><span class="label">Sources (semicolon ; separated)</span><textarea id="f_sources" class="field textarea"></textarea></label>
                             <label class="full"><span class="label">Tags (comma , separated)</span><input id="f_tags" class="field" placeholder="poet, 19th-century"></label>
@@ -273,26 +248,18 @@
                         <input type="hidden" id="p_id">
                         <div class="form-grid">
                             <label class="full"><span class="label">Partner Name *</span><input id="p_name" class="field" required></label>
-                            
                             <label class="full"><span class="label">Description</span><textarea id="p_desc" class="field textarea" placeholder="Brief description"></textarea></label>
-                            
                             <label class="full"><span class="label">Logo URL</span><input id="p_logo" class="field" placeholder="/assets/partners/logo.png"></label>
-                            
                             <div class="full drop" id="logoDrop">
-                                Drop logo or 
+                                Drop logo or
                                 <button type="button" id="logoPick" class="theme-toggle">Choose file</button>
                                 <input id="logoFile" type="file" accept="image/*" style="display:none">
                             </div>
-                            <div id="logoPreview" style="margin-top: 10px; text-align: center;"></div>
-                            
+                            <div id="logoPreview" style="margin-top:10px;text-align:center;"></div>
                             <label class="full"><span class="label">Website</span><input id="p_website" class="field" type="url" placeholder="https://example.com"></label>
-                            
                             <label class="full"><span class="label">Instagram</span><input id="p_instagram" class="field" placeholder="@username or full URL"></label>
-                            
                             <label class="full"><span class="label">Email</span><input id="p_email" class="field" type="email" placeholder="contact@example.com"></label>
-                            
                             <label><span class="label">Display Order</span><input id="p_order" class="field" type="number" value="0"></label>
-                            
                             <label><span class="label">Published</span><span class="row"><input id="p_published" type="checkbox" checked><span>Visible</span></span></label>
                         </div>
                     </div>
@@ -304,6 +271,7 @@
             </div>
         </div>
 
+        <!-- NEWS MODAL -->
         <div id="newsModal" class="backdrop">
             <div class="modal" role="dialog">
                 <header>
@@ -315,26 +283,18 @@
                         <input type="hidden" id="n_id">
                         <div class="form-grid">
                             <label class="full"><span class="label">Title *</span><input id="n_title" class="field" required></label>
-                            
                             <label class="full"><span class="label">Slug (auto-generated if empty)</span><input id="n_slug" class="field" placeholder="article-url-name"></label>
-                            
                             <label class="full"><span class="label">Excerpt (short description)</span><textarea id="n_excerpt" class="field textarea" rows="3" placeholder="Brief summary..."></textarea></label>
-                            
                             <label class="full"><span class="label">Content *</span><textarea id="n_content" class="field textarea" rows="10" required placeholder="Full article content..."></textarea></label>
-                            
                             <label class="full"><span class="label">Cover Image URL</span><input id="n_cover" class="field" placeholder="/assets/news/image.jpg"></label>
-                            
                             <div class="full drop" id="newsCoverDrop">
-                                Drop image or 
+                                Drop image or
                                 <button type="button" id="newsCoverPick" class="theme-toggle">Choose file</button>
                                 <input id="newsCoverFile" type="file" accept="image/*" style="display:none">
                             </div>
-                            <div id="newsCoverPreview" style="margin-top: 10px; text-align: center;"></div>
-                            
+                            <div id="newsCoverPreview" style="margin-top:10px;text-align:center;"></div>
                             <label><span class="label">Published Date</span><input id="n_date" class="field" type="date" required></label>
-                            
                             <label class="full"><span class="label">Author</span><input id="n_author" class="field" value="Екипът на Адресът на историята"></label>
-                            
                             <label><span class="label">Published</span><span class="row"><input id="n_published" type="checkbox" checked><span>Visible</span></span></label>
                         </div>
                     </div>
@@ -357,45 +317,18 @@
                     <div class="content">
                         <input type="hidden" id="t_id">
                         <div class="form-grid">
-                            <label class="full">
-                                <span class="label">Name *</span>
-                                <input id="t_name" class="field" required>
-                            </label>
-                            
-                            <label class="full">
-                                <span class="label">Role</span>
-                                <input id="t_role" class="field" placeholder="Основател, Администратор, Член на екипа...">
-                            </label>
-                            
-                            <label class="full">
-                                <span class="label">Bio (short description)</span>
-                                <textarea id="t_bio" class="field textarea" rows="4" placeholder="Brief biography..."></textarea>
-                            </label>
-                            
-                            <label class="full">
-                                <span class="label">Photo URL</span>
-                                <input id="t_photo" class="field" placeholder="/assets/team/photo.jpg">
-                            </label>
-                            
+                            <label class="full"><span class="label">Name *</span><input id="t_name" class="field" required></label>
+                            <label class="full"><span class="label">Role</span><input id="t_role" class="field" placeholder="Основател, Администратор, Член на екипа..."></label>
+                            <label class="full"><span class="label">Bio (short description)</span><textarea id="t_bio" class="field textarea" rows="4" placeholder="Brief biography..."></textarea></label>
+                            <label class="full"><span class="label">Photo URL</span><input id="t_photo" class="field" placeholder="/assets/team/photo.jpg"></label>
                             <div class="full drop" id="teamPhotoDrop">
-                                Drop photo or 
+                                Drop photo or
                                 <button type="button" id="teamPhotoPick" class="theme-toggle">Choose file</button>
                                 <input id="teamPhotoFile" type="file" accept="image/*" style="display:none">
                             </div>
-                            <div id="teamPhotoPreview" style="margin-top: 10px; text-align: center;"></div>
-                            
-                            <label>
-                                <span class="label">Display Order</span>
-                                <input id="t_order" class="field" type="number" value="0">
-                            </label>
-                            
-                            <label>
-                                <span class="label">Published</span>
-                                <span class="row">
-                                    <input id="t_published" type="checkbox" checked>
-                                    <span>Visible</span>
-                                </span>
-                            </label>
+                            <div id="teamPhotoPreview" style="margin-top:10px;text-align:center;"></div>
+                            <label><span class="label">Display Order</span><input id="t_order" class="field" type="number" value="0"></label>
+                            <label><span class="label">Published</span><span class="row"><input id="t_published" type="checkbox" checked><span>Visible</span></span></label>
                         </div>
                     </div>
                     <div class="actions">
