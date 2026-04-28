@@ -1,5 +1,4 @@
 (function(){
-    // owner = full access, editor = homes + news only
     const ACCOUNTS = {
         '135a21d2896b3b414a72f31aa2ada261c499b0740bc747b731dcfbd4315619ec': { role: 'owner', name: 'Георги' },
         'f31f00416e795e7c9f539624a907f8dd0e7a363d58a2a406e8f73f1702ab6826': { role: 'editor', name: 'Божидар' }
