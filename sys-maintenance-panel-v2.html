@@ -107,14 +107,17 @@
         </header>
 
         <main class="container" id="app">
-            <h1 class="page-title">Admin Panel</h1>
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;margin-bottom:0.5rem;">
+    <h1 class="page-title" style="margin:0;">Системен панел</h1>
+    <div id="adminGreeting" style="font-size:1.05rem;color:var(--muted);font-style:italic;"></div>
+</div>
 
-            <div class="tab-buttons">
-                <button id="tabHomes" class="active">🏠 Homes</button>
-                <button id="tabPartners">🤝 Partners</button>
-                <button id="tabNews">📰 News</button>
-                <button id="tabTeam">👥 Team</button>
-            </div>
+<div class="tab-buttons">
+    <button id="tabHomes" class="active">🏠 Адреси</button>
+    <button id="tabPartners">🤝 Партньори</button>
+    <button id="tabNews">📰 Новини</button>
+    <button id="tabTeam">👥 Екип</button>
+</div>
 
             <!-- HOMES SECTION -->
             <section id="homesSection">
@@ -197,7 +200,7 @@
 
                             <!-- ── PHOTOGRAPHER FIELD ── -->
                             <label class="full">
-                                <span class="label">📸 Photographer (watermark on gallery images only)</span>
+                                <span class="label">📸 Фотограф</span>
                                 <div class="photographer-row">
                                     <input id="photographerName" class="field" placeholder="Type name or pick →">
                                     <button type="button" class="theme-toggle"
@@ -344,6 +347,6 @@
         </footer>
     </div>
 
-    <script src="admin-script.js?v=2"></script>
+    <script src="admin-script.js?v=3"></script>
 </body>
 </html>
