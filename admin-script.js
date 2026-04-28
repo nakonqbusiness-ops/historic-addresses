@@ -1,4 +1,5 @@
 (function(){
+    // owner = full access, editor = homes + news only
     const ACCOUNTS = {
         '135a21d2896b3b414a72f31aa2ada261c499b0740bc747b731dcfbd4315619ec': { role: 'owner', name: 'Георги' },
         'f31f00416e795e7c9f539624a907f8dd0e7a363d58a2a406e8f73f1702ab6826': { role: 'editor', name: 'Божидар' }
@@ -27,7 +28,7 @@
         if (account) {
             sessionStorage.setItem(SESSION_KEY, hash);
             sessionStorage.setItem(SESSION_ROLE, account.role);
-            showAdminPanel(account.role);
+            showAdminPanel(account.role, account.name);
         } else {
             errorEl.textContent = '❌ Invalid password';
             document.getElementById('authPassword').value = '';
@@ -39,22 +40,27 @@
         }
     }
 
-    function showAdminPanel(role) {
-        currentRole = role || 'editor';
-        document.getElementById('authOverlay').style.display = 'none';
-        document.getElementById('adminContent').style.display = 'block';
+function showAdminPanel(role, name) {
+    currentRole = role || 'editor';
+    document.getElementById('authOverlay').style.display = 'none';
+    document.getElementById('adminContent').style.display = 'block';
 
-        // Hide Partners and Team tabs for editors
-        if (currentRole === 'editor') {
-            document.getElementById('tabPartners').style.display = 'none';
-            document.getElementById('tabTeam').style.display = 'none';
-        } else {
-            document.getElementById('tabPartners').style.display = '';
-            document.getElementById('tabTeam').style.display = '';
-        }
+    // Greeting
+    const hour = new Date().getHours();
+    const greeting = hour < 12 ? 'Добро утро' : hour < 18 ? 'Добър ден' : 'Добър вечер';
+    const greetingEl = document.getElementById('adminGreeting');
+    if (greetingEl && name) greetingEl.textContent = `${greeting}, ${name} 👋`;
 
-        loadHomes(1);
+    if (currentRole === 'editor') {
+        document.getElementById('tabPartners').style.display = 'none';
+        document.getElementById('tabTeam').style.display = 'none';
+    } else {
+        document.getElementById('tabPartners').style.display = '';
+        document.getElementById('tabTeam').style.display = '';
     }
+
+    loadHomes(1);
+}
 
     function logout() {
         sessionStorage.removeItem(SESSION_KEY);
@@ -67,7 +73,7 @@
         const storedRole = sessionStorage.getItem(SESSION_ROLE);
         const account = stored ? ACCOUNTS[stored] : null;
         if (account) {
-            showAdminPanel(storedRole || account.role);
+            showAdminPanel(storedRole || account.role, account.name);
         } else {
             document.getElementById('authPassword').focus();
         }
@@ -83,26 +89,25 @@
     // ── R2 Upload Helper ──────────────────────────────────────────
     // watermark=true  → applies © photographer watermark (home gallery, news)
     // watermark=false → uploads clean (portrait, logo, team photo)
-    async function uploadToR2(file, photographer, homeSlug, watermark) {
-        const formData = new FormData();
-        formData.append('image', file);
-        formData.append('photographer', watermark ? (photographer || '') : '');
-        formData.append('homeSlug', homeSlug || 'img');
-        formData.append('watermark', watermark ? 'true' : 'false');
+async function uploadToR2(file, homeSlug) {
+    const formData = new FormData();
+    formData.append('image', file);
+    formData.append('homeSlug', homeSlug || 'img');
+    formData.append('watermark', 'false');
 
-        const response = await fetch('/api/upload', {
-            method: 'POST',
-            body: formData
-        });
+    const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData
+    });
 
-        if (!response.ok) {
-            const err = await response.json().catch(() => ({}));
-            throw new Error(err.error || `Upload failed (${response.status})`);
-        }
-
-        const data = await response.json();
-        return data.url;
+    if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || `Upload failed (${response.status})`);
     }
+
+    const data = await response.json();
+    return data.url;
+}
 
     function getPhotographer() {
         return (document.getElementById('photographerName') || {}).value || '';
@@ -282,7 +287,7 @@
         const homeSlug = document.getElementById('f_slug').value.trim() || 'portrait';
         try {
             setUploadStatus('Uploading portrait...');
-            const url = await uploadToR2(file, '', homeSlug, false);
+            const url = await uploadToR2(file, homeSlug);
             fPortraitEl.value = url;
             renderPortraitPreview();
             setUploadStatus('✓ Portrait uploaded');
@@ -381,7 +386,7 @@
         const photographer = getPhotographer();
         try {
             setUploadStatus('Uploading...');
-            const url = await uploadToR2(file, photographer, homeSlug, true);
+            const url = await uploadToR2(file, homeSlug);
             imageSources.push(url);
             syncImageField();
             renderImageList();
@@ -547,7 +552,7 @@
         if (!file) return;
         if (!/^image\//.test(file.type)) { alert('Please select an image'); return; }
         try {
-            const url = await uploadToR2(file, '', 'logo', false);
+            const url = await uploadToR2(file, 'logo');
             document.getElementById('p_logo').value = url;
             renderLogoPreview();
         } catch (err) {
@@ -687,7 +692,7 @@
         if (!file) return;
         if (!/^image\//.test(file.type)) { alert('Please select an image'); return; }
         try {
-            const url = await uploadToR2(file, 'Адресът на историята', 'news', true);
+            const url = await uploadToR2(file, 'news');
             document.getElementById('n_cover').value = url;
             renderNewsCoverPreview();
         } catch (err) {
@@ -830,7 +835,7 @@
         if (!file) return;
         if (!/^image\//.test(file.type)) { alert('Please select an image'); return; }
         try {
-            const url = await uploadToR2(file, '', 'team', false);
+            const url = await uploadToR2(file, 'team');
             document.getElementById('t_photo').value = url;
             renderTeamPhotoPreview();
         } catch (err) {
