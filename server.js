@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors');
@@ -86,7 +87,129 @@ const apiCache = {
 app.disable('x-powered-by');
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
+// ============================================================
+// PASTE THIS BLOCK into server.js
+// Place it right after this line:
+//   app.use(express.json({ limit: '10mb' }));
+//
+// Run this before deploying:
+//   npm install @aws-sdk/client-s3 sharp multer
+//
+// Set these in Railway environment variables:
+//   R2_ACCESS_KEY_ID     = (your new key after rotating)
+//   R2_SECRET_KEY        = (your new secret after rotating)
+// ============================================================
 
+const multer = require('multer');
+const sharp = require('sharp');
+const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
+
+const r2 = new S3Client({
+    region: 'auto',
+    endpoint: 'https://ae436e2433a501e9b779b8993e95d5b1.r2.cloudflarestorage.com',
+    credentials: {
+        accessKeyId: process.env.R2_ACCESS_KEY_ID,
+        secretAccessKey: process.env.R2_SECRET_KEY,
+    },
+});
+
+const R2_BUCKET = 'history-address-images';
+const R2_PUBLIC_URL = 'https://pub-b40e453eddaf4bc5b299af8f6d7b7de2.r2.dev';
+
+const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 20 * 1024 * 1024 },
+    fileFilter: (req, file, cb) => {
+        if (file.mimetype.startsWith('image/')) cb(null, true);
+        else cb(new Error('Only images are allowed'), false);
+    }
+});
+
+function randomSuffix(len = 6) {
+    return Math.random().toString(36).substring(2, 2 + len);
+}
+
+async function applyWatermark(imageBuffer, photographerName) {
+    const image = sharp(imageBuffer);
+    const meta = await image.metadata();
+
+    const width = meta.width || 800;
+    const height = meta.height || 600;
+    const isPortrait = height > width;
+
+    const baseFontSize = Math.round(Math.min(width, height) * (isPortrait ? 0.032 : 0.028));
+    const fontSize = Math.max(14, Math.min(baseFontSize, 48));
+    const padding = Math.round(fontSize * 0.8);
+
+    const name = photographerName && photographerName.trim()
+        ? photographerName.trim()
+        : 'Адресът на историята';
+
+    const text = `\u00a9 ${name} via \u0410\u0434\u0440\u0435\u0441\u044a\u0442 \u043d\u0430 \u0438\u0441\u0442\u043e\u0440\u0438\u044f\u0442\u0430`;
+
+    const approxTextWidth = text.length * fontSize * 0.52;
+    const textHeight = fontSize * 1.4;
+    const bgWidth = Math.round(approxTextWidth + padding * 2);
+    const bgHeight = Math.round(textHeight + padding);
+
+    const svgWatermark = `<svg width="${bgWidth}" height="${bgHeight}" xmlns="http://www.w3.org/2000/svg">
+      <rect x="0" y="0" width="${bgWidth}" height="${bgHeight}" fill="rgba(0,0,0,0.38)" rx="4"/>
+      <text x="${padding}" y="${Math.round(bgHeight * 0.72)}"
+        font-family="Arial, Helvetica, sans-serif"
+        font-size="${fontSize}" font-weight="600"
+        fill="white" opacity="0.92">${text}</text>
+    </svg>`;
+
+    const svgBuffer = Buffer.from(svgWatermark);
+    const left = padding;
+    const top = height - bgHeight - padding;
+
+    return image
+        .composite([{ input: svgBuffer, top: Math.max(0, top), left: Math.max(0, left) }])
+        .jpeg({ quality: 88 })
+        .toBuffer();
+}
+
+// POST /api/upload
+// multipart/form-data fields:
+//   image        — the image file
+//   photographer — photographer name (e.g. "Георги Петков")
+//   homeSlug     — slug of the home entry (used in filename)
+app.post('/api/upload', upload.single('image'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'No image file provided' });
+        }
+
+        const photographer = req.body.photographer || '';
+        const homeSlug = req.body.homeSlug || 'img';
+        const applyWmark = req.body.watermark === 'true';
+        const slugPrefix = homeSlug.replace(/[^a-z0-9]/gi, '').substring(0, 10);
+        const timestamp = Date.now();
+        const suffix = randomSuffix(6);
+        const filename = `img_${slugPrefix}_${timestamp}_${suffix}.jpg`;
+
+        const imageBuffer = applyWmark
+            ? await applyWatermark(req.file.buffer, photographer)
+            : await sharp(req.file.buffer).jpeg({ quality: 88 }).toBuffer();
+
+        await r2.send(new PutObjectCommand({
+            Bucket: R2_BUCKET,
+            Key: filename,
+            Body: imageBuffer,
+            ContentType: 'image/jpeg',
+            CacheControl: 'public, max-age=31536000',
+        }));
+
+        const publicUrl = `${R2_PUBLIC_URL}/${filename}`;
+        console.log(`📸 Uploaded: ${filename} | watermark: ${applyWmark} | photographer: ${photographer || 'none'}`);
+        res.json({ url: publicUrl, filename });
+
+    } catch (err) {
+        console.error('Upload error:', err);
+        res.status(500).json({ error: err.message || 'Upload failed' });
+    }
+});
 const recentVisits = new Map();
 app.use((req, res, next) => {
     if (req.originalUrl.match(/\.(css|js|png|jpg|jpeg|ico|svg|webp|woff|woff2|ttf)$/)) {
