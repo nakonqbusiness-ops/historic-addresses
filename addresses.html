@@ -528,7 +528,6 @@ document.addEventListener('keydown', function(e) { if (e.key === 'Escape') close
 
 <main class="addr-page">
 
-    <!-- Page header -->
     <div class="addr-header">
         <div class="addr-heading-group">
             <p class="addr-eyebrow">Дигитален архив</p>
@@ -537,7 +536,6 @@ document.addEventListener('keydown', function(e) { if (e.key === 'Escape') close
         <div class="addr-count-badge" id="addrCountBadge"></div>
     </div>
 
-    <!-- Controls -->
     <div class="addr-controls">
         <div class="search-wrap">
             <span class="search-icon">🔍</span>
@@ -551,10 +549,8 @@ document.addEventListener('keydown', function(e) { if (e.key === 'Escape') close
     </div>
     <span class="search-hint-text">* Търсенето различава малки и главни букви</span>
 
-    <!-- Grid -->
     <div id="grid" class="addr-grid" aria-live="polite"></div>
 
-    <!-- Pagination -->
     <div class="addr-pagination">
         <button id="firstPage" class="addr-page-btn" title="Първа страница">
             ««
@@ -628,7 +624,7 @@ document.addEventListener('keydown', function(e) { if (e.key === 'Escape') close
 
     /* ── Tags ───────────────────────────────────────────── */
     function loadTags() {
-        fetch(apiBase + '/api/tags')
+        return fetch(apiBase + '/api/tags')
             .then(function(res){ return res.json(); })
             .then(function(tags){
                 var tagSel = document.getElementById('tag');
@@ -760,6 +756,16 @@ document.addEventListener('keydown', function(e) { if (e.key === 'Escape') close
                     '</div>' +
                 '</div>';
 
+            card.addEventListener('click', function() {
+                try {
+                    sessionStorage.setItem('addr_state', JSON.stringify({
+                        page: state.currentPage,
+                        search: state.searchQuery,
+                        tag: document.getElementById('tag').value
+                    }));
+                } catch(e) {}
+            });
+
             grid.appendChild(card);
         });
     }
@@ -815,8 +821,22 @@ document.addEventListener('keydown', function(e) { if (e.key === 'Escape') close
     });
 
     document.getElementById('year').textContent = new Date().getFullYear();
-    loadTags();
-    loadHomes(1);
+    // Restore state from session if coming back from an address page
+    var saved = null;
+    try { saved = JSON.parse(sessionStorage.getItem('addr_state')); } catch(e) {}
+    if (saved) {
+        state.currentPage = saved.page || 1;
+        state.searchQuery = saved.search || '';
+        if (saved.search) document.getElementById('q').value = saved.search;
+        sessionStorage.removeItem('addr_state');
+    }
+    loadTags().then(function() {
+        // Restore tag after tags are loaded
+        if (saved && saved.tag) {
+            document.getElementById('tag').value = saved.tag;
+        }
+        loadHomes(state.currentPage);
+    });
 })();
 </script>
 </body>
