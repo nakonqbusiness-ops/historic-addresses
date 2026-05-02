@@ -630,7 +630,19 @@ window.addEventListener('DOMContentLoaded', function () {
         searchTimer = setTimeout(function(){
             closePanel();
             var list = q ? allHomes.filter(function(p){ return matchesQuery(p.name,p.address,q); }) : allHomes;
-            renderMarkers(list, function(f,bounds){ if(!q&&bounds.length) map.fitBounds(bounds,{padding:[30,30]}); });
+            renderMarkers(list, function(f, bounds){
+                if (!bounds.length) return;
+                if (!q) {
+                    /* Search cleared — restore full overview */
+                    map.fitBounds(bounds, { padding:[30,30] });
+                } else if (bounds.length === 1) {
+                    /* Single result — zoom to city level so the pin is clearly visible */
+                    map.setView(bounds[0], 15, { animate:true });
+                } else {
+                    /* Multiple results — fit all pins with generous padding */
+                    map.fitBounds(bounds, { padding:[80,80], maxZoom:14, animate:true });
+                }
+            });
         }, 350);
     });
 
