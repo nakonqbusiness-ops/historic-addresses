@@ -1,377 +1,682 @@
 <!doctype html>
-<html lang="en" data-theme="dark">
+<html lang="bg" data-theme="dark">
 <head>
-	<meta charset="utf-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1">
-
-<link rel="icon" type="image/png" href="/assets/img/favicon-96x96.png" sizes="96x96" />
-<link rel="icon" type="image/svg+xml" href="/assets/img/favicon.svg" />
-<link rel="shortcut icon" href="/assets/img/favicon.ico" />
-<link rel="apple-touch-icon" sizes="180x180" href="/assets/img/apple-touch-icon.png" />
-<link rel="manifest" href="/assets/img/site.webmanifest" />
-
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/png" href="/assets/img/favicon-96x96.png" sizes="96x96">
+<link rel="icon" type="image/svg+xml" href="/assets/img/favicon.svg">
+<link rel="shortcut icon" href="/assets/img/favicon.ico">
+<link rel="apple-touch-icon" sizes="180x180" href="/assets/img/apple-touch-icon.png">
+<link rel="manifest" href="/assets/img/site.webmanifest">
 <meta name="msapplication-TileImage" content="/assets/img/Historyaddress.bg2.png">
-
-	<title>Адресът на историята - Карта</title>
-	<meta name="description" content="Map of historic addresses.">
-	<link rel="icon" href="/assets/img/HistAdrLogoOrig.ico">
-	<script>
-		(function() {
-			try {
-				var stored = localStorage.getItem('theme-preference');
-				if (stored === 'system') stored = 'dark';
-				var theme = (stored === 'dark' || stored === 'light') ? stored : 'dark';
-				document.documentElement.setAttribute('data-theme', theme);
-			} catch(e) {}
-		})();
-	</script>
-	<link rel="stylesheet" href="assets/css/styles.css">
-	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
-	<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
-	<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
-	<script defer src="assets/js/theme.js"></script>
-	<script defer src="assets/js/transitions.js"></script>
-	<script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-	<script defer src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
-	<style>
-		.marker-cluster-small, .marker-cluster-medium, .marker-cluster-large {
-			background-color: rgba(0, 123, 255, 0.6);
-		}
-		.marker-cluster-small div, .marker-cluster-medium div, .marker-cluster-large div {
-			background-color: rgba(0, 123, 255, 0.8);
-			color: white;
-			font-weight: bold;
-		}
-		.map-loading {
-			position: absolute;
-			top: 50%;
-			left: 50%;
-			transform: translate(-50%, -50%);
-			background: rgba(0, 0, 0, 0.85);
-			color: white;
-			padding: 1.5rem 2.5rem;
-			border-radius: 8px;
-			z-index: 1000;
-			font-size: 1.1rem;
-			box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-		}
-		.map-loading::after {
-			content: '';
-			display: inline-block;
-			width: 16px;
-			height: 16px;
-			margin-left: 10px;
-			border: 3px solid rgba(255,255,255,0.3);
-			border-top-color: white;
-			border-radius: 50%;
-			animation: spin 0.8s linear infinite;
-		}
-		@keyframes spin {
-			to { transform: rotate(360deg); }
-		}
-
-		.logo-pin {
-			width: 40px;
-			height: 40px;
-			background-image: url('assets/img/Historyaddressmap.bg.jpg');
-			background-size: contain;
-			background-position: center;
-			background-repeat: no-repeat;
-			border-radius: 50%;
-			border: 2px solid white;
-			box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-			cursor: pointer;
-		}
-		.logo-pin:hover {
-			transform: scale(1.1);
-			box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-		}
-	</style>
-<script defer src="assets/js/calendar-popup.js?v=3.0"></script>
+<title>Адресът на историята — Карта</title>
+<meta name="description" content="Интерактивна карта на историческите адреси в България.">
 <link rel="canonical" href="https://historyaddress.bg/map.html">
 <meta name="robots" content="index, follow">
-</head>
 <script>
-function handleEmailClick(event) {
-    if (window.innerWidth <= 768) {
-        return; 
-    }
-    
-    event.preventDefault();
-    showEmailModal();
-}
-
-function showEmailModal() {
-    var modal = document.getElementById('emailModal');
-    if (!modal) {
-        modal = document.createElement('div');
-        modal.id = 'emailModal';
-        modal.className = 'email-modal';
-        modal.innerHTML = `
-            <div class="email-modal-content">
-                <h3>📧 Свържете се с нас</h3>
-                <div class="email-address-display" id="emailDisplay">historyaddressbg@gmail.com</div>
-                <div class="email-modal-buttons">
-                    <button class="btn-copy" onclick="copyEmail()">
-                        <span id="copyText">📋 Копирай Email</span>
-                    </button>
-                    <button class="btn-close" onclick="closeEmailModal()">✕ Затвори</button>
-                </div>
-                <p>Можете да ни пишете за въпроси или подкрепа</p>
-            </div>
-        `;
-        document.body.appendChild(modal);
-        
-        modal.addEventListener('click', function(e) {
-            if (e.target === modal) {
-                closeEmailModal();
-            }
-        });
-    }
-    
-    modal.style.display = 'flex';
-    document.body.style.overflow = 'hidden';
-}
-
-function closeEmailModal() {
-    var modal = document.getElementById('emailModal');
-    if (modal) {
-        modal.style.display = 'none';
-        document.body.style.overflow = '';
-    }
-}
-
-function copyEmail() {
-    var email = 'historyaddressbg@gmail.com';
-    navigator.clipboard.writeText(email).then(function() {
-        var btn = document.querySelector('.btn-copy');
-        var text = document.getElementById('copyText');
-        
-        btn.classList.add('copied');
-        text.textContent = '✓ Копирано!';
-        
-        setTimeout(function() {
-            btn.classList.remove('copied');
-            text.textContent = '📋 Копирай Email';
-        }, 2000);
-    }).catch(function(err) {
-        alert('Email: ' + email);
-    });
-}
-
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') {
-        closeEmailModal();
-    }
-});
+(function(){
+    try {
+        var s = localStorage.getItem('theme-preference');
+        if (s === 'system') s = 'dark';
+        document.documentElement.setAttribute('data-theme', (s==='dark'||s==='light') ? s : 'dark');
+    } catch(e){}
+})();
 </script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/styles.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
+<script defer src="assets/js/theme.js"></script>
+<script defer src="assets/js/transitions.js"></script>
+<script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script defer src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<style>
+:root {
+    --gold: #c9a96e;
+    --gold-dim: rgba(201,169,110,0.12);
+    --gold-border: rgba(201,169,110,0.25);
+    --panel-bg: rgba(10,9,8,0.97);
+    --panel-width: 340px;
+    --font-display: 'Cormorant Garamond', Georgia, serif;
+    --font-body: 'DM Sans', sans-serif;
+}
+html, body { margin:0; padding:0; overflow-x:hidden; }
+body { font-family:var(--font-body); background:#0a0908; }
+
+.map-shell { position:relative; width:100%; height:calc(100vh - 60px); display:flex; overflow:hidden; }
+#map { flex:1; min-width:0; height:100%; z-index:1; }
+
+/* Loading */
+.map-loading {
+    position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+    background:rgba(10,9,8,0.92); color:#d4cfc8; padding:1.25rem 2rem;
+    border-radius:4px; border:1px solid var(--gold-border); z-index:1000;
+    font-size:0.85rem; letter-spacing:0.05em;
+    display:flex; align-items:center; gap:0.75rem;
+    backdrop-filter:blur(12px); box-shadow:0 8px 32px rgba(0,0,0,0.5); pointer-events:none;
+}
+.map-loading-spinner {
+    width:16px; height:16px; border:2px solid rgba(201,169,110,0.2);
+    border-top-color:var(--gold); border-radius:50%;
+    animation:spin 0.8s linear infinite; flex-shrink:0;
+}
+@keyframes spin { to { transform:rotate(360deg); } }
+
+/* Clusters */
+.marker-cluster-small,.marker-cluster-medium,.marker-cluster-large { background:rgba(201,169,110,0.25); }
+.marker-cluster-small div,.marker-cluster-medium div,.marker-cluster-large div {
+    background:rgba(201,169,110,0.85); color:#0a0908; font-weight:700; font-family:var(--font-body); font-size:0.8rem;
+}
+
+/* ── NORMAL MARKER ── */
+.logo-pin {
+    width:38px; height:38px;
+    background-image:url('assets/img/Historyaddressmap.bg.jpg');
+    background-size:cover; background-position:center;
+    border-radius:50%; border:2px solid var(--gold);
+    box-shadow:0 2px 10px rgba(0,0,0,0.5), 0 0 0 3px rgba(201,169,110,0.15);
+    cursor:pointer; transition:transform 0.2s, box-shadow 0.2s;
+}
+.logo-pin:hover,.logo-pin.active {
+    transform:scale(1.18); box-shadow:0 4px 18px rgba(0,0,0,0.6), 0 0 0 4px rgba(201,169,110,0.4);
+}
+
+/* ── FOCUSED / BEACON MARKER ──
+   Subtle: only 4px larger, a small name label, slow gentle ring pulse.
+   No dramatic scale or glow — just clearly "selected".                */
+.focused-beacon {
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:4px;
+    cursor:pointer;
+}
+
+.focused-beacon-label {
+    background:rgba(201,169,110,0.82);
+    color:#0e0c08;
+    font-family:'DM Sans',sans-serif;
+    font-size:0.63rem;
+    font-weight:600;
+    letter-spacing:0.02em;
+    white-space:nowrap;
+    padding:2px 8px;
+    border-radius:20px;
+    box-shadow:0 1px 5px rgba(0,0,0,0.35);
+    position:relative;
+    pointer-events:none;
+    opacity:0.9;
+}
+.focused-beacon-label::after {
+    content:'';
+    position:absolute;
+    bottom:-4px; left:50%; transform:translateX(-50%);
+    border:4px solid transparent;
+    border-top-color:rgba(201,169,110,0.82);
+    border-bottom:none;
+}
+
+/* Only 4px bigger than the normal 38px pin */
+.logo-pin-focused {
+    width:42px; height:42px;
+    background-image:url('assets/img/Historyaddressmap.bg.jpg');
+    background-size:cover; background-position:center;
+    border-radius:50%;
+    border:2px solid rgba(201,169,110,0.9);
+    box-shadow:
+        0 0 0 3px rgba(201,169,110,0.22),
+        0 3px 12px rgba(0,0,0,0.5);
+    animation:focusPulse 3s ease-in-out infinite;
+    flex-shrink:0;
+    cursor:pointer;
+}
+/* Pulse only shifts outer ring opacity — no size change, stays calm */
+@keyframes focusPulse {
+    0%,100% { box-shadow: 0 0 0 3px rgba(201,169,110,0.22), 0 3px 12px rgba(0,0,0,0.5); }
+    50%      { box-shadow: 0 0 0 5px rgba(201,169,110,0.09), 0 3px 12px rgba(0,0,0,0.5); }
+}
+
+/* ── DESKTOP PANEL ── */
+.map-panel {
+    position:absolute; top:0; right:0; width:var(--panel-width); height:100%;
+    background:var(--panel-bg); border-left:1px solid var(--gold-border);
+    z-index:10; display:flex; flex-direction:column;
+    transform:translateX(100%); transition:transform 0.38s cubic-bezier(0.16,1,0.3,1);
+    backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
+    pointer-events:none; visibility:hidden;
+}
+.map-panel.open { transform:translateX(0); pointer-events:all; visibility:visible; }
+
+.panel-close {
+    position:absolute; top:1rem; left:-42px; width:34px; height:34px;
+    background:var(--panel-bg); border:1px solid var(--gold-border); border-right:none;
+    border-radius:4px 0 0 4px; color:var(--gold); cursor:pointer;
+    display:none; align-items:center; justify-content:center;
+    font-size:1rem; line-height:1; transition:background 0.2s; z-index:1;
+}
+.panel-close::before { display:none !important; }
+.map-panel.open .panel-close { display:flex; }
+.panel-close:hover { background:var(--gold-dim); }
+
+.panel-hero {
+    position:relative; width:100%; height:200px; overflow:hidden; flex-shrink:0; background:#111009;
+}
+.panel-hero img { width:100%; height:100%; object-fit:cover; display:block; transition:transform 0.6s ease; }
+.panel-hero:hover img { transform:scale(1.04); }
+.panel-hero::after {
+    content:''; position:absolute; inset:0;
+    background:linear-gradient(to bottom,transparent 40%,rgba(10,9,8,0.7) 100%); pointer-events:none;
+}
+.panel-hero-placeholder {
+    width:100%; height:100%; display:flex; align-items:center; justify-content:center;
+    font-size:4rem; opacity:0.15; background:linear-gradient(135deg,#1a1712,#0d0c0a);
+}
+
+.panel-body { flex:1; overflow-y:auto; padding:1.5rem 1.5rem 1rem; scrollbar-width:none; -ms-overflow-style:none; }
+.panel-body::-webkit-scrollbar { display:none; }
+
+.panel-eyebrow { font-size:0.62rem; font-weight:600; letter-spacing:0.2em; text-transform:uppercase; color:var(--gold); opacity:0.75; margin:0 0 0.4rem; }
+.panel-name { font-family:var(--font-display); font-size:1.7rem; font-weight:600; color:#f0ece4; margin:0 0 0.75rem; line-height:1.15; }
+.panel-address { display:flex; align-items:flex-start; gap:0.4rem; margin-bottom:1.1rem; font-size:0.82rem; color:#8a8278; line-height:1.5; }
+.panel-divider { height:1px; background:rgba(201,169,110,0.1); margin:0 0 1.1rem; }
+.panel-bio { font-size:0.87rem; line-height:1.75; color:#a09890; margin:0 0 1.5rem; display:-webkit-box; -webkit-line-clamp:5; -webkit-box-orient:vertical; overflow:hidden; }
+
+.panel-footer { padding:1rem 1.5rem 1.5rem; border-top:1px solid rgba(201,169,110,0.08); flex-shrink:0; display:flex; flex-direction:column; gap:0.6rem; }
+.panel-cta {
+    display:flex; align-items:center; justify-content:space-between; width:100%; padding:0.85rem 1.1rem;
+    background:transparent; border:1px solid var(--gold-border); color:var(--gold);
+    font-family:var(--font-body); font-size:0.78rem; font-weight:600; letter-spacing:0.1em;
+    text-transform:uppercase; text-decoration:none; border-radius:3px; cursor:pointer;
+    transition:background 0.2s,color 0.2s; box-sizing:border-box;
+}
+.panel-cta:hover { background:var(--gold); color:#0a0908; }
+.panel-cta-arrow { font-size:1rem; transition:transform 0.2s; }
+.panel-cta:hover .panel-cta-arrow { transform:translateX(4px); }
+
+.panel-gmaps {
+    display:flex; align-items:center; justify-content:center; gap:0.5rem; width:100%; padding:0.75rem 1.1rem;
+    background:rgba(66,133,244,0.08); border:1px solid rgba(66,133,244,0.3); color:#7ab3f5;
+    font-family:var(--font-body); font-size:0.78rem; font-weight:600; letter-spacing:0.08em;
+    text-transform:uppercase; text-decoration:none; border-radius:3px;
+    transition:background 0.2s,color 0.2s,border-color 0.2s; box-sizing:border-box;
+}
+.panel-gmaps:hover { background:rgba(66,133,244,0.18); border-color:rgba(66,133,244,0.6); color:#aecfff; }
+.panel-gmaps svg { flex-shrink:0; width:14px; height:14px; }
+
+/* Search (desktop only) */
+.map-search-wrap {
+    position:absolute; top:1rem; left:50%; transform:translateX(-50%); z-index:10; width:min(380px,90vw);
+}
+.map-search {
+    width:100%; padding:0.7rem 1rem 0.7rem 2.4rem; background:rgba(10,9,8,0.9);
+    border:1px solid var(--gold-border); border-radius:4px; color:#d4cfc8;
+    font-family:var(--font-body); font-size:0.88rem; outline:none;
+    backdrop-filter:blur(12px); transition:border-color 0.2s,box-shadow 0.2s; box-sizing:border-box;
+}
+.map-search::placeholder { color:#4a4238; }
+.map-search:focus { border-color:var(--gold); box-shadow:0 0 0 3px rgba(201,169,110,0.1); }
+.map-search-icon { position:absolute; left:0.75rem; top:50%; transform:translateY(-50%); color:#4a4238; font-size:0.85rem; pointer-events:none; }
+
+/* ── MOBILE ── */
+@media(max-width:768px){
+    .map-shell {
+        height:auto; overflow:visible; display:block;
+        padding:12px 12px 0; box-sizing:border-box; background:#0a0908;
+    }
+    #map {
+        height:62vmax; max-height:68vh;
+        border-radius:16px; overflow:hidden; width:100%; display:block;
+    }
+
+    .map-search-wrap { display:none; }
+    .leaflet-control-zoom { display:none !important; }
+
+    /* Panel slides up from bottom.
+       height:58vh + max-height cap ensures the top edge of the panel
+       never reaches the header — always leaves a visible strip of map.
+       60px header + 12px shell padding + ~18px breathing gap = ~90px  */
+    .map-panel {
+        position:fixed;
+        top:auto; bottom:0; left:0; right:0;
+        width:100%;
+        height:58vh;
+        max-height:calc(100vh - 90px);
+        transform:translateY(100%);
+        border-left:none; border-top:1px solid var(--gold-border);
+        border-radius:20px 20px 0 0;
+        display:block; overflow-y:auto; -webkit-overflow-scrolling:touch;
+        visibility:hidden; pointer-events:none;
+    }
+    .map-panel.open { transform:translateY(0); visibility:visible; pointer-events:all; }
+
+    .panel-close {
+        position:sticky !important;
+        top:0; left:0; right:0;
+        width:100% !important; height:40px !important;
+        background:rgba(10,9,8,0.98);
+        border:none !important;
+        border-bottom:1px solid rgba(201,169,110,0.12) !important;
+        border-radius:20px 20px 0 0;
+        display:none;
+        align-items:center; justify-content:center;
+        gap:0.6rem; font-size:0.75rem; font-family:var(--font-body);
+        color:rgba(201,169,110,0.7); letter-spacing:0.08em; text-transform:uppercase; z-index:5;
+    }
+    .map-panel.open .panel-close { display:flex; }
+    .panel-close::before { content:''; width:32px; height:4px; background:rgba(201,169,110,0.3); border-radius:2px; flex-shrink:0; }
+
+    .panel-hero { position:relative; width:100%; height:200px; flex-shrink:unset; overflow:hidden; }
+    .panel-hero::after { background:linear-gradient(to bottom,transparent 30%,rgba(10,9,8,0.6) 100%); }
+    .panel-body { overflow:visible; padding:1.1rem 1.25rem 0.25rem; }
+    .panel-footer { padding:0.75rem 1.25rem 2rem; }
+    .panel-name { font-size:1.45rem; margin-bottom:0.5rem; }
+    .panel-eyebrow { margin-bottom:0.25rem; }
+    .panel-bio { -webkit-line-clamp:4; margin-bottom:1rem; }
+    .panel-address { margin-bottom:0.75rem; }
+    .panel-divider { margin-bottom:0.75rem; }
+}
+
+/* Leaflet overrides */
+.leaflet-popup { display:none !important; }
+.leaflet-control-zoom a {
+    background:rgba(10,9,8,0.9) !important; border-color:var(--gold-border) !important;
+    color:var(--gold) !important; font-family:var(--font-body) !important;
+}
+.leaflet-control-zoom a:hover { background:var(--gold-dim) !important; }
+.leaflet-control-attribution { background:rgba(10,9,8,0.75) !important; color:#4a4238 !important; font-size:0.6rem !important; }
+.leaflet-control-attribution a { color:#6a6258 !important; }
+</style>
+</head>
 <body>
-	<header class="site-header">
-		<a class="logo-link" href="index.html">
+
+<script>
+function handleEmailClick(e){if(window.innerWidth>768){e.preventDefault();showEmailModal();}}
+function showEmailModal(){
+    var m=document.getElementById('emailModal');
+    if(!m){m=document.createElement('div');m.id='emailModal';m.className='email-modal';
+    m.innerHTML='<div class="email-modal-content"><h3>📧 Свържете се с нас</h3><div class="email-address-display">historyaddressbg@gmail.com</div><div class="email-modal-buttons"><button class="btn-copy" onclick="copyEmail()"><span id="copyText">📋 Копирай Email</span></button><button class="btn-close" onclick="closeEmailModal()">✕ Затвори</button></div><p>Можете да ни пишете за въпроси или подкрепа</p></div>';
+    document.body.appendChild(m);m.addEventListener('click',function(e){if(e.target===m)closeEmailModal();});}
+    m.style.display='flex';document.body.style.overflow='hidden';
+}
+function closeEmailModal(){var m=document.getElementById('emailModal');if(m){m.style.display='none';document.body.style.overflow='';}}
+function copyEmail(){
+    navigator.clipboard.writeText('historyaddressbg@gmail.com').then(function(){
+        var t=document.getElementById('copyText');t.textContent='✓ Копирано!';
+        setTimeout(function(){t.textContent='📋 Копирай Email';},2000);
+    }).catch(function(){alert('Email: historyaddressbg@gmail.com');});
+}
+document.addEventListener('keydown',function(e){if(e.key==='Escape')closeEmailModal();});
+</script>
+
+<header class="site-header">
+    <a class="logo-link" href="index.html">
         <img src="assets/img/HistAdrLogo.png" alt="Адресът на историята" class="header-logo">
         <span class="logo-text">Адресът на историята</span>
     </a>
-<nav class="nav">
-    <a href="index.html">Начало</a>
-    <a href="map.html">Карта</a>
-    <a href="addresses.html">Адреси</a>
-    <a href="calendar.html">Календар</a>
-    <a href="news.html">Новини</a>
-    <a href="about.html">За Нас</a>
-</nav>
-		<button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode"></button>
-	</header>
+    <nav class="nav">
+        <a href="index.html">Начало</a>
+        <a href="map.html" class="active">Карта</a>
+        <a href="addresses.html">Адреси</a>
+        <a href="calendar.html">Календар</a>
+        <a href="news.html">Новини</a>
+        <a href="about.html">За Нас</a>
+    </nav>
+    <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode"></button>
+</header>
 
-	<div id="map" class="map-wrap" role="region" aria-label="Map of locations">
-		<div id="loading" class="map-loading">Зареждане на картата</div>
-	</div>
+<div class="map-shell">
+    <div id="map" role="region" aria-label="Карта на историческите адреси"></div>
+    <div class="map-search-wrap">
+        <span class="map-search-icon">🔍</span>
+        <input id="mapSearch" class="map-search" type="search" placeholder="Търси по ime…" aria-label="Търси адрес">
+    </div>
+    <div id="mapLoading" class="map-loading">
+        <div class="map-loading-spinner"></div>
+        <span id="mapLoadingText">Зареждане на картата</span>
+    </div>
+
+    <div class="map-panel" id="mapPanel">
+        <button class="panel-close" id="panelClose" title="Затвори">✕</button>
+        <div class="panel-hero" id="panelHero">
+            <div class="panel-hero-placeholder">🏛️</div>
+        </div>
+        <div class="panel-body" id="panelBody"></div>
+        <div class="panel-footer">
+            <a href="#" class="panel-cta" id="panelCta">
+                <span>Виж повече</span><span class="panel-cta-arrow">→</span>
+            </a>
+            <a href="#" class="panel-gmaps" id="panelGmaps" target="_blank" rel="noopener noreferrer" style="display:none">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                <span>Отвори в Google Maps</span>
+            </a>
+        </div>
+    </div>
+</div>
 
 <footer class="site-footer">
     <div class="footer-inner">
         <div class="footer-social">
             <a href="https://instagram.com/historyaddress.bg" target="_blank" rel="noopener noreferrer" class="social-link">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
-                Instagram
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>Instagram
             </a>
             <a href="mailto:historyaddressbg@gmail.com" class="social-link" onclick="handleEmailClick(event)">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-                Email
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>Email
             </a>
         </div>
-
         <p class="footer-links">
-            <a href="privacy.html">Поверителност</a>
-            <span>•</span>
-            <a href="terms.html">Условия</a>
-            <span>•</span>
+            <a href="privacy.html">Поверителност</a> <span>•</span>
+            <a href="terms.html">Условия</a> <span>•</span>
             <a href="copyright.html">Авторски права</a>
         </p>
-
         <p class="footer-copy">© <span id="year"></span> Адресът на историята</p>
     </div>
 </footer>
 
-	<script>
-	window.addEventListener('DOMContentLoaded', function() {
-		var params = new URLSearchParams(location.search);
-		var targetSlug = params.get('slug');
-		var loadingEl = document.getElementById('loading');
-		var loadedData = false;
+<script>
+window.addEventListener('DOMContentLoaded', function () {
+    var API        = (location.protocol === 'file:' ? 'http://localhost:10000' : location.origin) + '/api';
+    var SKEY       = 'map_state';
+    var urlParams  = new URLSearchParams(location.search);
+    var targetSlug = urlParams.get('slug');
+    var pinOnly    = urlParams.get('view') === 'pin';
 
-		var m = L.map('map', {
-			zoomControl: true,
-			worldCopyJump: true,
-			maxBounds: [[-85, -180], [85, 180]],
-			preferCanvas: true
-		});
-		
-		var tiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-			maxZoom: 19,
-			attribution: '&copy; OpenStreetMap contributors'
-		});
-		tiles.addTo(m);
+    var FOCUS_ZOOM = 19;
 
-		var markers = L.markerClusterGroup({
-			maxClusterRadius: 50,
-			spiderfyOnMaxZoom: true,
-			showCoverageOnHover: false,
-			zoomToBoundsOnClick: true,
-			chunkedLoading: true,
-			chunkInterval: 50,
-			chunkDelay: 50
-		});
-		
-		function createMarker(p) {
+    var saved = null;
+    try { saved = JSON.parse(sessionStorage.getItem(SKEY)); if (saved) sessionStorage.removeItem(SKEY); } catch(e) {}
 
-			var icon = L.divIcon({
-				className: '',
-				html: '<div class="logo-pin"></div>',
-				iconSize: [40, 40],
-				iconAnchor: [20, 20]
-			});
-			
-			var marker = L.marker([Number(p.lat), Number(p.lng)], { icon: icon });
-			marker.on('click', function(){ 
-				location.href = 'address.html?slug=' + encodeURIComponent(p.slug || p.id); 
-			});
-			marker.bindTooltip(p.name, { direction: 'top', offset: [0,-24] });
-			
-			return marker;
-		}
-		
-		function renderMarkers(homes){
-			markers.clearLayers();
-			
-			var bounds = [];
-			var focused = null;
-			var validHomes = [];
-			
-			homes.forEach(function(p){
-				if (!p.lat || !p.lng || !isFinite(p.lat) || !isFinite(p.lng)) {
-					return;
-				}
-				validHomes.push(p);
-				bounds.push([Number(p.lat), Number(p.lng)]);
-			});
-			
-			console.log('Rendering', validHomes.length, 'markers with logo');
-			
-			var batchSize = 25;
-			var currentBatch = 0;
-			
-			function addBatch() {
-				var start = currentBatch * batchSize;
-				var end = Math.min(start + batchSize, validHomes.length);
-				
-				for (var i = start; i < end; i++) {
-					var p = validHomes[i];
-					var marker = createMarker(p);
-					markers.addLayer(marker);
-					
-					if (targetSlug && (p.slug === targetSlug || p.id === targetSlug)) {
-						focused = { lat: p.lat, lng: p.lng, marker: marker };
-					}
-				}
-				
-				currentBatch++;
-				
-				if (loadingEl && end < validHomes.length) {
-					var percent = Math.round((end / validHomes.length) * 100);
-					loadingEl.textContent = 'Зареждане ' + percent + '%';
-				}
-				
-				if (end < validHomes.length) {
-					setTimeout(addBatch, 10);
-				} else {
-					m.addLayer(markers);
-					
-					if (bounds.length) {
-						m.fitBounds(bounds, { padding: [20,20] });
-					} else {
-						m.setView([42.7, 25.5], 7);
-					}
-					
-					if (focused) {
-						setTimeout(function() {
-							m.setView([focused.lat, focused.lng], Math.max(m.getZoom(), 19));
-							focused.marker.openTooltip();
-						}, 300);
-					}
-					
-					if (loadingEl) {
-						setTimeout(function() {
-							loadingEl.style.display = 'none';
-						}, 300);
-					}
-					
-					console.log('✅ Map loaded with logo markers');
-				}
-			}
-			
-			addBatch();
-		}
-		
-		function setDynamicMinZoom(){
-			var w = m.getSize().x;
-			var target = Math.ceil(Math.log2(Math.max(1, w / 256)));
-			m.setMinZoom(target);
-		}
-		setDynamicMinZoom();
-		window.addEventListener('resize', function(){ setDynamicMinZoom(); });
-		
-		function loadHomes() {
-			if (loadedData) return;
-			loadedData = true;
-			
-			var apiBase = window.location.protocol === 'file:' ? 'http://localhost:3000' : window.location.origin;
-			
-			if (loadingEl) loadingEl.style.display = 'block';
-			
-			fetch(apiBase + '/api/homes/map')
-				.then(function(res){ 
-					if (!res.ok) throw new Error('Network error');
-					return res.json(); 
-				})
-				.then(function(homes){
-					console.log('📍 Loaded', homes.length, 'homes');
-					renderMarkers(homes);
-				})
-				.catch(function(err){
-					console.error('❌ Error:', err);
-					m.setView([42.7, 25.5], 7);
-					if (loadingEl) {
-						loadingEl.textContent = 'Грешка при зареждане';
-						loadingEl.style.backgroundColor = 'rgba(220, 38, 38, 0.9)';
-						setTimeout(function() {
-							loadingEl.style.display = 'none';
-						}, 3000);
-					}
-				});
-		}
-		
-		loadHomes();
-		document.getElementById('year').textContent = new Date().getFullYear();
-	});
-	</script>
+    var loadingEl   = document.getElementById('mapLoading');
+    var loadingText = document.getElementById('mapLoadingText');
+    var panel       = document.getElementById('mapPanel');
+    var panelHero   = document.getElementById('panelHero');
+    var panelBody   = document.getElementById('panelBody');
+    var panelCta    = document.getElementById('panelCta');
+    var panelGmaps  = document.getElementById('panelGmaps');
+
+    var allHomes = [], activeMarkerEl = null, isPanelOpen = false, searchTimer, detailCache = {};
+    var isMobile = window.innerWidth <= 768;
+    window.addEventListener('resize', function(){ isMobile = window.innerWidth <= 768; });
+
+    var DEF_LAT = 42.7, DEF_LNG = 25.5, DEF_ZOOM = 7;
+
+    var map = L.map('map', {
+        center: [saved ? saved.lat : DEF_LAT, saved ? saved.lng : DEF_LNG],
+        zoom:   saved ? saved.zoom : DEF_ZOOM,
+        zoomControl: !isMobile,
+        worldCopyJump: true,
+        maxBounds: [[-85,-180],[85,180]],
+        preferCanvas: true
+    });
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom:19, attribution:'© OpenStreetMap contributors'
+    }).addTo(map);
+
+    var clusters = L.markerClusterGroup({
+        maxClusterRadius:50, spiderfyOnMaxZoom:true, showCoverageOnHover:false,
+        zoomToBoundsOnClick:true, chunkedLoading:true, chunkInterval:50, chunkDelay:50,
+        disableClusteringAtZoom: 17
+    });
+
+    function saveState(slug) {
+        try {
+            var c = map.getCenter();
+            sessionStorage.setItem(SKEY, JSON.stringify({ lat:c.lat, lng:c.lng, zoom:map.getZoom(), panelSlug:slug||null }));
+        } catch(e) {}
+    }
+
+    /* ── Highlight management ── */
+    function setActiveMarker(el) {
+        if (activeMarkerEl && activeMarkerEl !== el) clearBeacon(activeMarkerEl);
+        activeMarkerEl = el || null;
+        if (activeMarkerEl) applyBeacon(activeMarkerEl);
+    }
+
+    function clearActiveMarker() {
+        if (activeMarkerEl) { clearBeacon(activeMarkerEl); activeMarkerEl = null; }
+    }
+
+    function applyBeacon(el) {
+        var pin = el.querySelector('.logo-pin, .logo-pin-focused');
+        if (!pin || pin.classList.contains('logo-pin-focused')) return;
+        pin.classList.remove('logo-pin', 'active');
+        pin.classList.add('logo-pin-focused');
+        if (!el.querySelector('.focused-beacon')) {
+            var wrapper = document.createElement('div');
+            wrapper.className = 'focused-beacon';
+            var label = document.createElement('div');
+            label.className = 'focused-beacon-label';
+            label.textContent = el._markerName || '';
+            pin.parentNode.insertBefore(wrapper, pin);
+            wrapper.appendChild(label);
+            wrapper.appendChild(pin);
+        }
+    }
+
+    function clearBeacon(el) {
+        var pin = el.querySelector('.logo-pin-focused');
+        if (!pin) {
+            var rpin = el.querySelector('.logo-pin');
+            if (rpin) rpin.classList.remove('active');
+            return;
+        }
+        pin.classList.remove('logo-pin-focused');
+        pin.classList.add('logo-pin');
+        var beacon = el.querySelector('.focused-beacon');
+        if (beacon && beacon.parentNode) {
+            beacon.parentNode.insertBefore(pin, beacon);
+            beacon.parentNode.removeChild(beacon);
+        }
+    }
+
+    function openPanel(home, lat, lng) {
+        if (panel.scrollTo) panel.scrollTo(0, 0); else panel.scrollTop = 0;
+
+        panelHero.innerHTML = '<div class="panel-hero-placeholder">🏛️</div>';
+
+        panelBody.innerHTML =
+            '<p class="panel-eyebrow">Адресът на историята</p>' +
+            '<h2 class="panel-name">' + (home.name || '—') + '</h2>' +
+            (home.address ? '<div class="panel-address"><span>📍</span><span>' + home.address + '</span></div>' : '') +
+            '<div class="panel-divider"></div>' +
+            (home._bio ? '<p class="panel-bio">' + home._bio + '</p>' : '');
+
+        var slug = home.slug || home.id;
+        panelCta.href = 'address.html?slug=' + encodeURIComponent(slug);
+        panelCta.onclick = function(){ saveState(slug); };
+
+        var pLat = lat || home.lat, pLng = lng || home.lng;
+        if (pLat && pLng) {
+            panelGmaps.href = 'https://www.google.com/maps?q=' + pLat + ',' + pLng;
+            panelGmaps.style.display = '';
+        } else {
+            panelGmaps.style.display = 'none';
+        }
+
+        panel.classList.add('open');
+        isPanelOpen = true;
+    }
+
+    function closePanel() {
+        panel.classList.remove('open');
+        isPanelOpen = false;
+        clearActiveMarker();
+    }
+
+    document.getElementById('panelClose').addEventListener('click', function(e){ e.stopPropagation(); closePanel(); });
+
+    /* ── Map background click ──
+       • Panel open  → close it (clearActiveMarker is inside closePanel)
+       • Pin-only mode, no panel → just clear the highlight               */
+    map.on('click', function(){
+        if (isPanelOpen) {
+            closePanel();
+        } else if (pinOnly && activeMarkerEl) {
+            clearActiveMarker();
+        }
+    });
+
+    function fetchDetail(slug, cb) {
+        if (detailCache[slug]) { cb(detailCache[slug]); return; }
+        fetch(API + '/homes/' + encodeURIComponent(slug))
+            .then(function(r){ return r.ok ? r.json() : null; })
+            .then(function(d){ if(d){ detailCache[slug] = d; cb(d); } })
+            .catch(function(){});
+    }
+
+    function enrichPanel(full) {
+        if (full.images && full.images.length) {
+            panelHero.innerHTML = '';
+            var img = document.createElement('img');
+            img.src = full.images[0].path || full.images[0];
+            img.alt = full.name; img.loading = 'lazy';
+            img.onerror = function(){ panelHero.innerHTML = '<div class="panel-hero-placeholder">🏛️</div>'; };
+            panelHero.appendChild(img);
+        }
+        if (full.address) {
+            var addrEl = panelBody.querySelector('.panel-address span:last-child');
+            if (addrEl) addrEl.textContent = full.address;
+        }
+        if (full.biography) {
+            var short = full.biography.length > 300 ? full.biography.substring(0,300).trim()+'…' : full.biography;
+            var b = panelBody.querySelector('.panel-bio');
+            if (b){ b.textContent = short; }
+            else { var p = document.createElement('p'); p.className='panel-bio'; p.textContent=short; panelBody.appendChild(p); }
+        }
+        if (full.coordinates && full.coordinates.lat) {
+            panelGmaps.href = 'https://www.google.com/maps?q='+full.coordinates.lat+','+full.coordinates.lng;
+            panelGmaps.style.display = '';
+        }
+    }
+
+    function matchesQuery(name, address, query) {
+        if (!query) return true;
+        var hay = ((name||'') + ' ' + (address||'')).toLowerCase();
+        return query.toLowerCase().split(/\s+/).filter(Boolean).every(function(w){ return hay.indexOf(w) !== -1; });
+    }
+
+    function createMarker(p) {
+        var icon = L.divIcon({
+            className: '',
+            html: '<div class="logo-pin"></div>',
+            iconSize: [38, 38],
+            iconAnchor: [19, 19]
+        });
+        var marker = L.marker([+p.lat, +p.lng], { icon: icon });
+
+        marker.on('click', function(e){
+            L.DomEvent.stopPropagation(e);
+
+            var el = marker.getElement();
+            if (el) el._markerName = p.name || '';
+            setActiveMarker(el);
+
+            /* Pin-only mode: highlight moves, panel never opens */
+            if (pinOnly) {
+                map.panTo(marker.getLatLng(), { animate:true });
+                return;
+            }
+
+            openPanel(p, p.lat, p.lng);
+            fetchDetail(p.slug||p.id, enrichPanel);
+            if (!isMobile) {
+                var pt = map.latLngToContainerPoint(marker.getLatLng());
+                map.panTo(map.containerPointToLatLng(L.point(pt.x - 170, pt.y)), { animate:true, duration:0.4 });
+            } else {
+                map.panTo(marker.getLatLng(), { animate:true });
+            }
+        });
+
+        marker.bindTooltip(p.name, { direction:'top', offset:[0, -22] });
+        return marker;
+    }
+
+    function renderMarkers(homes, onDone) {
+        clusters.clearLayers();
+        activeMarkerEl = null;
+        var valid = homes.filter(function(p){ return p.lat && p.lng && isFinite(+p.lat) && isFinite(+p.lng); });
+        var bounds=[], focused=null, batch=30, cur=0;
+
+        function addBatch(){
+            var end = Math.min(cur+batch, valid.length);
+            for (var i=cur; i<end; i++){
+                var p = valid[i];
+                bounds.push([+p.lat, +p.lng]);
+                var m = createMarker(p);
+                clusters.addLayer(m);
+                if (targetSlug && (p.slug===targetSlug || p.id===targetSlug)) {
+                    focused = { latlng:[+p.lat,+p.lng], marker:m, data:p };
+                }
+            }
+            cur += batch;
+            if (cur < valid.length) {
+                loadingText.textContent = 'Зареждане ' + Math.round((cur/valid.length)*100) + '%';
+                setTimeout(addBatch, 10);
+            } else {
+                map.addLayer(clusters);
+                loadingEl.style.display = 'none';
+                if (onDone) onDone(focused, bounds);
+            }
+        }
+        addBatch();
+    }
+
+    document.getElementById('mapSearch').addEventListener('input', function(){
+        clearTimeout(searchTimer);
+        var q = this.value.trim();
+        searchTimer = setTimeout(function(){
+            closePanel();
+            var list = q ? allHomes.filter(function(p){ return matchesQuery(p.name,p.address,q); }) : allHomes;
+            renderMarkers(list, function(f,bounds){ if(!q&&bounds.length) map.fitBounds(bounds,{padding:[30,30]}); });
+        }, 350);
+    });
+
+    fetch(API + '/homes/map')
+        .then(function(r){ if(!r.ok) throw new Error('err'); return r.json(); })
+        .then(function(homes){
+            allHomes = homes;
+            renderMarkers(homes, function(focused, bounds){
+                if (saved) {
+                    if (saved.panelSlug && !isMobile) {
+                        var match = homes.find(function(h){ return h.slug===saved.panelSlug||h.id===saved.panelSlug; });
+                        if (match){ openPanel(match, match.lat, match.lng); fetchDetail(saved.panelSlug, enrichPanel); }
+                    }
+                } else if (focused) {
+                    map.setView(focused.latlng, FOCUS_ZOOM, { animate: false });
+
+                    /* Apply beacon highlight after Leaflet has rendered the marker */
+                    setTimeout(function(){
+                        var el = focused.marker.getElement();
+                        if (el) {
+                            el._markerName = focused.data.name || '';
+                            setActiveMarker(el);
+                        }
+                    }, 100);
+
+                    /* pinOnly = from address.html: never open the panel on any device */
+                    if (!pinOnly && !isMobile) {
+                        openPanel(focused.data, focused.data.lat, focused.data.lng);
+                        fetchDetail(focused.data.slug || focused.data.id, enrichPanel);
+                    }
+                } else if (bounds.length) {
+                    map.fitBounds(bounds, { padding:[30,30] });
+                } else {
+                    map.setView([DEF_LAT, DEF_LNG], DEF_ZOOM);
+                }
+            });
+        })
+        .catch(function(){
+            map.setView([DEF_LAT, DEF_LNG], DEF_ZOOM);
+            loadingText.textContent = 'Грешка при зареждане';
+            loadingEl.style.background = 'rgba(140,40,40,0.9)';
+            setTimeout(function(){ loadingEl.style.display='none'; }, 3000);
+        });
+
+    document.getElementById('year').textContent = new Date().getFullYear();
+});
+</script>
 </body>
 </html>
