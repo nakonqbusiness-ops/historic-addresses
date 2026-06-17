@@ -5,12 +5,13 @@
 *.key
 
 # ─── Database (lives on the Railway Volume, not in git) ───
+# NB: data/ is NOT ignored — it holds data/people.js (seed source the app reads).
+# Database files are excluded by name so they stay out even if placed under data/.
 database.db
 database.db-shm
 database.db-wal
 *.sqlite
 *.sqlite3
-data/
 
 # ─── Local uploads (served from the Volume in production) ───
 uploads/
