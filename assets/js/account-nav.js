@@ -96,13 +96,16 @@
    If the browser blocks the popup, we fall back to a normal new tab so donations
    never break. */
 (function initDonate() {
-    var BMC_URL  = 'https://buymeacoffee.com/historyaddress.bg';
-    var SELECTOR = '.footer-donate, .pf-donate-cta, .js-donate';
+    var BMC_URL   = 'https://buymeacoffee.com/historyaddress.bg';
+    var TERMS_URL = '/donation-terms.html';
+    var SELECTOR  = '.footer-donate, .pf-donate-cta, .js-donate';
 
     function donateTarget(el) {
         return el && el.closest ? el.closest(SELECTOR) : null;
     }
 
+    // Opens BMC in a focused, centred popup. Triggered by the consent button click
+    // (a real user gesture), so window.open is allowed; falls back to a new tab.
     function openDonate() {
         var w = 480, h = 760;
         var sw = window.innerWidth  || document.documentElement.clientWidth  || screen.width;
@@ -117,10 +120,59 @@
         if (!win) window.open(BMC_URL, '_blank', 'noopener');   // popup blocked → new tab
     }
 
+    // ── Consent dialog (self-contained: injects its own styles so it works on
+    //    every page). The donor must accept the donation terms before continuing. ──
+    var modal = null;
+    function buildModal() {
+        if (modal) return modal;
+        var st = document.createElement('style');
+        st.textContent =
+            '.donate-consent{position:fixed;inset:0;z-index:10050;display:flex;align-items:center;justify-content:center;padding:1.25rem;background:rgba(0,0,0,0.62);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);}' +
+            '.donate-consent[hidden]{display:none;}' +
+            ".dc-card{width:100%;max-width:440px;background:var(--card,#1f1812);border:1px solid var(--border,rgba(139,115,85,0.3));border-radius:18px;padding:1.9rem;text-align:center;box-shadow:0 24px 60px rgba(0,0,0,0.55);font-family:'Mulish',sans-serif;}" +
+            '.dc-icon{width:54px;height:54px;margin:0 auto 1rem;border-radius:50%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#cd853f,#daa520);color:#fff;}' +
+            ".dc-card h3{font-family:'Cormorant Garamond',Georgia,serif;font-size:1.6rem;font-weight:700;color:var(--fg,#e8dcc8);margin:0 0 0.6rem;}" +
+            '.dc-card p{font-size:0.92rem;line-height:1.6;color:var(--muted,#a89378);margin:0 0 1rem;}' +
+            '.dc-terms{display:inline-block;color:var(--accent-strong,#cd853f);font-weight:700;font-size:0.9rem;text-decoration:none;margin-bottom:1.4rem;}' +
+            '.dc-terms:hover{text-decoration:underline;}' +
+            '.dc-actions{display:flex;gap:0.6rem;justify-content:center;}' +
+            ".donate-consent button{padding:0.72rem 1.3rem;border-radius:10px;font-family:'Mulish',sans-serif;font-weight:700;font-size:0.9rem;cursor:pointer;border:1px solid transparent;position:relative;}" +
+            '.donate-consent button::before{display:none!important;}' +
+            '.dc-cancel{background:transparent;border-color:var(--border,rgba(139,115,85,0.35));color:var(--fg,#e8dcc8);}' +
+            '.dc-agree{background:linear-gradient(135deg,#cd853f,#daa520);color:#1a1410;}' +
+            '.dc-agree:hover{filter:brightness(1.06);}' +
+            '@media(max-width:480px){.dc-actions{flex-direction:column-reverse;}.donate-consent button{width:100%;}}';
+        document.head.appendChild(st);
+
+        modal = document.createElement('div');
+        modal.className = 'donate-consent';
+        modal.setAttribute('hidden', '');
+        modal.innerHTML =
+            '<div class="dc-card" role="dialog" aria-modal="true" aria-labelledby="dcTitle">' +
+                '<div class="dc-icon"><svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor" aria-hidden="true"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></div>' +
+                '<h3 id="dcTitle">Подкрепете ни</h3>' +
+                '<p>Дарението е напълно доброволно и безвъзмездно — срещу него не получавате допълнителни услуги, роли или функции. Продължавайки, потвърждавате, че сте се запознали и приемате нашите Общи условия за дарения.</p>' +
+                '<a class="dc-terms" href="' + TERMS_URL + '" target="_blank" rel="noopener noreferrer">Прочети Общите условия за дарения →</a>' +
+                '<div class="dc-actions">' +
+                    '<button type="button" class="dc-cancel">Отказ</button>' +
+                    '<button type="button" class="dc-agree">Приемам и продължавам</button>' +
+                '</div>' +
+            '</div>';
+        document.body.appendChild(modal);
+
+        modal.addEventListener('click', function (e) { if (e.target === modal) hide(); });
+        modal.querySelector('.dc-cancel').addEventListener('click', hide);
+        modal.querySelector('.dc-agree').addEventListener('click', function () { hide(); openDonate(); });
+        document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && modal && !modal.hasAttribute('hidden')) hide(); });
+        return modal;
+    }
+    function show() { buildModal(); modal.removeAttribute('hidden'); document.body.style.overflow = 'hidden'; setTimeout(function () { var b = modal.querySelector('.dc-agree'); if (b) b.focus(); }, 30); }
+    function hide() { if (modal) { modal.setAttribute('hidden', ''); document.body.style.overflow = ''; } }
+
     document.addEventListener('click', function (e) {
         if (!donateTarget(e.target)) return;
         e.preventDefault();
-        openDonate();
+        show();
     });
 })();
 
