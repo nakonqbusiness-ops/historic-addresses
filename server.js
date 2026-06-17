@@ -328,6 +328,52 @@ function resetEmailHtml(link) {
     return emailLayout(body, 'Връзка за нулиране на паролата (валидна 1 час)');
 }
 
+// Module-level HTML escaper for values dropped into email templates.
+function escHtml(s) {
+    return String(s == null ? '' : s).replace(/[<>&"']/g, c => ({ '<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;' }[c]));
+}
+
+// One-click unsubscribe token (no login needed, but can't unsubscribe someone else).
+function unsubToken(userId) {
+    return crypto.createHmac('sha256', JWT_SECRET).update('unsub:' + userId).digest('hex').slice(0, 32);
+}
+function unsubLink(userId) {
+    return `${DOMAIN}/api/newsletter/unsubscribe?u=${encodeURIComponent(userId)}&t=${unsubToken(userId)}`;
+}
+function newsletterEmailHtml(article, unsub) {
+    const href = article.link || `${DOMAIN}/news-article.html?slug=${encodeURIComponent(article.slug)}`;
+    const cover = isHttpUrl(article.cover_image)
+        ? `<img src="${article.cover_image}" alt="" width="100%" style="display:block;border-radius:12px;margin:0 0 18px;max-width:100%;height:auto;">` : '';
+    const body =
+      `<p style="margin:0 0 6px;font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#cd853f;">Нова новина</p>
+       <h1 style="margin:0 0 14px;font-family:Georgia,serif;font-size:24px;font-weight:700;color:#3a2f1f;">${escHtml(article.title)}</h1>
+       ${cover}
+       ${article.excerpt ? `<p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:#5a4a33;">${escHtml(article.excerpt)}</p>` : ''}
+       ${emailButton(href, 'Прочети повече')}`;
+    const footer =
+      `<p style="margin:18px 0 0;font-size:12px;line-height:1.6;color:#8b7355;text-align:center;">
+         Получавате този имейл, защото се абонирахте за новини. <a href="${unsub}" style="color:#cd853f;">Отписване</a>.
+       </p>`;
+    return emailLayout(body + footer, article.excerpt || ('Нова новина: ' + article.title));
+}
+// Email all opt-in subscribers about a freshly published article. Sequential with a
+// tiny gap to stay friendly to Resend's rate limits; each gets a personal unsub link.
+async function sendNewsletter(article) {
+    if (!resend) { console.warn('✉️  newsletter skipped — RESEND_API_KEY not set'); return; }
+    let subs = [];
+    try { subs = await dbAll('SELECT id,email FROM users WHERE newsletter=1'); } catch (e) { return; }
+    if (!subs.length) return;
+    console.log(`✉️  sending newsletter "${article.title}" to ${subs.length} subscriber(s)`);
+    for (const u of subs) {
+        await sendEmail({
+            to: u.email,
+            subject: 'Нова новина — ' + article.title,
+            html: newsletterEmailHtml(article, unsubLink(u.id)),
+        });
+        await new Promise(r => setTimeout(r, 120));   // ~8/sec, well under limits
+    }
+}
+
 function issueAuthCookie(res, user) {
     const token = jwt.sign({ sub: user.id, role: user.role }, JWT_SECRET, { expiresIn: JWT_EXPIRES });
     res.cookie(AUTH_COOKIE, token, COOKIE_OPTS);
@@ -645,6 +691,7 @@ function initDB() {
         )`);
         db.run('CREATE INDEX IF NOT EXISTS idx_news_slug      ON news(slug)');
         db.run('CREATE INDEX IF NOT EXISTS idx_news_published ON news(is_published, published_date DESC)');
+        db.run('ALTER TABLE news ADD COLUMN link TEXT', () => {});   // optional external link
 
         // Team
         db.run(`CREATE TABLE IF NOT EXISTS team (
@@ -677,6 +724,7 @@ function initDB() {
         db.run('ALTER TABLE users ADD COLUMN display_name TEXT', () => {});
         db.run('ALTER TABLE users ADD COLUMN reset_token_hash TEXT', () => {});
         db.run('ALTER TABLE users ADD COLUMN reset_token_expires INTEGER', () => {});
+        db.run('ALTER TABLE users ADD COLUMN newsletter INTEGER DEFAULT 0', () => {});  // email opt-in
         db.run('CREATE INDEX IF NOT EXISTS idx_users_reset ON users(reset_token_hash)', () => {});
 
         // ── Per-user activity (favorites / visited) ───────────────────────────
@@ -930,9 +978,10 @@ app.post('/api/auth/register', rateLimitAuth, async (req, res) => {
         const password_hash = await bcrypt.hash(password, BCRYPT_ROUNDS); // never store plaintext
         const id  = crypto.randomUUID();
         const now = new Date().toISOString();
+        const newsletter = (req.body && (req.body.newsletter === true || req.body.newsletter === 1)) ? 1 : 0;
         await dbRun(
-            'INSERT INTO users (id,email,password_hash,role,permissions,created_at) VALUES (?,?,?,?,?,?)',
-            [id, email, password_hash, 'user', '[]', now]
+            'INSERT INTO users (id,email,password_hash,role,permissions,newsletter,created_at) VALUES (?,?,?,?,?,?,?)',
+            [id, email, password_hash, 'user', '[]', newsletter, now]
         );
         issueAuthCookie(res, { id, role: 'user' });
         res.status(201).json({ id, email, role: 'user' });
@@ -1023,6 +1072,23 @@ app.post('/api/auth/reset-password', rateLimitAuth, async (req, res) => {
     } catch (e) {
         console.error('reset-password error:', e.message);
         res.status(500).json({ error: 'Възникна грешка. Моля, опитайте отново.' });
+    }
+});
+
+// One-click newsletter unsubscribe from the email link (token-verified, no login).
+app.get('/api/newsletter/unsubscribe', async (req, res) => {
+    const id = String(req.query.u || '');
+    const t  = String(req.query.t || '');
+    const page = (msg) => `<!doctype html><html lang="bg"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Отписване</title><link rel="stylesheet" href="/assets/css/styles.css?v=2"><style>body{display:flex;min-height:90vh;align-items:center;justify-content:center;font-family:'Mulish',sans-serif;text-align:center;padding:2rem}.u-card{max-width:420px;background:var(--card);border:1px solid var(--border);border-radius:18px;padding:2.2rem}.u-card h1{font-family:'Cormorant Garamond',serif;color:var(--fg)}.u-card a{color:var(--accent-strong);font-weight:700;text-decoration:none}</style></head><body><div class="u-card">${msg}</div></body></html>`;
+    try {
+        if (!id || t !== unsubToken(id)) {
+            return res.status(400).send(page('<h1>Невалидна връзка</h1><p style="color:var(--muted)">Връзката за отписване е невалидна.</p><a href="/index.html">Към началото</a>'));
+        }
+        await dbRun('UPDATE users SET newsletter=0 WHERE id=?', [id]);
+        res.send(page('<h1>Отписахте се</h1><p style="color:var(--muted)">Вече няма да получавате новини по имейл от нас.</p><a href="/index.html">Към началото</a>'));
+    } catch (e) {
+        console.error('unsubscribe error:', e.message);
+        res.status(500).send(page('<h1>Грешка</h1><p style="color:var(--muted)">Опитайте отново по-късно.</p>'));
     }
 });
 
@@ -1883,7 +1949,7 @@ app.get('/api/news', async (req, res) => {
     try {
         const countRow = await dbGet(`SELECT COUNT(*) AS total FROM news ${W}`);
         const rows     = await dbAll(
-            `SELECT id,title,slug,excerpt,cover_image,published_date,author,is_published
+            `SELECT id,title,slug,excerpt,cover_image,published_date,author,is_published,link
              FROM news ${W} ORDER BY published_date DESC LIMIT ? OFFSET ?`,
             [limit, offset]
         );
@@ -1914,18 +1980,26 @@ app.get('/api/news/:ref', async (req, res) => {
 });
 
 app.post('/api/news', requireAuth, async (req, res) => {
-    const { title, slug, content, excerpt, cover_image, published_date, author, is_published } = req.body;
+    const { title, slug, content, excerpt, cover_image, published_date, author, is_published, link } = req.body;
     if (!title || !slug || !content) return res.status(400).json({ error: 'title, slug and content are required' });
+    const cleanLink = isHttpUrl(link) ? String(link).trim() : null;
+    const published  = is_published !== false ? 1 : 0;
     try {
         const r = await dbRun(
-            `INSERT INTO news (title,slug,content,excerpt,cover_image,published_date,author,is_published) VALUES (?,?,?,?,?,?,?,?)`,
+            `INSERT INTO news (title,slug,content,excerpt,cover_image,published_date,author,is_published,link) VALUES (?,?,?,?,?,?,?,?,?)`,
             [title, slug, content, excerpt||'', cover_image||'',
              published_date || new Date().toISOString().split('T')[0],
              author || 'Екипът на Адресът на историята',
-             is_published !== false ? 1 : 0]
+             published, cleanLink]
         );
         cache.clear();
         res.json({ success: true, id: r.lastID });
+
+        // If published, email newsletter subscribers (fire-and-forget — never blocks).
+        if (published) {
+            sendNewsletter({ title, slug, excerpt: excerpt || '', cover_image: cover_image || '', link: cleanLink })
+                .catch(e => console.error('newsletter send error:', e.message));
+        }
     } catch (e) {
         console.error('POST /api/news error:', e);
         res.status(500).json({ error: e.message });
@@ -1933,11 +2007,12 @@ app.post('/api/news', requireAuth, async (req, res) => {
 });
 
 app.put('/api/news/:id', requireAuth, async (req, res) => {
-    const { title, slug, content, excerpt, cover_image, published_date, author, is_published } = req.body;
+    const { title, slug, content, excerpt, cover_image, published_date, author, is_published, link } = req.body;
+    const cleanLink = isHttpUrl(link) ? String(link).trim() : null;
     try {
         await dbRun(
-            `UPDATE news SET title=?,slug=?,content=?,excerpt=?,cover_image=?,published_date=?,author=?,is_published=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`,
-            [title, slug, content, excerpt, cover_image, published_date, author, is_published, req.params.id]
+            `UPDATE news SET title=?,slug=?,content=?,excerpt=?,cover_image=?,published_date=?,author=?,is_published=?,link=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`,
+            [title, slug, content, excerpt, cover_image, published_date, author, is_published, cleanLink, req.params.id]
         );
         cache.clear();
         res.json({ success: true });

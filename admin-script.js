@@ -719,6 +719,7 @@ async function uploadToR2(file, homeSlug) {
         document.getElementById('n_excerpt').value = n.excerpt || '';
         document.getElementById('n_content').value = n.content || '';
         document.getElementById('n_cover').value = n.cover_image || '';
+        document.getElementById('n_link').value = n.link || '';
         document.getElementById('n_date').value = n.published_date || new Date().toISOString().split('T')[0];
         document.getElementById('n_author').value = n.author || 'Екипът на Адресът на историята';
         document.getElementById('n_published').checked = n.is_published !== 0;
@@ -774,6 +775,7 @@ async function uploadToR2(file, homeSlug) {
             excerpt: document.getElementById('n_excerpt').value.trim() || '',
             content: document.getElementById('n_content').value.trim(),
             cover_image: document.getElementById('n_cover').value.trim() || '',
+            link: document.getElementById('n_link').value.trim() || '',
             published_date: document.getElementById('n_date').value,
             author: document.getElementById('n_author').value.trim(),
             is_published: document.getElementById('n_published').checked ? 1 : 0

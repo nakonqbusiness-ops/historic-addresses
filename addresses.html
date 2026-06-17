@@ -585,6 +585,9 @@
             .addr-grid { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1.1rem; }
             .addr-controls { gap: 0.6rem; }
             .addr-tag-select { min-width: 0; flex: 1; }
+            /* Hide the card favourite heart on mobile (you can favourite from the
+               address page). Overrides body.is-auth .addr-fav { display:inline-flex }. */
+            .addr-fav, body.is-auth .addr-fav { display: none !important; }
         }
 
         @media (max-width: 480px) {

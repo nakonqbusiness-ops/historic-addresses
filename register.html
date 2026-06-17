@@ -128,6 +128,10 @@
         .btn-spinner { width: 15px; height: 15px; border: 2px solid rgba(26,20,16,0.3); border-top-color: #1a1410; border-radius: 50%; animation: spin 0.7s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
 
+        .auth-check { display: flex; align-items: flex-start; gap: 0.6rem; margin: 0 0 1.2rem; cursor: pointer; font-size: 0.85rem; color: var(--muted); line-height: 1.45; }
+        .auth-check input { width: 17px; height: 17px; margin-top: 1px; flex-shrink: 0; accent-color: var(--accent-strong); cursor: pointer; }
+        .auth-check span { user-select: none; }
+
         .auth-alt { text-align: center; margin-top: 1.4rem; font-size: 0.88rem; color: var(--muted); }
         .auth-alt a { color: var(--accent-strong); font-weight: 600; text-decoration: none; }
         .auth-alt a:hover { text-decoration: underline; }
@@ -200,6 +204,11 @@
                 </div>
                 <div class="field-error" id="confirmError">Паролите не съвпадат.</div>
             </div>
+
+            <label class="auth-check">
+                <input type="checkbox" id="newsletter">
+                <span>Искам да получавам новини и обновления по имейл.</span>
+            </label>
 
             <button type="submit" class="auth-btn" id="submitBtn">
                 <span id="btnLabel">Създай профил</span>
@@ -329,7 +338,7 @@
             method: 'POST',
             credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: email, password: password })
+            body: JSON.stringify({ email: email, password: password, newsletter: document.getElementById('newsletter').checked })
         })
         .then(function(res) {
             return res.json().catch(function() { return {}; }).then(function(data) {
