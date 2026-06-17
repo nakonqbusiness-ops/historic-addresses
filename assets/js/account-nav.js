@@ -123,6 +123,7 @@
     // ── Consent dialog (self-contained: injects its own styles so it works on
     //    every page). The donor must accept the donation terms before continuing. ──
     var modal = null;
+    var armedAt = 0;   // timestamp before which modal clicks are ignored (ghost-click guard)
     function buildModal() {
         if (modal) return modal;
         var st = document.createElement('style');
@@ -160,20 +161,34 @@
             '</div>';
         document.body.appendChild(modal);
 
-        modal.addEventListener('click', function (e) { if (e.target === modal) hide(); });
-        modal.querySelector('.dc-cancel').addEventListener('click', hide);
-        modal.querySelector('.dc-agree').addEventListener('click', function () { hide(); openDonate(); });
+        // Ignore any interaction for a short window after opening. This defeats the
+        // mobile "ghost click": the tap that opens the modal is followed ~300ms later
+        // by a synthetic click that would otherwise land on the centred Agree button
+        // and auto-confirm. Until armed, every modal click is swallowed.
+        function tooSoon() { return Date.now() < armedAt; }
+        modal.addEventListener('click', function (e) { if (tooSoon()) return; if (e.target === modal) hide(); });
+        modal.querySelector('.dc-cancel').addEventListener('click', function () { if (tooSoon()) return; hide(); });
+        modal.querySelector('.dc-agree').addEventListener('click', function () { if (tooSoon()) return; hide(); openDonate(); });
         document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && modal && !modal.hasAttribute('hidden')) hide(); });
         return modal;
     }
-    function show() { buildModal(); modal.removeAttribute('hidden'); document.body.style.overflow = 'hidden'; setTimeout(function () { var b = modal.querySelector('.dc-agree'); if (b) b.focus(); }, 30); }
+    function show() {
+        buildModal();
+        armedAt = Date.now() + 450;                 // ignore clicks for 450ms
+        modal.removeAttribute('hidden');
+        document.body.style.overflow = 'hidden';
+        setTimeout(function () { var b = modal.querySelector('.dc-agree'); if (b) b.focus(); }, 480);
+    }
     function hide() { if (modal) { modal.setAttribute('hidden', ''); document.body.style.overflow = ''; } }
 
     document.addEventListener('click', function (e) {
-        if (!donateTarget(e.target)) return;
+        var t = donateTarget(e.target);
+        if (!t) return;
         e.preventDefault();
+        e.stopPropagation();
+        if (modal && !modal.hasAttribute('hidden')) return;   // already open — ignore
         show();
-    });
+    }, true);   // capture phase: run before other link handlers
 })();
 
 /* ── Minimal GDPR cookie notice ──────────────────────────────────────────────
