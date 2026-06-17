@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="bg" data-theme="dark">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <link rel="icon" type="image/png" href="/assets/img/favicon-96x96.png" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="/assets/img/favicon.svg" />
+    <link rel="shortcut icon" href="/assets/img/favicon.ico" />
+
+    <title>404 — Страницата се изгуби в историята</title>
+    <meta name="description" content="Страницата, която търсите, не съществува.">
+    <meta name="robots" content="noindex, nofollow">
+
+    <script>
+        (function() {
+            try {
+                var stored = localStorage.getItem('theme-preference');
+                if (stored === 'system') stored = 'dark';
+                var theme = (stored === 'dark' || stored === 'light') ? stored : 'dark';
+                document.documentElement.setAttribute('data-theme', theme);
+            } catch (e) {}
+        })();
+    </script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Mulish:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="/assets/css/styles.css">
+
+    <style>
+        :root { --font-display: 'Cormorant Garamond', Georgia, serif; --font-body: 'Mulish', sans-serif; }
+
+        .nf-page { min-height: 100vh; margin: 0; display: flex; flex-direction: column; }
+        .nf-page * { font-family: var(--font-body); }
+
+        .nf-logo-bar { padding: 1.5rem 2rem; }
+        .nf-logo-bar a { display: inline-flex; align-items: center; gap: 0.6rem; text-decoration: none; }
+        .nf-logo-bar img { width: 40px; height: auto; }
+        .nf-logo-bar span { font-family: var(--font-display); font-size: 1.15rem; font-weight: 700; color: var(--fg); }
+
+        .nf-wrap {
+            flex: 1; display: flex; align-items: center; justify-content: center;
+            text-align: center; padding: 2rem 1.5rem 5rem; position: relative; overflow: hidden;
+        }
+        /* Soft gold glow behind the content */
+        .nf-wrap::before {
+            content: ''; position: absolute; top: 42%; left: 50%;
+            width: min(680px, 90vw); height: min(680px, 90vw);
+            transform: translate(-50%, -50%);
+            background: radial-gradient(circle, rgba(205,133,63,0.16), transparent 62%);
+            pointer-events: none; z-index: 0;
+        }
+
+        .nf-card { position: relative; z-index: 1; max-width: 600px; }
+
+        .nf-eyebrow {
+            font-size: 0.78rem; font-weight: 700; letter-spacing: 0.32em; text-transform: uppercase;
+            color: var(--accent-strong); margin: 0 0 1rem;
+        }
+
+        .nf-code {
+            font-family: var(--font-display); font-weight: 700; line-height: 0.9;
+            font-size: clamp(6rem, 22vw, 12rem); margin: 0;
+            background: linear-gradient(135deg, var(--accent-strong) 0%, #e0c98a 50%, var(--accent-strong) 100%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+            letter-spacing: 0.02em;
+        }
+
+        .nf-ornament {
+            display: flex; align-items: center; justify-content: center; gap: 0.85rem;
+            margin: 0.4rem auto 1.6rem; color: var(--accent-strong); opacity: 0.7;
+        }
+        .nf-ornament::before, .nf-ornament::after {
+            content: ''; height: 1px; width: clamp(40px, 12vw, 90px);
+            background: linear-gradient(90deg, transparent, var(--accent-strong));
+        }
+        .nf-ornament::after { background: linear-gradient(90deg, var(--accent-strong), transparent); }
+
+        .nf-title {
+            font-family: var(--font-display); font-weight: 700; color: var(--fg);
+            font-size: clamp(1.7rem, 4.5vw, 2.6rem); line-height: 1.2; margin: 0 0 1rem;
+        }
+        .nf-text {
+            font-size: 1.02rem; color: var(--muted); line-height: 1.65;
+            max-width: 460px; margin: 0 auto 2.2rem;
+        }
+
+        .nf-actions { display: flex; gap: 0.9rem; justify-content: center; flex-wrap: wrap; }
+        .nf-btn-gold, .nf-btn-ghost {
+            display: inline-flex; align-items: center; gap: 0.55rem;
+            padding: 0.95rem 2rem; border-radius: 30px; text-decoration: none;
+            font-weight: 700; font-size: 1rem; transition: transform 0.3s ease, box-shadow 0.3s ease, filter 0.3s ease, background 0.3s ease, color 0.3s ease;
+        }
+        .nf-btn-gold {
+            background: var(--accent-gradient); color: #1a1410;
+            border: 1px solid rgba(205,133,63,0.5); box-shadow: 0 6px 18px rgba(205,133,63,0.4);
+        }
+        .nf-btn-gold:hover { transform: translateY(-2px); box-shadow: 0 10px 26px rgba(205,133,63,0.55); filter: brightness(1.05); }
+        .nf-btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--fg); }
+        .nf-btn-ghost:hover { border-color: var(--accent-strong); color: var(--accent-strong); transform: translateY(-2px); }
+
+        @media (max-width: 560px) {
+            .nf-logo-bar { padding: 1.1rem 1.25rem; }
+            .nf-actions { flex-direction: column; }
+            .nf-btn-gold, .nf-btn-ghost { width: 100%; justify-content: center; }
+        }
+    </style>
+</head>
+
+<body class="nf-page">
+
+    <div class="nf-logo-bar">
+        <a href="/index.html" aria-label="Адресът на историята — начало">
+            <img src="/assets/img/HistAdrLogo.png" alt="">
+            <span>Адресът на историята</span>
+        </a>
+    </div>
+
+    <main class="nf-wrap">
+        <div class="nf-card">
+            <p class="nf-eyebrow">Грешка 404</p>
+            <div class="nf-code">404</div>
+            <div class="nf-ornament" aria-hidden="true">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V8l7-5 7 5v13"/><path d="M9 21v-6h6v6"/></svg>
+            </div>
+            <h1 class="nf-title">Тази страница се е изгубила в историята</h1>
+            <p class="nf-text">
+                Адресът, който търсите, не съществува или е бил преместен.
+                Но из архива ни има още хиляди истории, които чакат да бъдат открити.
+            </p>
+            <div class="nf-actions">
+                <a class="nf-btn-gold" href="/index.html">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12l9-9 9 9"/><path d="M5 10v10h14V10"/></svg>
+                    Към началото
+                </a>
+                <a class="nf-btn-ghost" href="/addresses.html">Разгледай адресите</a>
+            </div>
+        </div>
+    </main>
+
+</body>
+</html>

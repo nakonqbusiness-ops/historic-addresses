@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="icon" type="image/png" href="/assets/img/favicon-96x96.png" sizes="96x96" />
+<link rel="icon" type="image/svg+xml" href="/assets/img/favicon.svg" />
+<link rel="shortcut icon" href="/assets/img/favicon.ico" />
+<link rel="apple-touch-icon" sizes="180x180" href="/assets/img/apple-touch-icon.png" />
+<link rel="manifest" href="/assets/img/site.webmanifest" />
+
+	<title>Нашите Партньори - Адресът на историята</title>
+	<meta name="description" content="Партньори на проекта Адресът на историята">
+	<script>
+		(function() {
+			try {
+				var stored = localStorage.getItem('theme-preference');
+				if (stored === 'system') stored = 'dark';
+				var theme = (stored === 'dark' || stored === 'light') ? stored : 'dark';
+				document.documentElement.setAttribute('data-theme', theme);
+			} catch(e) {}
+		})();
+	</script>
+	<link rel="stylesheet" href="assets/css/styles.css">
+	<style>
+		.partner-card {
+			background: var(--card-bg, #1a1a1a);
+			border-radius: 8px;
+			padding: 1.5rem;
+			margin-bottom: 1.5rem;
+			border: 1px solid var(--border-color, #333);
+			transition: transform 0.2s, box-shadow 0.2s;
+		}
+		.partner-card:hover {
+			transform: translateY(-2px);
+			box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+		}
+		.partner-header {
+			display: flex;
+			align-items: center;
+			gap: 1.5rem;
+			margin-bottom: 1rem;
+		}
+		.partner-logo {
+			width: 100px;
+			height: 100px;
+			object-fit: contain;
+			border-radius: 8px;
+			background: #a89378;
+			padding: 8px;
+		}
+		.partner-info h2 {
+			margin: 0 0 0.5rem 0;
+			color: var(--accent-strong);
+		}
+		.partner-links {
+			display: flex;
+			gap: 1rem;
+			flex-wrap: wrap;
+			margin-top: 1rem;
+		}
+		.partner-links a {
+			display: inline-flex;
+			align-items: center;
+			gap: 0.5rem;
+			padding: 0.5rem 1rem;
+			background: var(--primary-color, #C4803D);
+			color: #1A1A1A;
+			text-decoration: none;
+			border-radius: 4px;
+			transition: background 0.2s;
+		}
+		.partner-links a:hover {
+			background: var(--primary-hover, #C4803D);
+		}
+	</style>
+	<script defer src="assets/js/theme.js"></script>
+	<script defer src="assets/js/transitions.js"></script>
+<script defer src="assets/js/calendar-popup.js"></script>
+<link rel="canonical" href="https://historyaddress.bg/partners.html">
+<meta name="robots" content="index, follow">
+    <script defer src="assets/js/account-nav.js?v=5"></script>
+</head>
+<script>
+function handleEmailClick(event) {
+    if (window.innerWidth <= 768) {
+        return; 
+    }
+    
+    event.preventDefault();
+    showEmailModal();
+}
+
+function showEmailModal() {
+    var modal = document.getElementById('emailModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'emailModal';
+        modal.className = 'email-modal';
+        modal.innerHTML = `
+            <div class="email-modal-content">
+                <h3>📧 Свържете се с нас</h3>
+                <div class="email-address-display" id="emailDisplay">historyaddressbg@gmail.com</div>
+                <div class="email-modal-buttons">
+                    <button class="btn-copy" onclick="copyEmail()">
+                        <span id="copyText">📋 Копирай Email</span>
+                    </button>
+                    <button class="btn-close" onclick="closeEmailModal()">✕ Затвори</button>
+                </div>
+                <p>Можете да ни пишете за въпроси или подкрепа</p>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                closeEmailModal();
+            }
+        });
+    }
+    
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+}
+
+function closeEmailModal() {
+    var modal = document.getElementById('emailModal');
+    if (modal) {
+        modal.style.display = 'none';
+        document.body.style.overflow = '';
+    }
+}
+
+function copyEmail() {
+    var email = 'historyaddressbg@gmail.com';
+    navigator.clipboard.writeText(email).then(function() {
+        var btn = document.querySelector('.btn-copy');
+        var text = document.getElementById('copyText');
+        
+        btn.classList.add('copied');
+        text.textContent = '✓ Копирано!';
+        
+        setTimeout(function() {
+            btn.classList.remove('copied');
+            text.textContent = '📋 Копирай Email';
+        }, 2000);
+    }).catch(function(err) {
+        alert('Email: ' + email);
+    });
+}
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeEmailModal();
+    }
+});
+</script>
+<body>
+	<header class="site-header">
+		<a class="logo-link" href="index.html">
+			<img src="assets/img/HistAdrLogo.png" alt="Адресът на историята" class="header-logo">
+			<span class="logo-text">Адресът на историята</span>
+		</a>
+<nav class="nav">
+    <a href="index.html">Начало</a>
+    <a href="map.html">Карта</a>
+    <a href="addresses.html">Адреси</a>
+    <a href="calendar.html">Календар</a>
+    <a href="news.html">Новини</a>
+    <a href="about.html">За Нас</a>
+</nav>
+		<button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode"></button>
+	</header>
+
+	<main class="container">
+		<h1 class="page-title gradient-text">🤝 Нашите Партньори</h1>
+		
+		<div id="partners-list" style="max-width: 900px; margin: 0 auto;">
+			<p style="text-align:center;padding:2rem;">Зареждане...</p>
+		</div>
+	</main>
+
+<footer class="site-footer">
+    <div class="footer-inner">
+        <div class="footer-social">
+            <a href="https://instagram.com/historyaddress.bg" target="_blank" rel="noopener noreferrer" class="social-link">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
+                Instagram
+            </a>
+            <a href="mailto:historyaddressbg@gmail.com" class="social-link" onclick="handleEmailClick(event)">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                Email
+            </a>
+        </div>
+
+        <a href="https://buymeacoffee.com/historyaddress.bg" target="_blank" rel="noopener noreferrer" class="footer-donate" aria-label="Подкрепете ни — дарение">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+          Подкрепете ни
+        </a>
+
+        <p class="footer-links">
+            <a href="privacy.html">Поверителност</a>
+            <span>•</span>
+            <a href="terms.html">Условия</a>
+            <span>•</span>
+            <a href="copyright.html">Авторски права</a>
+        </p>
+
+        <p class="footer-copy">© <span id="year"></span> Адресът на историята</p>
+    </div>
+</footer>
+
+	<script>
+	(function() {
+		var apiBase = window.location.origin;
+		
+		function loadPartners() {
+			fetch(apiBase + '/api/partners')
+				.then(function(res) { return res.json(); })
+				.then(function(partners) {
+					var container = document.getElementById('partners-list');
+					container.innerHTML = '';
+					
+					if (partners.length === 0) {
+						container.innerHTML = '<p style="text-align:center;color:#999;">Скоро ще добавим партньори!</p>';
+						return;
+					}
+					
+					partners.forEach(function(p) {
+						var card = document.createElement('div');
+						card.className = 'partner-card';
+						
+						var header = '<div class="partner-header">';
+						if (p.logo_url) {
+							header += '<img src="' + p.logo_url + '" alt="' + p.name + ' logo" class="partner-logo">';
+						}
+						header += '<div class="partner-info"><h2>' + p.name + '</h2>';
+						if (p.description) {
+							header += '<p style="margin:0;color:var(--text-muted);">' + p.description + '</p>';
+						}
+						header += '</div></div>';
+						
+						var links = '<div class="partner-links">';
+						if (p.website) {
+							links += '<a href="' + p.website + '" target="_blank" rel="noopener">🌐 Уебсайт</a>';
+						}
+						if (p.instagram) {
+							var instaUrl = p.instagram.startsWith('http') ? p.instagram : 'https://instagram.com/' + p.instagram.replace('@', '');
+							links += '<a href="' + instaUrl + '" target="_blank" rel="noopener">📸 Instagram</a>';
+						}
+						if (p.email) {
+							links += '<a href="mailto:' + p.email + '">📧 Email</a>';
+						}
+						links += '</div>';
+						
+						card.innerHTML = header + links;
+						container.appendChild(card);
+					});
+				})
+				.catch(function(err) {
+					console.error('Error loading partners:', err);
+					document.getElementById('partners-list').innerHTML = '<p style="text-align:center;color:#ff6b6b;">Грешка при зареждане.</p>';
+				});
+		}
+		
+		document.getElementById('year').textContent = new Date().getFullYear();
+		loadPartners();
+	})();
+	</script>
+</body>
+</html>

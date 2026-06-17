@@ -1,0 +1,759 @@
+<!doctype html>
+<html lang="bg" data-theme="dark">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <link rel="icon" type="image/png" href="/assets/img/favicon-96x96.png" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="/assets/img/favicon.svg" />
+    <link rel="shortcut icon" href="/assets/img/favicon.ico" />
+
+    <title>Модерация — Адресът на историята</title>
+    <meta name="robots" content="noindex, nofollow">
+
+    <script>
+        (function() {
+            try {
+                var stored = localStorage.getItem('theme-preference');
+                if (stored === 'system') stored = 'dark';
+                var theme = (stored === 'dark' || stored === 'light') ? stored : 'dark';
+                document.documentElement.setAttribute('data-theme', theme);
+            } catch(e) {}
+        })();
+    </script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Mulish:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="/assets/css/styles.css">
+    <script defer src="/assets/js/theme.js"></script>
+    <script defer src="/assets/js/account-nav.js?v=5"></script>
+
+    <style>
+        :root { --font-display: 'Cormorant Garamond', Georgia, serif; --font-body: 'Mulish', sans-serif; }
+        .mod-page, .mod-page * { font-family: var(--font-body); }
+
+        .mod-main { max-width: 1080px; margin: 0 auto; padding: clamp(1.5rem, 4vw, 3rem) 1.25rem 5rem; }
+
+        .mod-header { margin-bottom: 1.75rem; }
+        .mod-eyebrow { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; color: var(--accent-strong); margin: 0 0 0.4rem; }
+        .mod-title { font-family: var(--font-display); font-size: clamp(1.9rem, 4vw, 2.7rem); font-weight: 700; color: var(--fg); margin: 0; line-height: 1.1; }
+
+        .mod-tabs { display: flex; gap: 0.35rem; padding: 0.3rem; margin: 1.25rem 0 2rem; background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow-x: auto; scrollbar-width: none; }
+        .mod-tabs::-webkit-scrollbar { display: none; }
+        .mod-tab { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 0.4rem; white-space: nowrap; padding: 0.55rem 1.05rem; border: none; background: transparent; color: var(--muted); font-family: var(--font-body); font-weight: 700; font-size: 0.85rem; border-radius: 9px; cursor: pointer; transition: color 0.2s, background 0.2s; }
+        .mod-tab:hover { color: var(--fg); }
+        .mod-tab.active { color: #1a1410; background: var(--accent-gradient); }
+        .mod-tab .mod-tab-n { font-size: 0.72rem; opacity: 0.85; }
+
+        .mod-list { display: flex; flex-direction: column; gap: 1.1rem; }
+
+        .mod-card { display: grid; grid-template-columns: 200px 1fr auto; gap: 1.25rem; background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 1.1rem; box-shadow: var(--shadow-soft); animation: modIn 0.4s ease both; }
+        @keyframes modIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+        .mod-img-wrap { position: relative; width: 200px; height: 150px; border-radius: 12px; overflow: hidden; background: var(--border); flex-shrink: 0; }
+        .mod-img-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; cursor: zoom-in; }
+        .mod-img-ph { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 2.4rem; opacity: 0.35; background: linear-gradient(135deg, rgba(205,133,63,0.08), transparent); }
+
+        .mod-body { min-width: 0; }
+        .mod-cat { display: inline-block; font-size: 0.65rem; font-weight: 700; padding: 0.22rem 0.6rem; border-radius: 999px; color: #fff; letter-spacing: 0.02em; margin-bottom: 0.5rem; }
+        .mod-name { font-family: var(--font-display); font-size: 1.35rem; font-weight: 700; color: var(--fg); margin: 0 0 0.35rem; line-height: 1.2; word-break: break-word; }
+        .mod-meta { font-size: 0.82rem; color: var(--muted); margin-bottom: 0.55rem; line-height: 1.5; }
+        .mod-desc { font-size: 0.88rem; color: var(--fg); opacity: 0.85; line-height: 1.6; margin: 0 0 0.7rem; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .mod-sub { font-size: 0.78rem; color: var(--muted); display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
+        .mod-sub strong { color: var(--accent-strong); font-weight: 700; }
+
+        .mod-actions { display: flex; flex-direction: column; gap: 0.6rem; justify-content: center; align-items: stretch; min-width: 160px; }
+        .mod-btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.45rem; padding: 0.7rem 1.1rem; border-radius: 10px; border: 1px solid var(--border); background: transparent; color: var(--fg); font-family: var(--font-body); font-weight: 700; font-size: 0.85rem; cursor: pointer; transition: all 0.2s; text-decoration: none; }
+        .mod-btn::before { display: none !important; }
+        .mod-btn:disabled { opacity: 0.55; cursor: default; }
+        .mod-btn.review { border-color: var(--accent-strong); color: var(--accent-strong); }
+        .mod-btn.review:hover:not(:disabled) { background: var(--accent-strong); color: #fff; transform: none !important; box-shadow: none !important; }
+        .mod-btn.reject { border-color: rgba(192,86,79,0.5); color: #d98a8a; }
+        .mod-btn.reject:hover:not(:disabled) { background: rgba(192,86,79,0.14); border-color: #c0564f; transform: none !important; box-shadow: none !important; }
+        .mod-result { text-align: center; font-weight: 700; font-size: 0.85rem; padding: 0.5rem; border-radius: 8px; }
+        .mod-result.approved { color: #7bbf80; } .mod-result.rejected { color: #d98a8a; }
+
+        .mod-empty { text-align: center; padding: 4rem 1rem; color: var(--muted); background: var(--card); border: 1px dashed var(--border); border-radius: 16px; }
+        .mod-empty-icon { font-size: 2.6rem; opacity: 0.4; display: block; margin-bottom: 0.7rem; }
+
+        .mod-state { display: flex; align-items: center; justify-content: center; gap: 0.75rem; padding: 5rem 1rem; color: var(--muted); }
+        .mod-spinner { width: 18px; height: 18px; border: 2px solid var(--border); border-top-color: var(--accent-strong); border-radius: 50%; animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .mod-denied { max-width: 460px; margin: 4rem auto; text-align: center; background: var(--card); border: 1px solid var(--border); border-radius: 18px; padding: 2.5rem 2rem; box-shadow: var(--shadow); }
+        .mod-denied-icon { font-size: 2.6rem; margin-bottom: 0.75rem; }
+        .mod-denied h2 { font-family: var(--font-display); font-size: 1.6rem; color: var(--fg); margin: 0 0 0.6rem; }
+        .mod-denied p { color: var(--muted); line-height: 1.6; margin: 0 0 1.4rem; }
+        .mod-denied a { display: inline-block; padding: 0.7rem 1.4rem; border-radius: 10px; background: var(--accent-gradient); color: #1a1410; font-weight: 700; text-decoration: none; }
+
+        /* ── Review / edit modal ── */
+        .mod-modal { display: none; position: fixed; inset: 0; z-index: 9000; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); align-items: flex-start; justify-content: center; padding: 2rem 1rem; overflow-y: auto; }
+        .mod-modal.show { display: flex; }
+        .mod-dialog { width: 100%; max-width: 720px; background: var(--card); border: 1px solid var(--border); border-radius: 18px; box-shadow: 0 24px 70px rgba(0,0,0,0.6); overflow: hidden; animation: modIn 0.3s ease both; margin: auto; }
+        .mod-dialog-head { display: flex; align-items: center; justify-content: space-between; padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border); position: relative; }
+        .mod-dialog-head::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--accent-gradient); }
+        .mod-dialog-head h2 { font-family: var(--font-display); font-size: 1.5rem; font-weight: 700; color: var(--fg); margin: 0; }
+        .mod-dialog-close { background: none; border: none; color: var(--muted); font-size: 1.4rem; cursor: pointer; line-height: 1; padding: 0.25rem; }
+        .mod-dialog-close::before { display: none !important; }
+        .mod-dialog-close:hover { color: var(--accent-strong); }
+        .mod-dialog-body { padding: 1.5rem; max-height: 70vh; overflow-y: auto; }
+
+        .mod-img-edit { display: flex; gap: 1rem; align-items: flex-start; margin-bottom: 1.5rem; flex-wrap: wrap; }
+        .mod-img-edit-preview { width: 200px; height: 150px; border-radius: 12px; overflow: hidden; background: var(--border); flex-shrink: 0; }
+        .mod-img-edit-preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .mod-img-edit-preview .mod-img-ph { font-size: 2rem; }
+        .mod-img-edit-ctrls { flex: 1; min-width: 200px; display: flex; flex-direction: column; gap: 0.5rem; }
+        .mod-img-edit-ctrls .mod-mini { display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; padding: 0.55rem 0.9rem; border-radius: 9px; border: 1px solid var(--border); background: transparent; color: var(--fg); font-family: var(--font-body); font-weight: 600; font-size: 0.82rem; cursor: pointer; text-decoration: none; transition: border-color 0.2s, color 0.2s; }
+        .mod-img-edit-ctrls .mod-mini::before { display: none !important; }
+        .mod-img-edit-ctrls .mod-mini:hover { border-color: var(--accent-strong); color: var(--accent-strong); transform: none !important; box-shadow: none !important; }
+        .mod-img-edit-note { font-size: 0.74rem; color: var(--muted); opacity: 0.85; margin-top: 0.5rem; line-height: 1.5; }
+        .mod-img-edit-note strong { color: var(--fg); }
+
+        /* Editor photo gallery */
+        .ed-photos { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 0.5rem; }
+        .ed-photos:empty::after { content: 'Няма снимки'; color: var(--muted); font-size: 0.82rem; opacity: 0.7; grid-column: 1 / -1; padding: 0.5rem 0; }
+        .ed-photo { position: relative; aspect-ratio: 1 / 1; border-radius: 9px; overflow: hidden; background: var(--border); }
+        .ed-photo img { width: 100%; height: 100%; object-fit: cover; display: block; cursor: zoom-in; }
+        .ed-photo .ed-badge { position: absolute; bottom: 0.3rem; left: 0.3rem; font-size: 0.58rem; font-weight: 700; padding: 0.1rem 0.4rem; border-radius: 999px; background: rgba(93,157,97,0.92); color: #fff; letter-spacing: 0.02em; }
+        .ed-photo .ed-x, .ed-photo .ed-dl {
+            position: absolute; top: 0.3rem; width: 24px; height: 24px; border-radius: 50%; border: none;
+            background: rgba(0,0,0,0.6); color: #fff; cursor: pointer; font-size: 0.85rem; line-height: 1;
+            display: flex; align-items: center; justify-content: center; text-decoration: none;
+        }
+        .ed-photo .ed-x { right: 0.3rem; }
+        .ed-photo .ed-x:hover { background: rgba(201,80,80,0.92); }
+        .ed-photo .ed-dl { left: 0.3rem; }
+        .ed-photo .ed-dl:hover { background: var(--accent-strong); }
+
+        .mod-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        .mod-fld { margin-bottom: 0; }
+        .mod-fld.full { grid-column: 1 / -1; }
+        .mod-fld label { display: block; font-size: 0.78rem; font-weight: 700; color: var(--fg); margin-bottom: 0.4rem; }
+        .mod-fld .req { color: var(--accent-strong); }
+        .mod-inp, .mod-sel, .mod-txt { width: 100%; box-sizing: border-box; padding: 0.7rem 0.9rem; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; color: var(--fg); font-family: var(--font-body); font-size: 0.9rem; transition: border-color 0.2s, box-shadow 0.2s; }
+        .mod-txt { min-height: 90px; resize: vertical; line-height: 1.55; }
+        .mod-inp:focus, .mod-sel:focus, .mod-txt:focus { outline: none; border-color: var(--accent-strong); box-shadow: 0 0 0 3px rgba(205,133,63,0.15); }
+        .mod-sel { appearance: none; -webkit-appearance: none; cursor: pointer; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23a89378' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 0.85rem center; padding-right: 2.3rem; }
+        .mod-submitter { margin-top: 1rem; font-size: 0.8rem; color: var(--muted); }
+        .mod-submitter strong { color: var(--accent-strong); }
+
+        .mod-dialog-foot { display: flex; gap: 0.75rem; justify-content: space-between; padding: 1.1rem 1.5rem; border-top: 1px solid var(--border); flex-wrap: wrap; }
+        .mod-foot-btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.45rem; padding: 0.8rem 1.4rem; border-radius: 10px; border: 1px solid var(--border); background: transparent; color: var(--fg); font-family: var(--font-body); font-weight: 700; font-size: 0.9rem; cursor: pointer; transition: all 0.2s; }
+        .mod-foot-btn::before { display: none !important; }
+        .mod-foot-btn:disabled { opacity: 0.55; cursor: default; }
+        .mod-foot-btn.reject { border-color: rgba(192,86,79,0.5); color: #d98a8a; }
+        .mod-foot-btn.reject:hover:not(:disabled) { background: rgba(192,86,79,0.14); border-color: #c0564f; transform: none !important; box-shadow: none !important; }
+        .mod-foot-btn.approve { background: var(--accent-gradient); color: #1a1410; border: none; flex: 1; min-width: 200px; }
+        .mod-foot-btn.approve:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(205,133,63,0.3); }
+        .btn-spinner { width: 15px; height: 15px; border: 2px solid rgba(26,20,16,0.3); border-top-color: #1a1410; border-radius: 50%; animation: spin 0.7s linear infinite; }
+
+        /* Top-level view switcher (Submissions / Users) */
+        .mod-views { display: flex; gap: 0.5rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
+        .mod-view-btn { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.6rem 1.2rem; border-radius: 10px; border: 1px solid var(--border); background: var(--card); color: var(--muted); font-family: var(--font-body); font-weight: 700; font-size: 0.9rem; cursor: pointer; transition: color 0.2s, background 0.2s; }
+        .mod-view-btn::before { display: none !important; }
+        .mod-view-btn:hover { color: var(--fg); transform: none !important; box-shadow: none !important; }
+        .mod-view-btn.active { background: var(--accent-gradient); color: #1a1410; border-color: transparent; }
+
+        /* User / role management */
+        .users-hint { font-size: 0.85rem; color: var(--muted); line-height: 1.6; margin: 0 0 1.25rem; }
+        .users-hint strong { color: var(--accent-strong); }
+        .users-list { display: flex; flex-direction: column; gap: 0.6rem; }
+        .user-row { display: grid; grid-template-columns: 1fr auto auto; gap: 1rem; align-items: center; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 0.85rem 1.1rem; }
+        .user-email { font-weight: 700; color: var(--fg); word-break: break-word; }
+        .user-email .user-self { font-size: 0.72rem; color: var(--accent-strong); font-weight: 700; margin-left: 0.4rem; white-space: nowrap; }
+        .user-meta { font-size: 0.76rem; color: var(--muted); white-space: nowrap; }
+        .user-role-sel { padding: 0.5rem 2rem 0.5rem 0.8rem; background: var(--bg); border: 1px solid var(--border); border-radius: 9px; color: var(--fg); font-family: var(--font-body); font-weight: 700; font-size: 0.82rem; cursor: pointer; appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23a89378' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 0.7rem center; transition: border-color 0.2s; }
+        .user-role-sel:focus { outline: none; border-color: var(--accent-strong); }
+        .user-role-sel:disabled { opacity: 0.55; cursor: default; }
+        .user-role-sel.owner { color: #e0c98a; border-color: rgba(205,133,63,0.5); }
+        .user-role-sel.moderator { color: #7fae9b; border-color: rgba(127,174,155,0.45); }
+        @media (max-width: 620px) { .user-row { grid-template-columns: 1fr auto; } .user-meta { grid-column: 1 / -1; order: 3; } }
+
+        /* Lightbox */
+        .mod-lb { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.92); z-index: 9500; align-items: center; justify-content: center; padding: 2rem; cursor: zoom-out; }
+        .mod-lb.show { display: flex; }
+        .mod-lb img { max-width: 92vw; max-height: 88vh; border-radius: 8px; box-shadow: 0 20px 60px rgba(0,0,0,0.7); }
+
+        @media (max-width: 760px) {
+            .mod-card { grid-template-columns: 1fr; }
+            .mod-img-wrap { width: 100%; height: 200px; }
+            .mod-actions { flex-direction: row; min-width: 0; }
+            .mod-btn { flex: 1; }
+            .mod-form-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+
+<body class="mod-page">
+
+<header class="site-header">
+    <a class="logo-link" href="/index.html">
+        <img src="/assets/img/HistAdrLogo.png" alt="Адресът на историята" class="header-logo">
+        <span class="logo-text">Адресът на историята</span>
+    </a>
+    <nav class="nav">
+        <a href="/index.html">Начало</a>
+        <a href="/map.html">Карта</a>
+        <a href="/addresses.html">Адреси</a>
+        <a href="/calendar.html">Календар</a>
+        <a href="/news.html">Новини</a>
+        <a href="/about.html">За Нас</a>
+    </nav>
+    <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode"></button>
+</header>
+
+<main class="mod-main">
+    <div class="mod-header">
+        <p class="mod-eyebrow">Администрация</p>
+        <h1 class="mod-title">Модерация на предложения</h1>
+    </div>
+
+    <div id="modAccess">
+        <div class="mod-state"><div class="mod-spinner"></div><span>Проверка на достъпа…</span></div>
+    </div>
+
+    <div id="modPanel" style="display:none">
+        <div class="mod-views" id="modViews">
+            <button class="mod-view-btn active" data-view="submissions" type="button">📋 Предложения</button>
+            <button class="mod-view-btn" data-view="users" id="usersViewBtn" type="button" style="display:none">👥 Потребители</button>
+        </div>
+
+        <div id="viewSubmissions">
+            <div class="mod-tabs" id="modTabs" role="tablist">
+                <button class="mod-tab active" data-status="pending" role="tab">Изчакващи <span class="mod-tab-n" id="nPending"></span></button>
+                <button class="mod-tab" data-status="approved" role="tab">Одобрени</button>
+                <button class="mod-tab" data-status="rejected" role="tab">Отхвърлени</button>
+            </div>
+            <div id="modList" class="mod-list"></div>
+        </div>
+
+        <div id="viewUsers" style="display:none">
+            <p class="users-hint"><strong>Собственик</strong> — пълен достъп и управление на роли; <strong>Модератор</strong> — одобрява предложения; <strong>Потребител</strong> — обикновен достъп.</p>
+            <div id="usersList" class="users-list"></div>
+        </div>
+    </div>
+</main>
+
+<!-- Review / edit modal -->
+<div class="mod-modal" id="modModal">
+    <div class="mod-dialog" role="dialog" aria-modal="true">
+        <div class="mod-dialog-head">
+            <h2>Преглед на предложение</h2>
+            <button class="mod-dialog-close" id="modClose" aria-label="Затвори">×</button>
+        </div>
+        <div class="mod-dialog-body">
+            <div class="mod-fld full" style="margin-bottom:1.25rem;">
+                <label>Снимки</label>
+                <div class="ed-photos" id="edPhotos"></div>
+                <button type="button" class="mod-mini" id="edAddPhoto" style="margin-top:0.6rem;">➕ Добави снимка</button>
+                <input type="file" id="edFile" accept="image/*" multiple style="display:none">
+                <div class="mod-img-edit-note">Всяка снимка получава воден знак при публикуване. Кликнете снимка за уголемяване · <strong>×</strong> премахва я · <strong>⬇</strong> изтегля оригинала, за да го редактирате и качите наново.</div>
+            </div>
+
+            <div class="mod-form-grid">
+                <div class="mod-fld full">
+                    <label for="edTitle">Заглавие / Име <span class="req">*</span></label>
+                    <input id="edTitle" class="mod-inp" type="text" maxlength="200">
+                </div>
+                <div class="mod-fld">
+                    <label for="edCategory">Категория</label>
+                    <select id="edCategory" class="mod-sel">
+                        <option value="home">🏠 Дом / Личност</option>
+                        <option value="monument">🏛️ Паметник / сграда / институция</option>
+                        <option value="events">📅 Събитие</option>
+                    </select>
+                </div>
+                <div class="mod-fld">
+                    <label for="edCity">Град</label>
+                    <input id="edCity" class="mod-inp" type="text" maxlength="120">
+                </div>
+                <div class="mod-fld full">
+                    <label for="edAddress">Адрес (улица)</label>
+                    <input id="edAddress" class="mod-inp" type="text" maxlength="200">
+                </div>
+                <div class="mod-fld full">
+                    <label for="edDescription">Описание</label>
+                    <textarea id="edDescription" class="mod-txt" maxlength="5000"></textarea>
+                </div>
+                <div class="mod-fld">
+                    <label for="edLat">Ширина (lat)</label>
+                    <input id="edLat" class="mod-inp" type="text" inputmode="decimal">
+                </div>
+                <div class="mod-fld">
+                    <label for="edLng">Дължина (lng)</label>
+                    <input id="edLng" class="mod-inp" type="text" inputmode="decimal">
+                </div>
+                <div class="mod-fld full">
+                    <label for="edCredit">Предложено от (показва се на страницата)</label>
+                    <input id="edCredit" class="mod-inp" type="text" maxlength="120" placeholder="напр. Име на потребителя или „анонимен">
+                </div>
+
+                <div class="mod-fld full">
+                    <label for="edTags">Тагове (разделени със запетая)</label>
+                    <input id="edTags" class="mod-inp" type="text" maxlength="500" placeholder="напр. поет, 19-ти век, възрожденец">
+                </div>
+                <div class="mod-fld full">
+                    <label for="edSources">Източници (разделени с ; или нов ред)</label>
+                    <textarea id="edSources" class="mod-txt" maxlength="3000" placeholder="https://... ; Книга „...", автор" style="min-height:70px;"></textarea>
+                </div>
+
+                <div class="mod-fld">
+                    <label for="edDateMode">Дати</label>
+                    <select id="edDateMode" class="mod-sel">
+                        <option value="none">Без дати</option>
+                        <option value="two">2 дати (роден / починал)</option>
+                        <option value="one">1 дата (събитие)</option>
+                    </select>
+                </div>
+                <div class="mod-fld" id="edDate1Wrap" style="display:none">
+                    <label id="edDate1Label" for="edBirth">Роден / Създаден</label>
+                    <input id="edBirth" class="mod-inp" type="date">
+                </div>
+                <div class="mod-fld" id="edDate2Wrap" style="display:none">
+                    <label for="edDeath">Починал / Разрушен</label>
+                    <input id="edDeath" class="mod-inp" type="date">
+                </div>
+            </div>
+
+            <div class="mod-submitter" id="edSubmitter"></div>
+        </div>
+        <div class="mod-dialog-foot">
+            <button type="button" class="mod-foot-btn reject" id="edReject">✕ Отхвърли</button>
+            <button type="button" class="mod-foot-btn approve" id="edApprove"><span id="edApproveLabel">✓ Одобри и публикувай</span></button>
+        </div>
+    </div>
+</div>
+
+<div class="mod-lb" id="modLb"><img id="modLbImg" src="" alt=""></div>
+
+<footer class="site-footer">
+    <div class="footer-inner">
+        <p class="footer-links"><a href="/index.html">Начало</a> <span>•</span> <a href="/profile.html">Профил</a></p>
+        <p class="footer-copy">© <span id="year"></span> Адресът на историята</p>
+    </div>
+</footer>
+
+<script>
+(function() {
+    document.getElementById('year').textContent = new Date().getFullYear();
+
+    var access = document.getElementById('modAccess');
+    var panel  = document.getElementById('modPanel');
+    var listEl = document.getElementById('modList');
+    var tabs   = document.getElementById('modTabs');
+    var currentStatus = 'pending';
+
+    function toast(msg, opts) { (window.haToast || function(m){ alert(m); })(msg, opts); }
+
+    var CAT = {
+        home:     { label: 'Дом',       color: '#cd853f' },
+        monument: { label: 'Паметник',  color: '#5fa3a0' },
+        events:   { label: 'Събитие',   color: '#c87f5a' }
+    };
+    function fmtDate(iso) {
+        if (!iso) return '';
+        try { return new Date(iso).toLocaleDateString('bg-BG', { year: 'numeric', month: 'long', day: 'numeric' }); }
+        catch (e) { return ''; }
+    }
+    function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+
+    // ── Lightbox ──
+    var lb = document.getElementById('modLb'), lbImg = document.getElementById('modLbImg');
+    lb.addEventListener('click', function(){ lb.classList.remove('show'); lbImg.src = ''; });
+    document.addEventListener('keydown', function(e){ if (e.key === 'Escape') { lb.classList.remove('show'); lbImg.src = ''; } });
+
+    function buildCard(s) {
+        var cat = CAT[s.category] || CAT.home;
+        var card = document.createElement('div');
+        card.className = 'mod-card';
+        card.setAttribute('data-id', s.id);
+
+        var imgWrap = document.createElement('div');
+        imgWrap.className = 'mod-img-wrap';
+        if (s.image) {
+            var img = document.createElement('img');
+            img.src = s.image_thumb || s.image;
+            img.loading = 'lazy'; img.alt = s.title || '';
+            img.addEventListener('click', function(){ lbImg.src = s.image; lb.classList.add('show'); });
+            img.onerror = function(){ var ph = document.createElement('div'); ph.className = 'mod-img-ph'; ph.textContent = '🏛️'; imgWrap.innerHTML = ''; imgWrap.appendChild(ph); };
+            imgWrap.appendChild(img);
+        } else {
+            var ph = document.createElement('div'); ph.className = 'mod-img-ph'; ph.textContent = '🏛️';
+            imgWrap.appendChild(ph);
+        }
+
+        var body = document.createElement('div');
+        body.className = 'mod-body';
+        var chip = document.createElement('span');
+        chip.className = 'mod-cat'; chip.style.background = cat.color; chip.textContent = cat.label;
+        var name = document.createElement('h3'); name.className = 'mod-name'; name.textContent = s.title || '—';
+        var metaBits = [];
+        if (s.city) metaBits.push(s.city);
+        if (s.address) metaBits.push(s.address);
+        if (s.lat && s.lng) metaBits.push('📍 ' + (+s.lat).toFixed(4) + ', ' + (+s.lng).toFixed(4));
+        var meta = document.createElement('div'); meta.className = 'mod-meta'; meta.textContent = metaBits.join(' · ');
+        body.appendChild(chip); body.appendChild(name); if (metaBits.length) body.appendChild(meta);
+        if (s.description) { var d = document.createElement('p'); d.className = 'mod-desc'; d.textContent = s.description; body.appendChild(d); }
+        var sub = document.createElement('div'); sub.className = 'mod-sub';
+        var by = document.createElement('span'); by.appendChild(document.createTextNode('От: ')); var em = document.createElement('strong'); em.textContent = s.user_email || '—'; by.appendChild(em);
+        var dt = document.createElement('span'); dt.textContent = '🕓 ' + fmtDate(s.created_at);
+        sub.appendChild(by); sub.appendChild(dt);
+        body.appendChild(sub);
+
+        var actions = document.createElement('div');
+        actions.className = 'mod-actions';
+        if (s.status === 'pending') {
+            var review = document.createElement('button');
+            review.className = 'mod-btn review'; review.type = 'button';
+            review.innerHTML = '📝 Прегледай';
+            review.addEventListener('click', function(){ openEditor(s, card); });
+            var reject = document.createElement('button');
+            reject.className = 'mod-btn reject'; reject.type = 'button';
+            reject.innerHTML = '✕ Отхвърли';
+            reject.addEventListener('click', function(){
+                if (!confirm('Да отхвърля това предложение? Снимката ще бъде изтрита.')) return;
+                doModerate(card, s.id, { action: 'reject' });
+            });
+            actions.appendChild(review); actions.appendChild(reject);
+        } else {
+            var res = document.createElement('div');
+            res.className = 'mod-result ' + s.status;
+            res.textContent = s.status === 'approved' ? '✓ Одобрено' : '✕ Отхвърлено';
+            actions.appendChild(res);
+            if (s.status === 'approved' && s.slug) {
+                var view = document.createElement('a');
+                view.className = 'mod-btn'; view.href = '/address.html?slug=' + encodeURIComponent(s.slug);
+                view.target = '_blank'; view.textContent = 'Виж на сайта';
+                actions.appendChild(view);
+            }
+        }
+
+        card.appendChild(imgWrap); card.appendChild(body); card.appendChild(actions);
+        return card;
+    }
+
+    // ── Editor modal ──
+    var modal = document.getElementById('modModal');
+    var editing = null;       // { s, card }
+    var keptUrls = [];        // pending photo URLs the moderator keeps
+    var newFiles = [];        // moderator-added File objects
+    var elPhotos = document.getElementById('edPhotos');
+    var elFile = document.getElementById('edFile');
+
+    function renderPhotos() {
+        elPhotos.innerHTML = '';
+        if (editing) (editing.s.images || []).forEach(function(im){
+            if (keptUrls.indexOf(im.url) === -1) return;
+            var d = document.createElement('div'); d.className = 'ed-photo';
+            var img = document.createElement('img'); img.src = im.thumb || im.url; img.alt = '';
+            img.addEventListener('click', function(){ lbImg.src = im.url; lb.classList.add('show'); });
+            var dl = document.createElement('a'); dl.className = 'ed-dl'; dl.href = im.download; dl.setAttribute('download', ''); dl.title = 'Изтегли оригинала'; dl.textContent = '⬇';
+            var x = document.createElement('button'); x.type = 'button'; x.className = 'ed-x'; x.title = 'Премахни'; x.textContent = '×';
+            x.addEventListener('click', function(){ var i = keptUrls.indexOf(im.url); if (i > -1) keptUrls.splice(i, 1); renderPhotos(); });
+            d.appendChild(img); d.appendChild(dl); d.appendChild(x); elPhotos.appendChild(d);
+        });
+        newFiles.forEach(function(f, idx){
+            var d = document.createElement('div'); d.className = 'ed-photo';
+            var img = document.createElement('img'); img.src = URL.createObjectURL(f); img.alt = '';
+            var badge = document.createElement('span'); badge.className = 'ed-badge'; badge.textContent = 'нова';
+            var x = document.createElement('button'); x.type = 'button'; x.className = 'ed-x'; x.title = 'Премахни'; x.textContent = '×';
+            x.addEventListener('click', function(){ newFiles.splice(idx, 1); renderPhotos(); });
+            d.appendChild(img); d.appendChild(badge); d.appendChild(x); elPhotos.appendChild(d);
+        });
+    }
+
+    var dateMode = document.getElementById('edDateMode');
+    function applyDateMode() {
+        var m = dateMode.value;
+        document.getElementById('edDate1Wrap').style.display = (m === 'none') ? 'none' : '';
+        document.getElementById('edDate2Wrap').style.display = (m === 'two')  ? '' : 'none';
+        document.getElementById('edDate1Label').textContent = (m === 'one') ? 'Дата на събитието' : 'Роден / Създаден';
+    }
+    dateMode.addEventListener('change', applyDateMode);
+
+    function openEditor(s, card) {
+        editing = { s: s, card: card };
+        keptUrls = (s.images || []).map(function(im){ return im.url; });
+        newFiles = [];
+        elFile.value = '';
+
+        document.getElementById('edTitle').value = s.title || '';
+        document.getElementById('edCategory').value = (CAT[s.category] ? s.category : 'home');
+        document.getElementById('edCity').value = s.city || '';
+        document.getElementById('edAddress').value = s.address || '';
+        document.getElementById('edDescription').value = s.description || '';
+        document.getElementById('edLat').value = (s.lat != null ? s.lat : '');
+        document.getElementById('edLng').value = (s.lng != null ? s.lng : '');
+        document.getElementById('edCredit').value = '';
+        document.getElementById('edTags').value = '';
+        document.getElementById('edSources').value = '';
+        document.getElementById('edBirth').value = '';
+        document.getElementById('edDeath').value = '';
+        dateMode.value = (s.category === 'events') ? 'one' : 'none';
+        applyDateMode();
+        document.getElementById('edSubmitter').innerHTML = 'Изпратено от <strong>' + esc(s.user_email || '—') + '</strong> на ' + esc(fmtDate(s.created_at));
+
+        renderPhotos();
+        modal.classList.add('show');
+        document.body.style.overflow = 'hidden';
+    }
+    function closeEditor() { modal.classList.remove('show'); document.body.style.overflow = ''; editing = null; }
+    document.getElementById('modClose').addEventListener('click', closeEditor);
+    modal.addEventListener('click', function(e){ if (e.target === modal) closeEditor(); });
+    document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && modal.classList.contains('show')) closeEditor(); });
+
+    document.getElementById('edAddPhoto').addEventListener('click', function(){ elFile.click(); });
+    elFile.addEventListener('change', function(e){
+        Array.prototype.slice.call(e.target.files || []).forEach(function(f){
+            if (keptUrls.length + newFiles.length >= 6) { toast('Максимум 6 снимки.'); return; }
+            if (!/^image\//.test(f.type)) { toast('„' + f.name + '" не е изображение.'); return; }
+            if (f.size > 10 * 1024 * 1024) { toast('„' + f.name + '" е твърде голяма (макс. 10 MB).'); return; }
+            newFiles.push(f);
+        });
+        elFile.value = '';
+        renderPhotos();
+    });
+
+    document.getElementById('edApprove').addEventListener('click', function(){
+        if (!editing) return;
+        var title = document.getElementById('edTitle').value.trim();
+        if (!title) { toast('Заглавието е задължително.'); return; }
+        var fd = new FormData();
+        fd.append('action', 'approve');
+        fd.append('title', title);
+        fd.append('category', document.getElementById('edCategory').value);
+        fd.append('city', document.getElementById('edCity').value.trim());
+        fd.append('address', document.getElementById('edAddress').value.trim());
+        fd.append('description', document.getElementById('edDescription').value.trim());
+        fd.append('lat', document.getElementById('edLat').value.trim());
+        fd.append('lng', document.getElementById('edLng').value.trim());
+        fd.append('credit', document.getElementById('edCredit').value.trim());
+        fd.append('tags', document.getElementById('edTags').value.trim());
+        fd.append('sources', document.getElementById('edSources').value.trim());
+        var dm = dateMode.value;
+        if (dm !== 'none') fd.append('birth_date', document.getElementById('edBirth').value);
+        if (dm === 'two')  fd.append('death_date', document.getElementById('edDeath').value);
+        fd.append('keptImages', JSON.stringify(keptUrls));
+        newFiles.forEach(function(f){ fd.append('images', f); });
+
+        var btn = document.getElementById('edApprove');
+        var lbl = document.getElementById('edApproveLabel');
+        btn.disabled = true; document.getElementById('edReject').disabled = true;
+        var sp = document.createElement('span'); sp.className = 'btn-spinner'; lbl.textContent = ' Публикуване…'; btn.insertBefore(sp, lbl);
+
+        sendModerate(editing.s.id, fd)
+            .then(function(r){
+                if (!r.ok) { resetApprove(); toast((r.data && r.data.error) || 'Възникна грешка.'); return; }
+                var card = editing.card;
+                closeEditor();
+                toast('Одобрено и публикувано ✓', { duration: 2200 });
+                removeCard(card);
+            })
+            .catch(function(){ resetApprove(); toast('Възникна грешка при свързване.'); });
+    });
+
+    function resetApprove() {
+        var btn = document.getElementById('edApprove');
+        btn.disabled = false; document.getElementById('edReject').disabled = false;
+        var sp = btn.querySelector('.btn-spinner'); if (sp) sp.remove();
+        document.getElementById('edApproveLabel').textContent = '✓ Одобри и публикувай';
+    }
+
+    document.getElementById('edReject').addEventListener('click', function(){
+        if (!editing) return;
+        if (!confirm('Да отхвърля това предложение? Снимката ще бъде изтрита.')) return;
+        var fd = new FormData(); fd.append('action', 'reject');
+        var card = editing.s ? editing.card : null;
+        var id = editing.s.id;
+        document.getElementById('edReject').disabled = true; document.getElementById('edApprove').disabled = true;
+        sendModerate(id, fd).then(function(r){
+            resetApprove();
+            if (!r.ok) { toast((r.data && r.data.error) || 'Възникна грешка.'); return; }
+            closeEditor();
+            toast('Предложението е отхвърлено', { duration: 2200 });
+            removeCard(card);
+        }).catch(function(){ resetApprove(); toast('Възникна грешка при свързване.'); });
+    });
+
+    function sendModerate(id, fd) {
+        return fetch('/api/admin/moderate/' + encodeURIComponent(id), { method: 'POST', credentials: 'include', body: fd })
+            .then(function(res){ return res.json().catch(function(){ return {}; }).then(function(data){ return { ok: res.ok, status: res.status, data: data }; }); });
+    }
+
+    // Quick reject directly from a card (no modal)
+    function doModerate(card, id, payload) {
+        var btns = card.querySelectorAll('.mod-btn');
+        Array.prototype.forEach.call(btns, function(b){ b.disabled = true; });
+        var fd = new FormData();
+        Object.keys(payload).forEach(function(k){ fd.append(k, payload[k]); });
+        sendModerate(id, fd).then(function(r){
+            if (!r.ok) { Array.prototype.forEach.call(btns, function(b){ b.disabled = false; }); toast((r.data && r.data.error) || 'Възникна грешка.'); return; }
+            toast(payload.action === 'approve' ? 'Одобрено ✓' : 'Отхвърлено', { duration: 2000 });
+            removeCard(card);
+        }).catch(function(){ Array.prototype.forEach.call(btns, function(b){ b.disabled = false; }); toast('Възникна грешка при свързване.'); });
+    }
+
+    function removeCard(card) {
+        if (!card) { loadQueue(currentStatus); return; }
+        card.style.transition = 'opacity 0.3s, transform 0.3s';
+        card.style.opacity = '0'; card.style.transform = 'scale(0.97)';
+        setTimeout(function(){
+            card.remove();
+            updatePendingCount(-1);
+            if (!listEl.querySelector('.mod-card')) showEmpty(currentStatus);
+        }, 280);
+    }
+
+    function showEmpty(status) {
+        var msg = status === 'pending'
+            ? '<span class="mod-empty-icon">✅</span>Няма чакащи предложения. Чисто е!'
+            : (status === 'approved'
+                ? '<span class="mod-empty-icon">📭</span>Няма одобрени предложения все още.'
+                : '<span class="mod-empty-icon">📭</span>Няма отхвърлени предложения.');
+        listEl.innerHTML = '<div class="mod-empty">' + msg + '</div>';
+    }
+
+    var pendingCount = 0;
+    function setPendingCount(n) { pendingCount = n; document.getElementById('nPending').textContent = n ? '(' + n + ')' : ''; }
+    function updatePendingCount(delta) { if (currentStatus === 'pending') setPendingCount(Math.max(0, pendingCount + delta)); }
+
+    function renderItems(items, status) {
+        if (status === 'pending') setPendingCount(items.length);
+        if (!items.length) { showEmpty(status); return; }
+        listEl.innerHTML = '';
+        items.forEach(function(s){ listEl.appendChild(buildCard(s)); });
+    }
+
+    function loadQueue(status) {
+        currentStatus = status;
+        listEl.innerHTML = '<div class="mod-state"><div class="mod-spinner"></div><span>Зареждане…</span></div>';
+        fetch('/api/admin/pending?status=' + encodeURIComponent(status), { credentials: 'include' })
+            .then(function(res){
+                if (res.status === 401) { location.href = '/login.html'; throw 'auth'; }
+                if (res.status === 403) { showDenied(); throw 'denied'; }
+                if (!res.ok) throw new Error();
+                return res.json();
+            })
+            .then(function(items){ renderItems(items, status); })
+            .catch(function(err){
+                if (err === 'auth' || err === 'denied') return;
+                listEl.innerHTML = '<div class="mod-empty"><span class="mod-empty-icon">⚠️</span>Грешка при зареждане.</div>';
+            });
+    }
+
+    function showDenied() {
+        access.innerHTML =
+            '<div class="mod-denied">' +
+                '<div class="mod-denied-icon">🔒</div>' +
+                '<h2>Нямате достъп</h2>' +
+                '<p>Тази страница е достъпна само за модератори и собственици на проекта.</p>' +
+                '<a href="/index.html">Към началната страница</a>' +
+            '</div>';
+        access.style.display = '';
+        panel.style.display = 'none';
+    }
+
+    tabs.addEventListener('click', function(e){
+        var btn = e.target.closest('.mod-tab');
+        if (!btn) return;
+        Array.prototype.forEach.call(tabs.querySelectorAll('.mod-tab'), function(t){ t.classList.toggle('active', t === btn); });
+        loadQueue(btn.getAttribute('data-status'));
+    });
+
+    // ── Top-level view switcher (Submissions / Users) ──
+    var views = document.getElementById('modViews');
+    var usersLoaded = false;
+    views.addEventListener('click', function(e){
+        var btn = e.target.closest('.mod-view-btn');
+        if (!btn) return;
+        Array.prototype.forEach.call(views.querySelectorAll('.mod-view-btn'), function(b){ b.classList.toggle('active', b === btn); });
+        var v = btn.getAttribute('data-view');
+        document.getElementById('viewSubmissions').style.display = (v === 'submissions') ? '' : 'none';
+        document.getElementById('viewUsers').style.display = (v === 'users') ? '' : 'none';
+        if (v === 'users') loadUsers();
+    });
+
+    // ── User / role management (owner only) ──
+    var ROLE_LABEL = { user: 'Потребител', moderator: 'Модератор', owner: 'Собственик' };
+    function loadUsers() {
+        var list = document.getElementById('usersList');
+        list.innerHTML = '<div class="mod-state"><div class="mod-spinner"></div><span>Зареждане…</span></div>';
+        fetch('/api/admin/users', { credentials: 'include' })
+            .then(function(res){
+                if (res.status === 403) { list.innerHTML = '<div class="mod-empty">Само собственици могат да управляват роли.</div>'; throw 'no'; }
+                if (!res.ok) throw new Error();
+                return res.json();
+            })
+            .then(function(users){
+                list.innerHTML = '';
+                users.forEach(function(u){ list.appendChild(buildUserRow(u)); });
+            })
+            .catch(function(err){ if (err === 'no') return; list.innerHTML = '<div class="mod-empty"><span class="mod-empty-icon">⚠️</span>Грешка при зареждане.</div>'; });
+    }
+    function buildUserRow(u) {
+        var row = document.createElement('div'); row.className = 'user-row';
+
+        var emailWrap = document.createElement('div');
+        var email = document.createElement('div'); email.className = 'user-email'; email.textContent = u.email;
+        if (u.self) { var self = document.createElement('span'); self.className = 'user-self'; self.textContent = '(вие)'; email.appendChild(self); }
+        emailWrap.appendChild(email);
+
+        var meta = document.createElement('div'); meta.className = 'user-meta';
+        meta.textContent = (u.submissions ? u.submissions + ' предл. · ' : '') + 'от ' + fmtDate(u.created_at);
+
+        var sel = document.createElement('select'); sel.className = 'user-role-sel ' + u.role;
+        ['user', 'moderator', 'owner'].forEach(function(r){
+            var o = document.createElement('option'); o.value = r; o.textContent = ROLE_LABEL[r];
+            if (r === u.role) o.selected = true; sel.appendChild(o);
+        });
+        if (u.self) { sel.disabled = true; sel.title = 'Не можете да променяте собствената си роля'; }
+        sel.addEventListener('change', function(){
+            var newRole = sel.value, prev = u.role;
+            sel.disabled = true;
+            fetch('/api/admin/users/' + encodeURIComponent(u.id) + '/role', {
+                method: 'PUT', credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ role: newRole })
+            })
+            .then(function(res){ return res.json().catch(function(){ return {}; }).then(function(d){ return { ok: res.ok, data: d }; }); })
+            .then(function(r){
+                sel.disabled = u.self;
+                if (!r.ok) { sel.value = prev; toast((r.data && r.data.error) || 'Грешка при промяна на ролята.'); return; }
+                u.role = newRole; sel.className = 'user-role-sel ' + newRole;
+                toast('Ролята е обновена: ' + ROLE_LABEL[newRole], { duration: 2000 });
+            })
+            .catch(function(){ sel.disabled = false; sel.value = prev; toast('Грешка при свързване.'); });
+        });
+
+        row.appendChild(emailWrap); row.appendChild(meta); row.appendChild(sel);
+        return row;
+    }
+
+    // ── Boot: first load doubles as the access check ──
+    fetch('/api/admin/pending?status=pending', { credentials: 'include' })
+        .then(function(res){
+            if (res.status === 401) { location.href = '/login.html'; throw 'auth'; }
+            if (res.status === 403) { showDenied(); throw 'denied'; }
+            if (!res.ok) throw new Error();
+            return res.json();
+        })
+        .then(function(items){
+            access.style.display = 'none';
+            panel.style.display = '';
+            renderItems(items, 'pending');
+            // Reveal the Users tab only for owners.
+            fetch('/api/auth/me', { credentials: 'include' })
+                .then(function(r){ return r.ok ? r.json() : null; })
+                .then(function(me){ if (me && me.role === 'owner') document.getElementById('usersViewBtn').style.display = ''; })
+                .catch(function(){});
+        })
+        .catch(function(err){
+            if (err === 'auth' || err === 'denied') return;
+            access.innerHTML = '<div class="mod-denied"><div class="mod-denied-icon">⚠️</div><h2>Грешка</h2><p>Неуспешно зареждане. Опитайте да презаредите страницата.</p><a href="/index.html">Към началото</a></div>';
+        });
+})();
+</script>
+</body>
+</html>

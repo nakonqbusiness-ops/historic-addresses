@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="bg" data-theme="dark">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <link rel="icon" type="image/png" href="/assets/img/favicon-96x96.png" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="/assets/img/favicon.svg" />
+    <link rel="shortcut icon" href="/assets/img/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/img/apple-touch-icon.png" />
+    <link rel="manifest" href="/assets/img/site.webmanifest" />
+
+    <title>Предложи локация — Адресът на историята</title>
+    <meta name="description" content="Предложете нова историческа локация за добавяне в архива.">
+    <meta name="robots" content="noindex, follow">
+
+    <script>
+        (function() {
+            try {
+                var stored = localStorage.getItem('theme-preference');
+                if (stored === 'system') stored = 'dark';
+                var theme = (stored === 'dark' || stored === 'light') ? stored : 'dark';
+                document.documentElement.setAttribute('data-theme', theme);
+            } catch(e) {}
+        })();
+    </script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Mulish:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="assets/css/styles.css">
+    <script defer src="assets/js/theme.js"></script>
+    <script defer src="assets/js/transitions.js"></script>
+    <script defer src="assets/js/account-nav.js?v=5"></script>
+
+    <style>
+        :root { --font-display: 'Cormorant Garamond', Georgia, serif; --font-body: 'Mulish', sans-serif; }
+        .sg-page, .sg-page * { font-family: var(--font-body); }
+
+        .sg-main { max-width: 680px; margin: 0 auto; padding: clamp(1.75rem, 4vw, 3.5rem) 1.25rem 5rem; }
+
+        .sg-head { text-align: center; margin-bottom: 2rem; }
+        .sg-eyebrow { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; color: var(--accent-strong); margin: 0 0 0.5rem; }
+        .sg-title { font-family: var(--font-display); font-size: clamp(2rem, 5vw, 2.9rem); font-weight: 700; color: var(--fg); margin: 0 0 0.6rem; line-height: 1.1; }
+        .sg-sub { color: var(--muted); font-size: 0.98rem; line-height: 1.6; max-width: 520px; margin: 0 auto; }
+
+        .sg-card {
+            position: relative;
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: 18px; box-shadow: var(--shadow);
+            padding: clamp(1.5rem, 4vw, 2.5rem);
+            overflow: hidden;
+        }
+        .sg-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--accent-gradient); }
+
+        .sg-field { margin-bottom: 1.25rem; }
+        .sg-field label { display: block; font-size: 0.82rem; font-weight: 700; color: var(--fg); margin-bottom: 0.45rem; }
+        .sg-field .req { color: var(--accent-strong); }
+        .sg-hint { font-size: 0.74rem; color: var(--muted); margin-top: 0.35rem; opacity: 0.85; }
+
+        .sg-input, .sg-select, .sg-textarea {
+            width: 100%; box-sizing: border-box;
+            padding: 0.8rem 1rem; background: var(--bg);
+            border: 1px solid var(--border); border-radius: 11px;
+            color: var(--fg); font-family: var(--font-body); font-size: 0.95rem;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .sg-textarea { min-height: 110px; resize: vertical; line-height: 1.6; }
+        .sg-input:focus, .sg-select:focus, .sg-textarea:focus {
+            outline: none; border-color: var(--accent-strong); box-shadow: 0 0 0 3px rgba(205,133,63,0.15);
+        }
+        .sg-select {
+            appearance: none; -webkit-appearance: none; cursor: pointer;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23a89378' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+            background-repeat: no-repeat; background-position: right 1rem center; padding-right: 2.5rem;
+        }
+        .sg-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+
+        /* Image upload */
+        .sg-drop {
+            border: 2px dashed var(--border); border-radius: 12px;
+            padding: 1.5rem; text-align: center; cursor: pointer;
+            transition: border-color 0.2s, background 0.2s; color: var(--muted);
+        }
+        .sg-drop:hover, .sg-drop.drag { border-color: var(--accent-strong); background: rgba(205,133,63,0.05); }
+        .sg-drop-icon { font-size: 1.8rem; opacity: 0.5; display: block; margin-bottom: 0.4rem; }
+        .sg-drop-text { font-size: 0.88rem; }
+        .sg-drop-text strong { color: var(--accent-strong); }
+        .sg-previews { margin-top: 0.85rem; display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 0.6rem; }
+        .sg-previews:empty { display: none; }
+        .sg-prev-item { position: relative; aspect-ratio: 1 / 1; border-radius: 10px; overflow: hidden; background: var(--border); }
+        .sg-prev-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .sg-prev-remove {
+            position: absolute; top: 0.35rem; right: 0.35rem; width: 26px; height: 26px;
+            border-radius: 50%; border: none; background: rgba(0,0,0,0.62); color: #fff;
+            cursor: pointer; font-size: 1rem; line-height: 1; display: flex; align-items: center; justify-content: center;
+        }
+        .sg-prev-remove:hover { background: rgba(201,80,80,0.92); }
+
+        .sg-submit {
+            width: 100%; margin-top: 0.5rem; padding: 0.95rem; border: none; border-radius: 12px; cursor: pointer;
+            background: var(--accent-gradient); color: #1a1410;
+            font-family: var(--font-body); font-size: 1rem; font-weight: 700; letter-spacing: 0.02em;
+            display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+            transition: transform 0.15s, box-shadow 0.2s, opacity 0.2s;
+        }
+        .sg-submit:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 8px 22px rgba(205,133,63,0.3); }
+        .sg-submit:disabled { opacity: 0.6; cursor: not-allowed; }
+        .btn-spinner { width: 16px; height: 16px; border: 2px solid rgba(26,20,16,0.3); border-top-color: #1a1410; border-radius: 50%; animation: spin 0.7s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Guest lock overlay */
+        .sg-form-wrap { position: relative; }
+        .sg-form.locked { filter: blur(3px); opacity: 0.5; pointer-events: none; user-select: none; }
+        .sg-lock {
+            position: absolute; inset: 0; display: none;
+            align-items: center; justify-content: center; padding: 1rem; z-index: 5;
+        }
+        .sg-lock.show { display: flex; }
+        .sg-lock-card {
+            background: var(--card); border: 1px solid var(--accent-strong); border-radius: 16px;
+            box-shadow: 0 16px 50px rgba(0,0,0,0.55); padding: 2rem 1.75rem; text-align: center; max-width: 380px;
+            backdrop-filter: blur(8px);
+        }
+        .sg-lock-icon { font-size: 2.4rem; margin-bottom: 0.75rem; }
+        .sg-lock-title { font-family: var(--font-display); font-size: 1.5rem; font-weight: 700; color: var(--fg); margin: 0 0 0.6rem; line-height: 1.2; }
+        .sg-lock-text { color: var(--muted); font-size: 0.92rem; line-height: 1.6; margin: 0 0 1.4rem; }
+        .sg-lock-btns { display: flex; gap: 0.7rem; justify-content: center; flex-wrap: wrap; }
+        .sg-lock-btn {
+            flex: 1; min-width: 130px; padding: 0.75rem 1rem; border-radius: 10px; text-decoration: none;
+            font-weight: 700; font-size: 0.9rem; transition: transform 0.15s, box-shadow 0.2s, background 0.2s;
+        }
+        .sg-lock-btn.primary { background: var(--accent-gradient); color: #1a1410; }
+        .sg-lock-btn.primary:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(205,133,63,0.3); }
+        .sg-lock-btn.ghost { background: transparent; border: 1px solid var(--border); color: var(--fg); }
+        .sg-lock-btn.ghost:hover { border-color: var(--accent-strong); color: var(--accent-strong); }
+
+        /* Success state */
+        .sg-success { display: none; text-align: center; padding: 1rem 0; }
+        .sg-success.show { display: block; animation: authIn 0.4s ease both; }
+        @keyframes authIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+        .sg-success-icon {
+            width: 72px; height: 72px; margin: 0 auto 1rem; border-radius: 50%;
+            background: rgba(124,170,120,0.16); border: 1px solid rgba(124,170,120,0.5);
+            display: flex; align-items: center; justify-content: center; font-size: 2rem;
+        }
+        .sg-success h2 { font-family: var(--font-display); font-size: 1.7rem; color: var(--fg); margin: 0 0 0.6rem; }
+        .sg-success p { color: var(--muted); line-height: 1.6; margin: 0 0 1.5rem; }
+        .sg-success-actions { display: flex; gap: 0.7rem; justify-content: center; flex-wrap: wrap; }
+        .sg-success-actions a, .sg-success-actions button {
+            padding: 0.7rem 1.3rem; border-radius: 10px; text-decoration: none; font-weight: 700; font-size: 0.9rem; cursor: pointer; border: 1px solid var(--border); background: transparent; color: var(--fg);
+        }
+        .sg-success-actions .primary { background: var(--accent-gradient); color: #1a1410; border: none; }
+
+        @media (max-width: 520px) { .sg-row { grid-template-columns: 1fr; } }
+    </style>
+</head>
+
+<body class="sg-page">
+
+<header class="site-header">
+    <a class="logo-link" href="index.html">
+        <img src="assets/img/HistAdrLogo.png" alt="Адресът на историята" class="header-logo">
+        <span class="logo-text">Адресът на историята</span>
+    </a>
+    <nav class="nav">
+        <a href="index.html">Начало</a>
+        <a href="map.html">Карта</a>
+        <a href="addresses.html">Адреси</a>
+        <a href="calendar.html">Календар</a>
+        <a href="news.html">Новини</a>
+        <a href="about.html">За Нас</a>
+    </nav>
+    <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode"></button>
+</header>
+
+<main class="sg-main">
+    <div class="sg-head">
+        <p class="sg-eyebrow">Помогни на архива</p>
+        <h1 class="sg-title">Предложи локация</h1>
+        <p class="sg-sub">Знаете ли исторически дом, паметник или сграда, които липсват? Изпратете предложение със снимка — нашият екип ще го прегледа и публикува.</p>
+    </div>
+
+    <div class="sg-card">
+        <!-- Success -->
+        <div class="sg-success" id="sgSuccess">
+            <div class="sg-success-icon">✓</div>
+            <h2>Благодарим Ви!</h2>
+            <p>Вашето предложение беше изпратено успешно и очаква одобрение от модератор. Можете да следите състоянието му в профила си.</p>
+            <div class="sg-success-actions">
+                <a class="primary" href="profile.html">Моите предложения</a>
+                <button type="button" id="sgAgain">Предложи още една</button>
+            </div>
+        </div>
+
+        <!-- Form (+ guest lock overlay) -->
+        <div class="sg-form-wrap" id="sgFormWrap">
+            <div class="sg-lock" id="sgLock">
+                <div class="sg-lock-card">
+                    <div class="sg-lock-icon">🔒</div>
+                    <h3 class="sg-lock-title">Нужен е профил</h3>
+                    <p class="sg-lock-text">За да изпратите предложение, моля влезте в профила си или се регистрирайте.</p>
+                    <div class="sg-lock-btns">
+                        <a class="sg-lock-btn primary" href="login.html">Вход</a>
+                        <a class="sg-lock-btn ghost" href="register.html">Регистрация</a>
+                    </div>
+                </div>
+            </div>
+
+            <form class="sg-form locked" id="sgForm" novalidate>
+                <div class="sg-field">
+                    <label for="sgTitle">Заглавие / Име <span class="req">*</span></label>
+                    <input id="sgTitle" class="sg-input" type="text" maxlength="200" placeholder="напр. „Къщата на Иван Вазов" или „Първа банка"" required>
+                </div>
+
+                <div class="sg-row">
+                    <div class="sg-field">
+                        <label for="sgCategory">Категория <span class="req">*</span></label>
+                        <select id="sgCategory" class="sg-select" required>
+                            <option value="home">🏠 Дом / Личност</option>
+                            <option value="monument">🏛️ Паметник / сграда / институция</option>
+                            <option value="events">📅 Събитие</option>
+                        </select>
+                    </div>
+                    <div class="sg-field">
+                        <label for="sgCity">Град</label>
+                        <input id="sgCity" class="sg-input" type="text" maxlength="120" placeholder="напр. София">
+                    </div>
+                </div>
+
+                <div class="sg-field">
+                    <label for="sgAddress">Адрес (улица)</label>
+                    <input id="sgAddress" class="sg-input" type="text" maxlength="200" placeholder="напр. ул. „Раковски" 12">
+                </div>
+
+                <div class="sg-field">
+                    <label for="sgDescription">Описание</label>
+                    <textarea id="sgDescription" class="sg-textarea" maxlength="5000" placeholder="Разкажете накратко историята на това място…"></textarea>
+                </div>
+
+                <div class="sg-row">
+                    <div class="sg-field">
+                        <label for="sgLat">Ширина (lat)</label>
+                        <input id="sgLat" class="sg-input" type="text" inputmode="decimal" placeholder="напр. 42.6977">
+                    </div>
+                    <div class="sg-field">
+                        <label for="sgLng">Дължина (lng)</label>
+                        <input id="sgLng" class="sg-input" type="text" inputmode="decimal" placeholder="напр. 23.3219">
+                    </div>
+                </div>
+                <p class="sg-hint" style="margin-top:-0.75rem;margin-bottom:1.25rem;">Координатите са по желание — нужни са, за да се покаже мястото на картата.</p>
+
+                <div class="sg-field">
+                    <label>Снимки</label>
+                    <div class="sg-drop" id="sgDrop">
+                        <span class="sg-drop-icon">📷</span>
+                        <span class="sg-drop-text">Плъзнете снимки тук или <strong>изберете файлове</strong></span>
+                        <input id="sgFile" type="file" accept="image/*" multiple style="display:none">
+                    </div>
+                    <div class="sg-previews" id="sgPreviews"></div>
+                    <p class="sg-hint">До 6 снимки, по 10 MB всяка. 💡 <strong>Ако на сградата има паметна плоча (табела), моля снимайте и нея</strong> — помага за проверката.</p>
+                </div>
+
+                <button type="submit" class="sg-submit" id="sgSubmit">
+                    <span id="sgSubmitLabel">Изпрати предложение</span>
+                </button>
+            </form>
+        </div>
+    </div>
+</main>
+
+<footer class="site-footer">
+    <div class="footer-inner">
+        <div class="footer-social">
+            <a href="https://instagram.com/historyaddress.bg" target="_blank" rel="noopener noreferrer" class="social-link">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
+                Instagram
+            </a>
+            <a href="mailto:historyaddressbg@gmail.com" class="social-link">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                Email
+            </a>
+        </div>
+        <a href="https://buymeacoffee.com/historyaddress.bg" target="_blank" rel="noopener noreferrer" class="footer-donate" aria-label="Подкрепете ни — дарение">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+          Подкрепете ни
+        </a>
+
+        <p class="footer-links">
+            <a href="privacy.html">Поверителност</a><span>•</span>
+            <a href="terms.html">Условия</a><span>•</span>
+            <a href="copyright.html">Авторски права</a>
+        </p>
+        <p class="footer-copy">© <span id="year"></span> Адресът на историята</p>
+    </div>
+</footer>
+
+<script>
+(function() {
+    document.getElementById('year').textContent = new Date().getFullYear();
+
+    var form    = document.getElementById('sgForm');
+    var lock    = document.getElementById('sgLock');
+    var success = document.getElementById('sgSuccess');
+    var formWrap= document.getElementById('sgFormWrap');
+    var submit  = document.getElementById('sgSubmit');
+    var label   = document.getElementById('sgSubmitLabel');
+    var fileInput = document.getElementById('sgFile');
+    var drop     = document.getElementById('sgDrop');
+    var previews = document.getElementById('sgPreviews');
+    var selectedFiles = [];
+    var MAX_FILES = 6;
+    var loggedIn = false;
+
+    function toast(msg, opts) { (window.haToast || function(m){ alert(m); })(msg, opts); }
+
+    // ── Auth gate ──
+    fetch('/api/auth/me', { credentials: 'include' })
+        .then(function(r){ return r.ok ? r.json() : null; })
+        .then(function(me){
+            loggedIn = !!me;
+            if (loggedIn) {
+                form.classList.remove('locked');
+                lock.classList.remove('show');
+                enableForm(true);
+            } else {
+                form.classList.add('locked');
+                lock.classList.add('show');
+                enableForm(false);
+            }
+        })
+        .catch(function(){
+            form.classList.add('locked'); lock.classList.add('show'); enableForm(false);
+        });
+
+    function enableForm(on) {
+        Array.prototype.forEach.call(form.querySelectorAll('input, select, textarea, button'), function(el){
+            el.disabled = !on;
+        });
+    }
+
+    // ── Image picking (multiple) ──
+    drop.addEventListener('click', function(){ if (loggedIn) fileInput.click(); });
+    drop.addEventListener('dragover', function(e){ e.preventDefault(); if (loggedIn) drop.classList.add('drag'); });
+    drop.addEventListener('dragleave', function(){ drop.classList.remove('drag'); });
+    drop.addEventListener('drop', function(e){
+        e.preventDefault(); drop.classList.remove('drag');
+        if (!loggedIn) return;
+        addFiles(e.dataTransfer.files);
+    });
+    fileInput.addEventListener('change', function(e){ addFiles(e.target.files); fileInput.value = ''; });
+
+    function addFiles(fileList) {
+        Array.prototype.slice.call(fileList || []).forEach(function(f){
+            if (selectedFiles.length >= MAX_FILES) { toast('Максимум ' + MAX_FILES + ' снимки.'); return; }
+            if (!/^image\//.test(f.type)) { toast('„' + f.name + '" не е изображение.'); return; }
+            if (f.size > 10 * 1024 * 1024) { toast('„' + f.name + '" е твърде голяма (макс. 10 MB).'); return; }
+            selectedFiles.push(f);
+        });
+        renderPreviews();
+    }
+    function renderPreviews() {
+        previews.innerHTML = '';
+        selectedFiles.forEach(function(f, idx) {
+            var item = document.createElement('div'); item.className = 'sg-prev-item';
+            var img = document.createElement('img'); img.src = URL.createObjectURL(f); img.alt = '';
+            var rm = document.createElement('button'); rm.type = 'button'; rm.className = 'sg-prev-remove'; rm.textContent = '×'; rm.setAttribute('aria-label', 'Премахни снимката');
+            rm.addEventListener('click', function(){ selectedFiles.splice(idx, 1); renderPreviews(); });
+            item.appendChild(img); item.appendChild(rm); previews.appendChild(item);
+        });
+    }
+
+    function setLoading(on) {
+        submit.disabled = on;
+        label.textContent = on ? 'Изпращане…' : 'Изпрати предложение';
+        var sp = submit.querySelector('.btn-spinner');
+        if (on && !sp) { sp = document.createElement('span'); sp.className = 'btn-spinner'; submit.insertBefore(sp, label); }
+        if (!on && sp) sp.remove();
+    }
+
+    function friendly(serverMsg, status) {
+        var m = (serverMsg || '').toLowerCase();
+        if (status === 401) return 'Сесията изтече. Моля влезте отново.';
+        if (status === 429 || m.indexOf('лимит') > -1) return serverMsg || 'Достигнахте лимита на предложения.';
+        if (serverMsg && /[а-я]/i.test(serverMsg)) return serverMsg; // already Bulgarian from server
+        return 'Възникна грешка. Моля опитайте отново.';
+    }
+
+    form.addEventListener('submit', function(e){
+        e.preventDefault();
+        if (!loggedIn) { lock.classList.add('show'); return; }
+
+        var title = document.getElementById('sgTitle').value.trim();
+        if (!title) { toast('Моля въведете заглавие.'); return; }
+
+        var fd = new FormData();
+        fd.append('title', title);
+        fd.append('category', document.getElementById('sgCategory').value);
+        fd.append('city', document.getElementById('sgCity').value.trim());
+        fd.append('address', document.getElementById('sgAddress').value.trim());
+        fd.append('description', document.getElementById('sgDescription').value.trim());
+        var lat = document.getElementById('sgLat').value.trim();
+        var lng = document.getElementById('sgLng').value.trim();
+        if (lat) fd.append('lat', lat);
+        if (lng) fd.append('lng', lng);
+        selectedFiles.forEach(function(f){ fd.append('images', f); });
+
+        setLoading(true);
+        fetch('/api/suggest', { method: 'POST', credentials: 'include', body: fd })
+            .then(function(res){
+                return res.json().catch(function(){ return {}; }).then(function(data){ return { ok: res.ok, status: res.status, data: data }; });
+            })
+            .then(function(r){
+                setLoading(false);
+                if (r.ok) {
+                    formWrap.style.display = 'none';
+                    success.classList.add('show');
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                    return;
+                }
+                if (r.status === 401) { loggedIn = false; form.classList.add('locked'); lock.classList.add('show'); enableForm(false); }
+                toast(friendly(r.data && r.data.error, r.status));
+            })
+            .catch(function(){ setLoading(false); toast('Възникна грешка при свързване. Проверете интернет връзката си.'); });
+    });
+
+    document.getElementById('sgAgain').addEventListener('click', function(){
+        form.reset(); selectedFiles = []; renderPreviews();
+        success.classList.remove('show'); formWrap.style.display = '';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,1046 @@
+<!doctype html>
+<html lang="bg" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/png" href="/assets/img/favicon-96x96.png" sizes="96x96">
+<link rel="icon" type="image/svg+xml" href="/assets/img/favicon.svg">
+<link rel="shortcut icon" href="/assets/img/favicon.ico">
+<link rel="apple-touch-icon" sizes="180x180" href="/assets/img/apple-touch-icon.png">
+<link rel="manifest" href="/assets/img/site.webmanifest">
+<meta name="msapplication-TileImage" content="/assets/img/Historyaddress.bg2.png">
+<title>Адресът на историята — Карта</title>
+<meta name="description" content="Интерактивна карта на историческите адреси в България.">
+<link rel="canonical" href="https://historyaddress.bg/map.html">
+<meta name="robots" content="index, follow">
+<script>
+(function(){
+    try {
+        var s = localStorage.getItem('theme-preference');
+        if (s === 'system') s = 'dark';
+        document.documentElement.setAttribute('data-theme', (s==='dark'||s==='light') ? s : 'dark');
+    } catch(e){}
+})();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Mulish:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/styles.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
+<script defer src="assets/js/theme.js"></script>
+<script defer src="assets/js/transitions.js"></script>
+<script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script defer src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<style>
+:root {
+    --gold: #c9a96e;
+    --gold-dim: rgba(201,169,110,0.12);
+    --gold-border: rgba(201,169,110,0.25);
+    --panel-bg: rgba(10,9,8,0.97);
+    --panel-width: 340px;
+    --font-display: 'Cormorant Garamond', Georgia, serif;
+    --font-body: 'Mulish', sans-serif;
+}
+html, body { margin:0; padding:0; overflow-x:hidden; }
+body { font-family:var(--font-body); background:#0a0908; }
+
+.map-shell { position:relative; width:100%; height:calc(100vh - 60px); display:flex; overflow:hidden; }
+#map { flex:1; min-width:0; height:100%; z-index:1; }
+
+/* ── LOADING ── */
+.map-loading {
+    position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+    background:rgba(10,9,8,0.92); color:#d4cfc8; padding:1.25rem 2rem;
+    border-radius:4px; border:1px solid var(--gold-border); z-index:1000;
+    font-size:0.85rem; letter-spacing:0.05em;
+    display:flex; align-items:center; gap:0.75rem;
+    backdrop-filter:blur(12px); box-shadow:0 8px 32px rgba(0,0,0,0.5); pointer-events:none;
+}
+.map-loading-spinner {
+    width:16px; height:16px; border:2px solid rgba(201,169,110,0.2);
+    border-top-color:var(--gold); border-radius:50%;
+    animation:spin 0.8s linear infinite; flex-shrink:0;
+}
+@keyframes spin { to { transform:rotate(360deg); } }
+
+/* ── CLUSTERS ── */
+.marker-cluster-small,.marker-cluster-medium,.marker-cluster-large { background:rgba(201,169,110,0.25); }
+.marker-cluster-small div,.marker-cluster-medium div,.marker-cluster-large div {
+    background:rgba(201,169,110,0.85); color:#0a0908; font-weight:700; font-family:var(--font-body); font-size:0.8rem;
+}
+/* Tint clusters to match the active category (set on #map) */
+#map.cat-monument .marker-cluster-small,#map.cat-monument .marker-cluster-medium,#map.cat-monument .marker-cluster-large { background:rgba(95,163,160,0.25); }
+#map.cat-monument .marker-cluster-small div,#map.cat-monument .marker-cluster-medium div,#map.cat-monument .marker-cluster-large div { background:rgba(95,163,160,0.85); }
+#map.cat-events .marker-cluster-small,#map.cat-events .marker-cluster-medium,#map.cat-events .marker-cluster-large { background:rgba(200,127,90,0.25); }
+#map.cat-events .marker-cluster-small div,#map.cat-events .marker-cluster-medium div,#map.cat-events .marker-cluster-large div { background:rgba(200,127,90,0.85); }
+
+/* ── NORMAL MARKER ── */
+.logo-pin {
+    width:38px; height:38px;
+    background-image:url('assets/img/Historyaddressmap.bg.jpg');
+    background-size:cover; background-position:center;
+    border-radius:50%; border:2px solid var(--gold);
+    box-shadow:0 2px 10px rgba(0,0,0,0.5), 0 0 0 3px rgba(201,169,110,0.15);
+    cursor:pointer; transition:transform 0.2s, box-shadow 0.2s;
+}
+.logo-pin:hover, .logo-pin.active {
+    transform:scale(1.18); box-shadow:0 4px 18px rgba(0,0,0,0.6), 0 0 0 4px rgba(201,169,110,0.4);
+}
+
+/* ── FOCUSED / BEACON MARKER ── */
+.focused-beacon {
+    display:flex; flex-direction:column; align-items:center; gap:4px; cursor:pointer;
+}
+.focused-beacon-label {
+    background:rgba(201,169,110,0.82); color:#0e0c08;
+    font-family:'Mulish',sans-serif; font-size:0.63rem; font-weight:600;
+    letter-spacing:0.02em; white-space:nowrap; padding:2px 8px; border-radius:20px;
+    box-shadow:0 1px 5px rgba(0,0,0,0.35); position:relative; pointer-events:none; opacity:0.9;
+}
+.focused-beacon-label::after {
+    content:''; position:absolute; bottom:-4px; left:50%; transform:translateX(-50%);
+    border:4px solid transparent; border-top-color:rgba(201,169,110,0.82); border-bottom:none;
+}
+.logo-pin-focused {
+    width:42px; height:42px;
+    background-image:url('assets/img/Historyaddressmap.bg.jpg');
+    background-size:cover; background-position:center; border-radius:50%;
+    border:2px solid rgba(201,169,110,0.9);
+    box-shadow:0 0 0 3px rgba(201,169,110,0.22), 0 3px 12px rgba(0,0,0,0.5);
+    animation:focusPulse 3s ease-in-out infinite; flex-shrink:0; cursor:pointer;
+}
+@keyframes focusPulse {
+    0%,100% { box-shadow:0 0 0 3px rgba(201,169,110,0.22), 0 3px 12px rgba(0,0,0,0.5); }
+    50%      { box-shadow:0 0 0 5px rgba(201,169,110,0.09), 0 3px 12px rgba(0,0,0,0.5); }
+}
+
+/* ── CATEGORY MARKER COLOURS ──
+   home → gold (default)  |  monument → verdigris  |  events → terracotta */
+.logo-pin.cat-monument { border-color:#5fa3a0; box-shadow:0 2px 10px rgba(0,0,0,0.5), 0 0 0 3px rgba(95,163,160,0.18); }
+.logo-pin.cat-events   { border-color:#c87f5a; box-shadow:0 2px 10px rgba(0,0,0,0.5), 0 0 0 3px rgba(200,127,90,0.18); }
+.logo-pin.cat-monument:hover, .logo-pin.cat-monument.active { box-shadow:0 4px 18px rgba(0,0,0,0.6), 0 0 0 4px rgba(95,163,160,0.4); }
+.logo-pin.cat-events:hover,   .logo-pin.cat-events.active   { box-shadow:0 4px 18px rgba(0,0,0,0.6), 0 0 0 4px rgba(200,127,90,0.4); }
+
+.logo-pin-focused.cat-monument { border-color:rgba(95,163,160,0.9);  box-shadow:0 0 0 3px rgba(95,163,160,0.22), 0 3px 12px rgba(0,0,0,0.5); animation:none; }
+.logo-pin-focused.cat-events   { border-color:rgba(200,127,90,0.9);  box-shadow:0 0 0 3px rgba(200,127,90,0.22), 0 3px 12px rgba(0,0,0,0.5); animation:none; }
+
+/* Beacon label colour follows the category */
+.focused-beacon.cat-monument .focused-beacon-label { background:rgba(95,163,160,0.9); }
+.focused-beacon.cat-monument .focused-beacon-label::after { border-top-color:rgba(95,163,160,0.9); }
+.focused-beacon.cat-events .focused-beacon-label { background:rgba(200,127,90,0.9); }
+.focused-beacon.cat-events .focused-beacon-label::after { border-top-color:rgba(200,127,90,0.9); }
+
+/* ── DESKTOP PANEL ── */
+.map-panel {
+    position:absolute; top:0; right:0; width:var(--panel-width); height:100%;
+    background:var(--panel-bg); border-left:1px solid var(--gold-border);
+    z-index:10; display:flex; flex-direction:column;
+    transform:translateX(100%); transition:transform 0.38s cubic-bezier(0.16,1,0.3,1);
+    backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
+    pointer-events:none; visibility:hidden;
+}
+.map-panel.open { transform:translateX(0); pointer-events:all; visibility:visible; }
+
+.panel-close {
+    position:absolute; top:1rem; left:-42px; width:34px; height:34px;
+    background:var(--panel-bg); border:1px solid var(--gold-border); border-right:none;
+    border-radius:4px 0 0 4px; color:var(--gold); cursor:pointer;
+    display:none; align-items:center; justify-content:center;
+    font-size:1rem; line-height:1; transition:background 0.2s; z-index:1;
+}
+.panel-close::before { display:none !important; }
+.map-panel.open .panel-close { display:flex; }
+.panel-close:hover { background:var(--gold-dim); }
+
+.panel-hero {
+    position:relative; width:100%; height:200px; overflow:hidden; flex-shrink:0; background:#111009;
+}
+.panel-hero img { width:100%; height:100%; object-fit:cover; display:block; transition:transform 0.6s ease; }
+.panel-hero:hover img { transform:scale(1.04); }
+.panel-hero::after {
+    content:''; position:absolute; inset:0;
+    background:linear-gradient(to bottom,transparent 40%,rgba(10,9,8,0.7) 100%); pointer-events:none;
+}
+.panel-hero-placeholder {
+    width:100%; height:100%; display:flex; align-items:center; justify-content:center;
+    font-size:4rem; opacity:0.15; background:linear-gradient(135deg,#1a1712,#0d0c0a);
+}
+
+.panel-body { flex:1; overflow-y:auto; padding:1.5rem 1.5rem 1rem; scrollbar-width:none; -ms-overflow-style:none; }
+.panel-body::-webkit-scrollbar { display:none; }
+
+.panel-eyebrow { font-size:0.62rem; font-weight:600; letter-spacing:0.2em; text-transform:uppercase; color:var(--gold); opacity:0.75; margin:0 0 0.4rem; }
+.panel-name { font-family:var(--font-display); font-size:1.7rem; font-weight:600; color:#f0ece4; margin:0 0 0.75rem; line-height:1.15; }
+.panel-address { display:flex; align-items:flex-start; gap:0.4rem; margin-bottom:1.1rem; font-size:0.82rem; color:#8a8278; line-height:1.5; }
+.panel-divider { height:1px; background:rgba(201,169,110,0.1); margin:0 0 1.1rem; }
+/* FIX: both prefixed and unprefixed line-clamp at desktop level */
+.panel-bio {
+    font-size:0.87rem; line-height:1.75; color:#a09890; margin:0 0 1.5rem;
+    display:-webkit-box; -webkit-line-clamp:5; line-clamp:5; -webkit-box-orient:vertical; overflow:hidden;
+}
+
+.panel-footer { padding:1rem 1.5rem 1.5rem; border-top:1px solid rgba(201,169,110,0.08); flex-shrink:0; display:flex; flex-direction:column; gap:0.6rem; }
+.panel-cta {
+    display:flex; align-items:center; justify-content:center; gap:0.5rem; width:100%; padding:0.85rem 1.1rem;
+    background:transparent; border:1px solid var(--gold-border); color:var(--gold);
+    font-family:var(--font-body); font-size:0.78rem; font-weight:600; letter-spacing:0.1em;
+    text-transform:uppercase; text-decoration:none; border-radius:3px; cursor:pointer;
+    transition:background 0.2s,color 0.2s; box-sizing:border-box;
+}
+.panel-cta:hover { background:var(--gold); color:#0a0908; }
+.panel-cta-arrow { font-size:1rem; transition:transform 0.2s; }
+.panel-cta:hover .panel-cta-arrow { transform:translateX(4px); }
+
+.panel-gmaps {
+    display:flex; align-items:center; justify-content:center; gap:0.5rem; width:100%; padding:0.75rem 1.1rem;
+    background:rgba(66,133,244,0.08); border:1px solid rgba(66,133,244,0.3); color:#7ab3f5;
+    font-family:var(--font-body); font-size:0.78rem; font-weight:600; letter-spacing:0.08em;
+    text-transform:uppercase; text-decoration:none; border-radius:3px;
+    transition:background 0.2s,color 0.2s,border-color 0.2s; box-sizing:border-box;
+}
+.panel-gmaps:hover { background:rgba(66,133,244,0.18); border-color:rgba(66,133,244,0.6); color:#aecfff; }
+.panel-gmaps svg { flex-shrink:0; width:14px; height:14px; }
+
+/* ── PANEL FAVORITE (logged-in only) ── */
+.panel-fav {
+    display:none; align-items:center; justify-content:center; gap:.5rem; width:100%; padding:.75rem 1.1rem;
+    background:transparent; border:1px solid var(--gold-border); color:var(--gold);
+    font-family:var(--font-body); font-size:.78rem; font-weight:600; letter-spacing:.08em;
+    text-transform:uppercase; border-radius:3px; cursor:pointer;
+    transition:background .2s,color .2s,border-color .2s; box-sizing:border-box;
+}
+body.is-auth .panel-fav { display:flex; }
+.panel-fav svg { flex-shrink:0; width:15px; height:15px; transition:fill .2s; }
+.panel-fav:hover { background:var(--gold-dim); border-color:var(--gold); }
+.panel-fav.active { background:rgba(201,169,110,.16); border-color:var(--gold); }
+.panel-fav.active svg { fill:var(--gold); }
+.panel-fav:disabled { opacity:.6; cursor:default; }
+
+/* ── CATEGORY SEGMENTED CONTROL ── */
+.map-seg {
+    position:absolute; top:1rem; left:50%; transform:translateX(-50%); z-index:12;
+    display:flex; gap:0.3rem; padding:0.28rem;
+    background:rgba(10,9,8,0.9); border:1px solid var(--gold-border); border-radius:999px;
+    backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+    box-shadow:0 4px 20px rgba(0,0,0,0.4);
+    max-width:92vw; overflow-x:auto; scrollbar-width:none; -webkit-overflow-scrolling:touch;
+}
+.map-seg::-webkit-scrollbar { display:none; }
+.map-seg-btn {
+    flex:0 0 auto; white-space:nowrap;
+    display:inline-flex; align-items:center; gap:0.45rem;
+    padding:0.5rem 1rem; border:none; background:transparent;
+    color:#8a8278; font-family:var(--font-body); font-size:0.82rem; font-weight:600;
+    border-radius:999px; cursor:pointer; transition:color 0.25s,background 0.25s;
+    -webkit-tap-highlight-color:transparent;
+}
+.map-seg-btn:hover { color:#d4cfc8; }
+.map-seg-btn:focus-visible { outline:none; box-shadow:0 0 0 2px var(--seg-color); }
+.map-seg-btn[data-category="home"]     { --seg-color:#cd853f; }
+.map-seg-btn[data-category="monument"] { --seg-color:#5fa3a0; }
+.map-seg-btn[data-category="events"]   { --seg-color:#c87f5a; }
+.map-seg-dot { width:8px; height:8px; border-radius:50%; background:var(--seg-color); flex-shrink:0; }
+.map-seg-btn.active { color:#0a0908; background:var(--seg-color); }
+.map-seg-btn.active .map-seg-dot { background:rgba(10,9,8,0.5); }
+
+/* ── SEARCH (desktop only) ── */
+.map-search-wrap {
+    position:absolute; top:4.5rem; left:50%; transform:translateX(-50%); z-index:10; width:min(380px,90vw);
+}
+.map-search {
+    width:100%; padding:0.7rem 1rem 0.7rem 2.4rem; background:rgba(10,9,8,0.9);
+    border:1px solid var(--gold-border); border-radius:4px; color:#d4cfc8;
+    font-family:var(--font-body); font-size:0.88rem; outline:none;
+    backdrop-filter:blur(12px); transition:border-color 0.2s,box-shadow 0.2s; box-sizing:border-box;
+}
+.map-search::placeholder { color:#4a4238; }
+.map-search:focus { border-color:var(--gold); box-shadow:0 0 0 3px rgba(201,169,110,0.1); }
+.map-search-icon { position:absolute; left:0.75rem; top:50%; transform:translateY(-50%); color:#4a4238; font-size:0.85rem; pointer-events:none; }
+
+/* ── MOBILE ── */
+@media(max-width:768px){
+    .map-shell { height:auto; overflow:visible; display:block; padding:10px 12px 0; box-sizing:border-box; background:#0a0908; }
+    #map { height:66vmax; max-height:72vh; border-radius:16px; overflow:hidden; width:100%; display:block; }
+
+    .map-search-wrap { display:none; }
+    .leaflet-control-zoom { display:none !important; }
+
+    /* Tabs flow above the map and stay in a single swipeable row.
+       Kept compact on mobile so the map gets a little more room. */
+    .map-seg {
+        position:static; transform:none; left:auto; top:auto;
+        width:100%; max-width:none; margin:0 0 8px; padding:0.2rem;
+        border-radius:11px; box-shadow:none;
+    }
+    .map-seg-btn { padding:0.42rem 0.85rem; font-size:0.78rem; }
+    .map-seg-dot { width:7px; height:7px; }
+
+    .map-panel {
+        position:fixed; top:auto; bottom:0; left:0; right:0; width:100%;
+        height:58vh; max-height:calc(100vh - 90px);
+        transform:translateY(100%);
+        border-left:none; border-top:1px solid var(--gold-border); border-radius:20px 20px 0 0;
+        display:block; overflow-y:auto; -webkit-overflow-scrolling:touch;
+        visibility:hidden; pointer-events:none;
+    }
+    .map-panel.open { transform:translateY(0); visibility:visible; pointer-events:all; }
+
+    .panel-close {
+        position:sticky !important; top:0; left:0; right:0;
+        width:100% !important; height:40px !important;
+        background:rgba(10,9,8,0.98); border:none !important;
+        border-bottom:1px solid rgba(201,169,110,0.12) !important;
+        border-radius:20px 20px 0 0; display:none;
+        align-items:center; justify-content:center;
+        gap:0.6rem; font-size:0.75rem; font-family:var(--font-body);
+        color:rgba(201,169,110,0.7); letter-spacing:0.08em; text-transform:uppercase; z-index:5;
+    }
+    .map-panel.open .panel-close { display:flex; }
+    .panel-close::before { content:''; width:32px; height:4px; background:rgba(201,169,110,0.3); border-radius:2px; flex-shrink:0; }
+
+    .panel-hero { position:relative; width:100%; height:200px; flex-shrink:unset; overflow:hidden; }
+    .panel-hero::after { background:linear-gradient(to bottom,transparent 30%,rgba(10,9,8,0.6) 100%); }
+    .panel-body { overflow:visible; padding:1.1rem 1.25rem 0.25rem; }
+    .panel-footer { padding:0.75rem 1.25rem 2rem; }
+    .panel-name { font-size:1.45rem; margin-bottom:0.5rem; }
+    .panel-eyebrow { margin-bottom:0.25rem; }
+    /* FIX: both prefixed and unprefixed at mobile level */
+    .panel-bio { -webkit-line-clamp:4; line-clamp:4; margin-bottom:1rem; }
+    .panel-address { margin-bottom:0.75rem; }
+    .panel-divider { margin-bottom:0.75rem; }
+}
+
+/* ── SEARCH EMPTY STATE ── */
+.map-no-results {
+    position:absolute; top:4rem; left:50%; transform:translateX(-50%);
+    z-index:10; pointer-events:none;
+    background:rgba(10,9,8,0.92); border:1px solid var(--gold-border);
+    border-radius:4px; padding:0.75rem 1.25rem;
+    display:none; align-items:center; gap:0.6rem;
+    backdrop-filter:blur(12px); box-shadow:0 4px 20px rgba(0,0,0,0.4);
+    white-space:nowrap;
+}
+.map-no-results.visible { display:flex; }
+.map-no-results-icon { font-size:1rem; opacity:0.6; }
+.map-no-results-text { font-size:0.83rem; color:#8a8278; font-family:var(--font-body); }
+.map-no-results-term { color:var(--gold); font-weight:600; }
+
+/* ── API ERROR / RETRY ── */
+.map-error {
+    position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+    background:rgba(10,9,8,0.95); border:1px solid rgba(180,60,60,0.45);
+    border-radius:6px; padding:1.5rem 2rem; z-index:1000;
+    display:none; flex-direction:column; align-items:center; gap:1rem;
+    backdrop-filter:blur(12px); box-shadow:0 8px 32px rgba(0,0,0,0.6);
+    text-align:center; max-width:280px;
+}
+.map-error.visible { display:flex; }
+.map-error-icon { font-size:2rem; opacity:0.7; }
+.map-error-msg { font-size:0.85rem; color:#c8a0a0; font-family:var(--font-body); line-height:1.5; }
+.map-error-retry {
+    padding:0.55rem 1.4rem; background:transparent;
+    border:1px solid rgba(201,169,110,0.45); border-radius:3px;
+    color:var(--gold); font-family:var(--font-body); font-size:0.78rem;
+    font-weight:600; letter-spacing:0.08em; text-transform:uppercase;
+    cursor:pointer; transition:background 0.2s, color 0.2s;
+}
+.map-error-retry:hover { background:var(--gold); color:#0a0908; }
+
+/* ── LEAFLET OVERRIDES ── */
+.leaflet-popup { display:none !important; }
+.leaflet-control-zoom a { background:rgba(10,9,8,0.9) !important; border-color:var(--gold-border) !important; color:var(--gold) !important; font-family:var(--font-body) !important; }
+.leaflet-control-zoom a:hover { background:var(--gold-dim) !important; }
+.leaflet-control-attribution { background:rgba(10,9,8,0.75) !important; color:#4a4238 !important; font-size:0.6rem !important; }
+.leaflet-control-attribution a { color:#6a6258 !important; }
+</style>
+    <script defer src="assets/js/account-nav.js?v=5"></script>
+    <script defer src="assets/js/scroll-hint.js?v=1"></script>
+</head>
+<body>
+
+<script>
+function handleEmailClick(e){if(window.innerWidth>768){e.preventDefault();showEmailModal();}}
+function showEmailModal(){
+    var m=document.getElementById('emailModal');
+    if(!m){
+        m=document.createElement('div'); m.id='emailModal'; m.className='email-modal';
+        m.innerHTML='<div class="email-modal-content"><h3>📧 Свържете се с нас</h3><div class="email-address-display">historyaddressbg@gmail.com</div><div class="email-modal-buttons"><button class="btn-copy" onclick="copyEmail()"><span id="copyText">📋 Копирай Email</span></button><button class="btn-close" onclick="closeEmailModal()">✕ Затвори</button></div><p>Можете да ни пишете за въпроси или подкрепа</p></div>';
+        document.body.appendChild(m);
+        m.addEventListener('click',function(e){if(e.target===m)closeEmailModal();});
+    }
+    m.style.display='flex'; document.body.style.overflow='hidden';
+}
+function closeEmailModal(){var m=document.getElementById('emailModal');if(m){m.style.display='none';document.body.style.overflow='';}}
+function copyEmail(){
+    navigator.clipboard.writeText('historyaddressbg@gmail.com').then(function(){
+        var t=document.getElementById('copyText'); t.textContent='✓ Копирано!';
+        setTimeout(function(){t.textContent='📋 Копирай Email';},2000);
+    }).catch(function(){alert('Email: historyaddressbg@gmail.com');});
+}
+document.addEventListener('keydown',function(e){if(e.key==='Escape')closeEmailModal();});
+</script>
+
+<header class="site-header">
+    <a class="logo-link" href="index.html">
+        <img src="assets/img/HistAdrLogo.png" alt="Адресът на историята" class="header-logo">
+        <span class="logo-text">Адресът на историята</span>
+    </a>
+    <nav class="nav">
+        <a href="index.html">Начало</a>
+        <a href="map.html" class="active">Карта</a>
+        <a href="addresses.html">Адреси</a>
+        <a href="calendar.html">Календар</a>
+        <a href="news.html">Новини</a>
+        <a href="about.html">За Нас</a>
+    </nav>
+    <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode"></button>
+</header>
+
+<div class="map-shell">
+    <div class="map-seg" id="mapTabs" role="tablist" aria-label="Категории">
+        <button type="button" class="map-seg-btn active" data-category="home" role="tab" aria-selected="true" tabindex="0">
+            <span class="map-seg-dot"></span>Домове
+        </button>
+        <button type="button" class="map-seg-btn" data-category="monument" role="tab" aria-selected="false" tabindex="-1">
+            <span class="map-seg-dot"></span>Паметни места
+        </button>
+        <button type="button" class="map-seg-btn" data-category="events" role="tab" aria-selected="false" tabindex="-1">
+            <span class="map-seg-dot"></span>Събития
+        </button>
+    </div>
+    <div id="map" role="region" aria-label="Карта на историческите адреси"></div>
+    <div class="map-search-wrap">
+        <span class="map-search-icon">🔍</span>
+        <input id="mapSearch" class="map-search" type="search" placeholder="Търси по име…" aria-label="Търси адрес" autocomplete="off" spellcheck="false">
+    </div>
+    <div id="mapLoading" class="map-loading">
+        <div class="map-loading-spinner"></div>
+        <span id="mapLoadingText">Зареждане на картата</span>
+    </div>
+
+    <!-- Search empty state -->
+    <div id="mapNoResults" class="map-no-results" aria-live="polite">
+        <span class="map-no-results-icon">🔍</span>
+        <span class="map-no-results-text">Няма резултати за „<span id="mapNoResultsTerm" class="map-no-results-term"></span>"</span>
+    </div>
+
+    <!-- API error with retry -->
+    <div id="mapError" class="map-error" role="alert">
+        <span class="map-error-icon">⚠️</span>
+        <p class="map-error-msg">Картата не можа да се зареди. Проверете връзката си и опитайте отново.</p>
+        <button class="map-error-retry" id="mapRetry">Опитай отново</button>
+    </div>
+
+    <div class="map-panel" id="mapPanel">
+        <button class="panel-close" id="panelClose" title="Затвори">✕</button>
+        <div class="panel-hero" id="panelHero">
+            <div class="panel-hero-placeholder">🏛️</div>
+        </div>
+        <div class="panel-body" id="panelBody"></div>
+        <div class="panel-footer">
+            <button type="button" class="panel-fav" id="panelFav" aria-pressed="false">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                <span id="panelFavLabel">Добави в любими</span>
+            </button>
+            <a href="#" class="panel-cta" id="panelCta">
+                <span>Виж повече</span><span class="panel-cta-arrow">→</span>
+            </a>
+            <a href="#" class="panel-gmaps" id="panelGmaps" target="_blank" rel="noopener noreferrer" style="display:none">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                <span>Отвори в Google Maps</span>
+            </a>
+        </div>
+    </div>
+</div>
+
+<footer class="site-footer">
+    <div class="footer-inner">
+        <div class="footer-social">
+            <a href="https://instagram.com/historyaddress.bg" target="_blank" rel="noopener noreferrer" class="social-link">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>Instagram
+            </a>
+            <a href="mailto:historyaddressbg@gmail.com" class="social-link" onclick="handleEmailClick(event)">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>Email
+            </a>
+        </div>
+        <a href="https://buymeacoffee.com/historyaddress.bg" target="_blank" rel="noopener noreferrer" class="footer-donate" aria-label="Подкрепете ни — дарение">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+            Подкрепете ни
+        </a>
+
+        <p class="footer-links">
+            <a href="privacy.html">Поверителност</a> <span>•</span>
+            <a href="terms.html">Условия</a> <span>•</span>
+            <a href="copyright.html">Авторски права</a>
+        </p>
+        <p class="footer-copy">© <span id="year"></span> Адресът на историята</p>
+    </div>
+</footer>
+
+<script>
+window.addEventListener('DOMContentLoaded', function () {
+    var API        = (location.protocol === 'file:' ? 'http://localhost:10000' : location.origin) + '/api';
+    var SKEY       = 'map_state';
+    var urlParams  = new URLSearchParams(location.search);
+    var targetSlug = urlParams.get('slug');
+    var pinOnly    = urlParams.get('view') === 'pin';
+    var FOCUS_ZOOM = 19;
+    /* Max entries kept in the detail cache — evicts oldest when exceeded.
+       Prevents unbounded RAM growth on sites with many addresses.        */
+    var CACHE_MAX  = 60;
+
+    var saved = null;
+    try { saved = JSON.parse(sessionStorage.getItem(SKEY)); if (saved) sessionStorage.removeItem(SKEY); } catch(e) {}
+
+    var loadingEl     = document.getElementById('mapLoading');
+    var loadingText   = document.getElementById('mapLoadingText');
+    var noResultsEl   = document.getElementById('mapNoResults');
+    var noResultsTerm = document.getElementById('mapNoResultsTerm');
+    var errorEl       = document.getElementById('mapError');
+    var panel         = document.getElementById('mapPanel');
+    var panelCloseBtn = document.getElementById('panelClose');
+    var panelHero     = document.getElementById('panelHero');
+    var panelBody     = document.getElementById('panelBody');
+    var panelCta      = document.getElementById('panelCta');
+    var panelGmaps    = document.getElementById('panelGmaps');
+    var panelFav      = document.getElementById('panelFav');
+    var panelFavLabel = document.getElementById('panelFavLabel');
+
+    /* ── User favorites (for the panel heart) ── */
+    var favoriteIds = new Set(), isLoggedIn = false, userKnown = false;
+    var currentFavRef = null;   // the id/slug currently shown in the panel
+    var currentPanelHome = null; // full home object for the open panel
+
+    function fetchUserFavorites() {
+        return fetch(API + '/auth/me', { credentials: 'include' })
+            .then(function(r){ return r.ok ? r.json() : null; })
+            .then(function(me){
+                userKnown = true; isLoggedIn = !!me;
+                if (!me) return;
+                return fetch(API + '/user/profile', { credentials: 'include' })
+                    .then(function(r){ return r.ok ? r.json() : null; })
+                    .then(function(pf){ if (pf && pf.favorites) pf.favorites.forEach(function(f){ favoriteIds.add(f.id); }); });
+            })
+            .catch(function(){ userKnown = true; });
+    }
+
+    function updatePanelFav(home) {
+        currentPanelHome = home || null;
+        currentFavRef = (home && (home.id || home.slug)) || null;
+        var on = currentFavRef && favoriteIds.has(home.id);
+        panelFav.classList.toggle('active', !!on);
+        panelFav.setAttribute('aria-pressed', on ? 'true' : 'false');
+        panelFavLabel.textContent = on ? 'В любими' : 'Добави в любими';
+    }
+
+    panelFav.addEventListener('click', function() {
+        if (!isLoggedIn) {
+            if (userKnown) (window.haPromptLogin || function(){ location.href = 'login.html'; })();
+            return;
+        }
+        if (!currentFavRef) return;
+        var ref = currentFavRef;
+        panelFav.disabled = true;
+        fetch(API + '/user/activity', {
+            method: 'POST', credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ address_id: ref, status: 'favorite' })
+        })
+        .then(function(r){ if (r.status === 401) { isLoggedIn = false; (window.haPromptLogin||function(){})(); throw 'auth'; } if (!r.ok) throw new Error(); return r.json(); })
+        .then(function(res){
+            var id = res.address_id;
+            if (res.active) { favoriteIds.add(id); } else { favoriteIds.delete(id); }
+            panelFav.classList.toggle('active', res.active);
+            panelFav.setAttribute('aria-pressed', res.active ? 'true' : 'false');
+            panelFavLabel.textContent = res.active ? 'В любими' : 'Добави в любими';
+            if (window.haToast) window.haToast(res.active ? 'Добавено в любими' : 'Премахнато от любими', { duration: 1800 });
+        })
+        .catch(function(e){ if (e !== 'auth' && window.haToast) window.haToast('Възникна грешка. Опитайте отново.'); })
+        .finally(function(){ panelFav.disabled = false; });
+    });
+
+    /* Element that had focus before the panel opened — restored on close */
+    var panelPrevFocus = null;
+
+    var allHomes = [], activeMarkerEl = null, isPanelOpen = false, searchTimer, resizeTimer;
+    /* FIX: use an ordered Map so we can evict the oldest entry (LRU-lite) */
+    var detailCache = new Map();
+
+    /* Active category tab ('home' | 'monument' | 'events') */
+    var activeCategory = 'home';
+    var mapEl   = document.getElementById('map');
+    var tabsEl  = document.getElementById('mapTabs');
+
+    /* Combined filter: active category + the current search box text */
+    function filterList() {
+        var q = (document.getElementById('mapSearch').value || '').trim();
+        return allHomes.filter(function(p) {
+            if ((p.category || 'home') !== activeCategory) return false;
+            return matchesQuery(p.name, p.address, p.tags, q);
+        });
+    }
+
+    /* Tint clusters to the active category by tagging the #map element */
+    function setClusterTint(cat) {
+        mapEl.classList.remove('cat-home', 'cat-monument', 'cat-events');
+        mapEl.classList.add('cat-' + cat);
+    }
+
+    /* Reflect the active category in the tab UI */
+    function syncTabUI() {
+        Array.prototype.forEach.call(tabsEl.querySelectorAll('.map-seg-btn'), function(btn) {
+            var on = btn.getAttribute('data-category') === activeCategory;
+            btn.classList.toggle('active', on);
+            btn.setAttribute('aria-selected', on ? 'true' : 'false');
+            btn.tabIndex = on ? 0 : -1;
+        });
+    }
+
+    var isMobile = window.innerWidth <= 768;
+    /* FIX: debounce the resize handler — was firing on every pixel of resize */
+    window.addEventListener('resize', function(){
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(function(){ isMobile = window.innerWidth <= 768; }, 150);
+    });
+
+    var DEF_LAT = 42.7, DEF_LNG = 25.5, DEF_ZOOM = 7;
+
+    var map = L.map('map', {
+        center: [saved ? saved.lat : DEF_LAT, saved ? saved.lng : DEF_LNG],
+        zoom:   saved ? saved.zoom : DEF_ZOOM,
+        zoomControl: !isMobile,
+        worldCopyJump: true,
+        maxBounds: [[-85,-180],[85,180]],
+        preferCanvas: true
+    });
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom:19, attribution:'© OpenStreetMap contributors'
+    }).addTo(map);
+
+    var clusters = L.markerClusterGroup({
+        maxClusterRadius:50, spiderfyOnMaxZoom:true, showCoverageOnHover:false,
+        zoomToBoundsOnClick:true, chunkedLoading:true, chunkInterval:50, chunkDelay:50,
+        disableClusteringAtZoom:17
+    });
+
+    /* ── Helpers ── */
+
+    /* FIX: centralised HTML escaper — prevents XSS from API data injected via innerHTML */
+    function esc(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g,'&amp;')
+            .replace(/</g,'&lt;')
+            .replace(/>/g,'&gt;')
+            .replace(/"/g,'&quot;')
+            .replace(/'/g,'&#39;');
+    }
+
+    /* FIX: validate coordinates are real finite numbers before trusting them */
+    function validCoords(lat, lng) {
+        return isFinite(+lat) && isFinite(+lng) && +lat !== 0 && +lng !== 0;
+    }
+
+    function saveState(slug) {
+        try {
+            var c = map.getCenter();
+            sessionStorage.setItem(SKEY, JSON.stringify({ lat:c.lat, lng:c.lng, zoom:map.getZoom(), panelSlug:slug||null, category:activeCategory }));
+        } catch(e) {}
+    }
+
+    /* ── Bounded detail cache (LRU-lite) ── */
+    function cacheGet(slug) {
+        if (!detailCache.has(slug)) return null;
+        /* Refresh recency: delete + re-insert moves key to end of insertion order */
+        var val = detailCache.get(slug);
+        detailCache.delete(slug);
+        detailCache.set(slug, val);
+        return val;
+    }
+    function cacheSet(slug, data) {
+        if (detailCache.has(slug)) detailCache.delete(slug);
+        detailCache.set(slug, data);
+        /* Evict oldest entry if over the cap */
+        if (detailCache.size > CACHE_MAX) {
+            detailCache.delete(detailCache.keys().next().value);
+        }
+    }
+
+    /* ── Highlight management ── */
+    function setActiveMarker(el) {
+        if (activeMarkerEl && activeMarkerEl !== el) clearBeacon(activeMarkerEl);
+        activeMarkerEl = el || null;
+        if (activeMarkerEl) applyBeacon(activeMarkerEl);
+    }
+
+    function clearActiveMarker() {
+        if (activeMarkerEl) { clearBeacon(activeMarkerEl); activeMarkerEl = null; }
+    }
+
+    function applyBeacon(el) {
+        var pin = el.querySelector('.logo-pin, .logo-pin-focused');
+        if (!pin || pin.classList.contains('logo-pin-focused')) return;
+        pin.classList.remove('logo-pin', 'active');
+        pin.classList.add('logo-pin-focused');
+        if (!el.querySelector('.focused-beacon')) {
+            var catClass = (pin.className.match(/cat-\w+/) || ['cat-home'])[0];
+            var wrapper = document.createElement('div');
+            wrapper.className = 'focused-beacon ' + catClass;
+            var label = document.createElement('div');
+            label.className = 'focused-beacon-label';
+            /* Safe: textContent, not innerHTML */
+            label.textContent = el._markerName || '';
+            pin.parentNode.insertBefore(wrapper, pin);
+            wrapper.appendChild(label);
+            wrapper.appendChild(pin);
+        }
+    }
+
+    function clearBeacon(el) {
+        var pin = el.querySelector('.logo-pin-focused');
+        if (!pin) {
+            var rpin = el.querySelector('.logo-pin');
+            if (rpin) rpin.classList.remove('active');
+            return;
+        }
+        pin.classList.remove('logo-pin-focused');
+        pin.classList.add('logo-pin');
+        var beacon = el.querySelector('.focused-beacon');
+        if (beacon && beacon.parentNode) {
+            beacon.parentNode.insertBefore(pin, beacon);
+            beacon.parentNode.removeChild(beacon);
+        }
+    }
+
+    /* ── Panel ── */
+    function openPanel(home, lat, lng) {
+        if (panel.scrollTo) panel.scrollTo(0, 0); else panel.scrollTop = 0;
+
+        panelHero.innerHTML = '<div class="panel-hero-placeholder">🏛️</div>';
+
+        /* FIX: escape all API strings before injecting into innerHTML */
+        panelBody.innerHTML =
+            '<p class="panel-eyebrow">Адресът на историята</p>' +
+            '<h2 class="panel-name">' + esc(home.name) + '</h2>' +
+            (home.address ? '<div class="panel-address"><span>📍</span><span>' + esc(home.address) + '</span></div>' : '') +
+            '<div class="panel-divider"></div>' +
+            (home._bio ? '<p class="panel-bio">' + esc(home._bio) + '</p>' : '');
+
+        var slug = home.slug || home.id;
+        panelCta.href = 'address.html?slug=' + encodeURIComponent(slug);
+
+        /* FIX: use addEventListener so middle-click / ctrl-click also saves state */
+        panelCta.onclick = null;
+        panelCta.addEventListener('click', function onCtaClick(){
+            saveState(slug);
+            panelCta.removeEventListener('click', onCtaClick);
+        }, { once: true });
+
+        /* FIX: validate coords before setting href */
+        var pLat = lat || home.lat, pLng = lng || home.lng;
+        if (validCoords(pLat, pLng)) {
+            panelGmaps.href = 'https://www.google.com/maps?q=' + (+pLat) + ',' + (+pLng);
+            panelGmaps.style.display = '';
+        } else {
+            panelGmaps.style.display = 'none';
+        }
+
+        updatePanelFav(home);
+
+        panel.classList.add('open');
+        isPanelOpen = true;
+
+        /* Focus trap: remember where focus was, then move into panel */
+        if (!isMobile) {
+            panelPrevFocus = document.activeElement;
+            setTimeout(function(){
+                var first = panel.querySelector('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+                if (first) first.focus();
+            }, 60);
+        }
+    }
+
+    function closePanel() {
+        panel.classList.remove('open');
+        isPanelOpen = false;
+        clearActiveMarker();
+        if (panelPrevFocus && panelPrevFocus.focus) {
+            try { panelPrevFocus.focus(); } catch(e) {}
+        }
+        panelPrevFocus = null;
+    }
+
+    panelCloseBtn.addEventListener('click', function(e){ e.stopPropagation(); closePanel(); });
+
+    /* Focus trap: keep Tab/Shift+Tab inside the panel while it is open */
+    panel.addEventListener('keydown', function(e){
+        if (!isPanelOpen) return;
+        if (e.key === 'Escape') { closePanel(); return; }
+        if (e.key !== 'Tab') return;
+        var focusable = Array.prototype.slice.call(
+            panel.querySelectorAll('button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')
+        ).filter(function(el){ return el.offsetParent !== null; });
+        if (!focusable.length) return;
+        var first = focusable[0], last = focusable[focusable.length - 1];
+        if (e.shiftKey) {
+            if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+        } else {
+            if (document.activeElement === last)  { e.preventDefault(); first.focus(); }
+        }
+    });
+
+    map.on('click', function(){
+        if (isPanelOpen) {
+            closePanel();
+        } else if (pinOnly && activeMarkerEl) {
+            clearActiveMarker();
+        }
+    });
+
+    /* ── Detail fetch with bounded cache ── */
+    function fetchDetail(slug, cb) {
+        var cached = cacheGet(slug);
+        if (cached) { cb(cached); return; }
+        fetch(API + '/homes/' + encodeURIComponent(slug))
+            .then(function(r){ return r.ok ? r.json() : null; })
+            .then(function(d){ if (d) { cacheSet(slug, d); cb(d); } })
+            .catch(function(){});
+    }
+
+    function enrichPanel(full) {
+        if (full.images && full.images.length) {
+            panelHero.innerHTML = '';
+            var img = document.createElement('img');
+            img.src = full.images[0].thumb || full.images[0].path || full.images[0];
+            img.alt = esc(full.name); img.loading = 'lazy'; img.decoding = 'async';
+            img.onerror = function(){ panelHero.innerHTML = '<div class="panel-hero-placeholder">🏛️</div>'; };
+            panelHero.appendChild(img);
+        }
+        if (full.address) {
+            var addrEl = panelBody.querySelector('.panel-address span:last-child');
+            /* Safe: textContent only */
+            if (addrEl) addrEl.textContent = full.address;
+        }
+        if (full.biography) {
+            var short = full.biography.length > 300 ? full.biography.substring(0,300).trim() + '…' : full.biography;
+            var b = panelBody.querySelector('.panel-bio');
+            if (b) { b.textContent = short; }
+            else {
+                var p = document.createElement('p');
+                p.className = 'panel-bio';
+                p.textContent = short;
+                panelBody.appendChild(p);
+            }
+        }
+        if (full.coordinates && validCoords(full.coordinates.lat, full.coordinates.lng)) {
+            panelGmaps.href = 'https://www.google.com/maps?q=' + (+full.coordinates.lat) + ',' + (+full.coordinates.lng);
+            panelGmaps.style.display = '';
+        }
+    }
+
+    /* ── Search ── */
+    function matchesQuery(name, address, tags, query) {
+        if (!query) return true;
+        var tagStr = Array.isArray(tags) ? tags.join(' ') : (tags || '');
+        var hay = ((name||'') + ' ' + (address||'') + ' ' + tagStr).toLowerCase();
+        return query.toLowerCase().split(/\s+/).filter(Boolean).every(function(w){ return hay.indexOf(w) !== -1; });
+    }
+
+    /* ── Marker factory ── */
+    function createMarker(p) {
+        var cat = p.category || 'home';
+        var marker = L.marker([+p.lat, +p.lng], {
+            icon: L.divIcon({ className:'', html:'<div class="logo-pin cat-' + cat + '"></div>', iconSize:[38,38], iconAnchor:[19,19] })
+        });
+
+        marker.on('click', function(e){
+            L.DomEvent.stopPropagation(e);
+            var el = marker.getElement();
+            if (el) el._markerName = p.name || '';
+            setActiveMarker(el);
+
+            if (pinOnly) {
+                map.panTo(marker.getLatLng(), { animate:true });
+                return;
+            }
+
+            openPanel(p, p.lat, p.lng);
+            fetchDetail(p.slug || p.id, enrichPanel);
+            if (!isMobile) {
+                var pt = map.latLngToContainerPoint(marker.getLatLng());
+                map.panTo(map.containerPointToLatLng(L.point(pt.x - 170, pt.y)), { animate:true, duration:0.4 });
+            } else {
+                map.panTo(marker.getLatLng(), { animate:true });
+            }
+        });
+
+        marker.bindTooltip(p.name, { direction:'top', offset:[0,-22] });
+        return marker;
+    }
+
+    /* ── Render markers in batches to avoid blocking the main thread ── */
+    function renderMarkers(homes, onDone) {
+        /* FIX: call clearActiveMarker() — not just null — so any live beacon
+           DOM wrapper is properly dismantled before Leaflet removes the element */
+        clearActiveMarker();
+        clusters.clearLayers();
+
+        var valid = homes.filter(function(p){ return validCoords(p.lat, p.lng); });
+        var bounds = [], focused = null, batch = 30, cur = 0;
+
+        function addBatch(){
+            var end = Math.min(cur + batch, valid.length);
+            for (var i = cur; i < end; i++){
+                var p = valid[i];
+                bounds.push([+p.lat, +p.lng]);
+                var m = createMarker(p);
+                clusters.addLayer(m);
+                if (targetSlug && (p.slug === targetSlug || p.id === targetSlug)) {
+                    focused = { latlng:[+p.lat, +p.lng], marker:m, data:p };
+                }
+            }
+            cur += batch;
+            if (cur < valid.length) {
+                loadingText.textContent = 'Зареждане ' + Math.round((cur / valid.length) * 100) + '%';
+                setTimeout(addBatch, 10);
+            } else {
+                map.addLayer(clusters);
+                loadingEl.style.display = 'none';
+                if (onDone) onDone(focused, bounds);
+            }
+        }
+        addBatch();
+    }
+
+    /* ── Render the active category + current search text ── */
+    function renderFiltered() {
+        var q = (document.getElementById('mapSearch').value || '').trim();
+        setClusterTint(activeCategory);
+        renderMarkers(filterList(), function(f, bounds){
+            if (q && !bounds.length) {
+                noResultsTerm.textContent = q;
+                noResultsEl.classList.add('visible');
+                return;
+            }
+            noResultsEl.classList.remove('visible');
+            if (!bounds.length) return;
+            if (bounds.length === 1 && q) {
+                map.setView(bounds[0], 15, { animate:true });
+            } else {
+                map.fitBounds(bounds, { padding:[40,40], maxZoom:14, animate:true });
+            }
+        });
+    }
+
+    /* ── Search handler (filters within the active tab) ── */
+    document.getElementById('mapSearch').addEventListener('input', function(){
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(function(){
+            closePanel();
+            renderFiltered();
+        }, 350);
+    });
+
+    /* ── Category tab handler ── */
+    function setActiveCategory(cat) {
+        if (cat === activeCategory) return;
+        activeCategory = cat;
+        syncTabUI();
+        document.getElementById('mapSearch').value = '';   // reset search within the new tab
+        noResultsEl.classList.remove('visible');
+        closePanel();
+        renderFiltered();
+    }
+    tabsEl.addEventListener('click', function(e){
+        var btn = e.target.closest('.map-seg-btn');
+        if (!btn) return;
+        setActiveCategory(btn.getAttribute('data-category'));
+    });
+    tabsEl.addEventListener('keydown', function(e){
+        if (['ArrowLeft','ArrowRight','Home','End'].indexOf(e.key) === -1) return;
+        e.preventDefault();
+        var btns = Array.prototype.slice.call(tabsEl.querySelectorAll('.map-seg-btn'));
+        var i = btns.findIndex(function(b){ return b.classList.contains('active'); });
+        if (e.key === 'ArrowLeft')  i = (i - 1 + btns.length) % btns.length;
+        else if (e.key === 'ArrowRight') i = (i + 1) % btns.length;
+        else if (e.key === 'Home')  i = 0;
+        else i = btns.length - 1;
+        setActiveCategory(btns[i].getAttribute('data-category'));
+        btns[i].focus();
+    });
+
+    /* ── Initial data load ── */
+    function bootData(homes) {
+        allHomes = homes;
+
+        /* Choose the starting category:
+           saved map state > the target slug's own category > default 'home' */
+        if (saved && saved.category) {
+            activeCategory = saved.category;
+        } else if (targetSlug) {
+            var t = homes.find(function(h){ return h.slug === targetSlug || h.id === targetSlug; });
+            if (t) activeCategory = t.category || 'home';
+        }
+        syncTabUI();
+        setClusterTint(activeCategory);
+
+        renderMarkers(filterList(), function(focused, bounds){
+            if (saved) {
+                if (saved.panelSlug && !isMobile) {
+                    var match = homes.find(function(h){ return h.slug === saved.panelSlug || h.id === saved.panelSlug; });
+                    if (match) { openPanel(match, match.lat, match.lng); fetchDetail(saved.panelSlug, enrichPanel); }
+                }
+            } else if (focused) {
+                map.setView(focused.latlng, FOCUS_ZOOM, { animate:false });
+                setTimeout(function(){
+                    var el = focused.marker.getElement();
+                    if (el) { el._markerName = focused.data.name || ''; setActiveMarker(el); }
+                }, 100);
+                if (!pinOnly && !isMobile) {
+                    openPanel(focused.data, focused.data.lat, focused.data.lng);
+                    fetchDetail(focused.data.slug || focused.data.id, enrichPanel);
+                }
+            } else if (bounds.length) {
+                map.fitBounds(bounds, { padding:[30,30] });
+            } else {
+                map.setView([DEF_LAT, DEF_LNG], DEF_ZOOM);
+            }
+        });
+    }
+
+    // Load the user's favorites; if a panel is already open, refresh its heart.
+    fetchUserFavorites().then(function(){
+        if (isPanelOpen && currentPanelHome) updatePanelFav(currentPanelHome);
+    });
+
+    fetch(API + '/homes/map')
+        .then(function(r){ if (!r.ok) throw new Error('err'); return r.json(); })
+        .then(bootData)
+        .catch(function(){
+            map.setView([DEF_LAT, DEF_LNG], DEF_ZOOM);
+            loadingEl.style.display = 'none';
+            errorEl.classList.add('visible');
+        });
+
+    /* Retry button */
+    document.getElementById('mapRetry').addEventListener('click', function(){
+        errorEl.classList.remove('visible');
+        loadingEl.style.display = '';
+        loadingText.textContent = 'Зареждане на картата';
+        fetch(API + '/homes/map')
+            .then(function(r){ if (!r.ok) throw new Error('err'); return r.json(); })
+            .then(bootData)
+            .catch(function(){
+                loadingEl.style.display = 'none';
+                errorEl.classList.add('visible');
+            });
+    });
+
+    document.getElementById('year').textContent = new Date().getFullYear();
+});
+</script>
+</body>
+</html>

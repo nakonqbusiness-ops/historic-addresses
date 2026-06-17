@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="bg" data-theme="dark">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="icon" type="image/png" href="/assets/img/favicon-96x96.png" sizes="96x96" />
+<link rel="icon" type="image/svg+xml" href="/assets/img/favicon.svg" />
+<link rel="shortcut icon" href="/assets/img/favicon.ico" />
+<link rel="apple-touch-icon" sizes="180x180" href="/assets/img/apple-touch-icon.png" />
+<link rel="manifest" href="/assets/img/site.webmanifest" />
+
+	<title>Условия за използване - Адресът на историята</title>
+	<meta name="description" content="Условия за използване на Адресът на историята">
+	<script>
+		(function() {
+			try {
+				var stored = localStorage.getItem('theme-preference');
+				if (stored === 'system') stored = 'dark';
+				var theme = (stored === 'dark' || stored === 'light') ? stored : 'dark';
+				document.documentElement.setAttribute('data-theme', theme);
+			} catch(e) {}
+		})();
+	</script>
+	<link rel="stylesheet" href="assets/css/styles.css">
+	<script defer src="assets/js/theme.js"></script>
+	<script defer src="assets/js/transitions.js"></script>
+	<style>
+		.legal-content {
+			max-width: 900px;
+			margin: 0 auto;
+			line-height: 1.8;
+		}
+		.legal-content h2 {
+			color: var(--accent-strong);
+			margin-top: 2rem;
+			margin-bottom: 1rem;
+		}
+		.legal-content h3 {
+			color: var(--primary-color);
+			margin-top: 1.5rem;
+			margin-bottom: 0.75rem;
+		}
+		.legal-content p {
+			margin-bottom: 1rem;
+		}
+		.legal-content ul {
+			margin-left: 2rem;
+			margin-bottom: 1rem;
+		}
+		.legal-content li {
+			margin-bottom: 0.5rem;
+		}
+		.last-updated {
+			color: var(--text-muted);
+			font-size: 0.9rem;
+			margin-top: 2rem;
+			padding-top: 1rem;
+			border-top: 1px solid var(--border-color);
+		}
+	</style>
+	<script defer src="assets/js/calendar-popup.js?v=3.0"></script>
+	<link rel="canonical" href="https://historyaddress.bg/terms.html">
+	<meta name="robots" content="index, follow">
+    <script defer src="assets/js/account-nav.js?v=5"></script>
+</head>
+<script>
+function handleEmailClick(event) {
+    if (window.innerWidth <= 768) {
+        return; 
+    }
+    
+    event.preventDefault();
+    showEmailModal();
+}
+
+function showEmailModal() {
+    var modal = document.getElementById('emailModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'emailModal';
+        modal.className = 'email-modal';
+        modal.innerHTML = `
+            <div class="email-modal-content">
+                <h3>📧 Свържете се с нас</h3>
+                <div class="email-address-display" id="emailDisplay">historyaddressbg@gmail.com</div>
+                <div class="email-modal-buttons">
+                    <button class="btn-copy" onclick="copyEmail()">
+                        <span id="copyText">📋 Копирай Email</span>
+                    </button>
+                    <button class="btn-close" onclick="closeEmailModal()">✕ Затвори</button>
+                </div>
+                <p>Можете да ни пишете за въпроси или подкрепа</p>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                closeEmailModal();
+            }
+        });
+    }
+    
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+}
+
+function closeEmailModal() {
+    var modal = document.getElementById('emailModal');
+    if (modal) {
+        modal.style.display = 'none';
+        document.body.style.overflow = '';
+    }
+}
+
+function copyEmail() {
+    var email = 'historyaddressbg@gmail.com';
+    navigator.clipboard.writeText(email).then(function() {
+        var btn = document.querySelector('.btn-copy');
+        var text = document.getElementById('copyText');
+        
+        btn.classList.add('copied');
+        text.textContent = '✓ Копирано!';
+        
+        setTimeout(function() {
+            btn.classList.remove('copied');
+            text.textContent = '📋 Копирай Email';
+        }, 2000);
+    }).catch(function(err) {
+        alert('Email: ' + email);
+    });
+}
+
+// Close modal on ESC key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeEmailModal();
+    }
+});
+</script>
+<body>
+	<header class="site-header">
+		<a class="logo-link" href="index.html">
+			<img src="assets/img/HistAdrLogo.png" alt="Адресът на историята" class="header-logo">
+			<span class="logo-text">Адресът на историята</span>
+		</a>
+<nav class="nav">
+    <a href="index.html">Начало</a>
+    <a href="map.html">Карта</a>
+    <a href="addresses.html">Адреси</a>
+    <a href="calendar.html">Календар</a>
+    <a href="news.html">Новини</a>
+    <a href="about.html">За Нас</a>
+</nav>
+		<button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode"></button>
+	</header>
+
+	<main class="container">
+		<h1 class="page-title gradient-text">📋 Условия за използване</h1>
+		
+		<div class="legal-content">
+			<p><strong>Последна актуализация: Януари 2026</strong></p>
+
+			<h2>1. Приемане на условията</h2>
+			<p>
+				Чрез достъпа и използването на уебсайта historyaddress.bg („Сайтът"), вие приемате да спазвате тези Условия за използване. Ако не сте съгласни с тези условия, моля, не използвайте Сайта.
+			</p>
+
+			<h2>2. Описание на услугата</h2>
+			<p>
+				„Адресът на историята" е образователен проект, който документира и споделя информация за исторически значими адреси и личности в България. Сайтът предоставя:
+			</p>
+			<ul>
+				<li>Информация за исторически домове и адреси</li>
+				<li>Биографични данни за забележителни българи</li>
+				<li>Интерактивна карта с местоположения</li>
+				<li>Образователни материали и ресурси</li>
+			</ul>
+
+			<h2>3. Използване на съдържанието</h2>
+			<h3>3.1. Лична употреба</h3>
+			<p>
+				Можете да преглеждате и използвате Сайта за лични, некомерсиални образователни цели.
+			</p>
+
+			<h3>3.2. Забранени действия</h3>
+			<p>Забранено е:</p>
+			<ul>
+				<li>Копиране на съдържанието на Сайта без разрешение</li>
+				<li>Използване на съдържанието за комерсиални цели</li>
+				<li>Модифициране или разпространяване на материали от Сайта</li>
+				<li>Използване на автоматизирани системи (ботове) за събиране на данни</li>
+				<li>Опити за неоторизиран достъп до системите на Сайта</li>
+			</ul>
+
+			<h2>4. Интелектуална собственост</h2>
+			<p>
+				Всички материали на Сайта, включително текст, изображения, дизайн и код, са собственост на „Адресът на историята" или са използвани с разрешение. Вижте нашата страница <a href="copyright.html" style="color: var(--link);">Авторски права</a> за повече информация.
+			</p>
+
+			<h2>5. Потребителски принос</h2>
+			<p>
+				Ако изпратите информация, предложения или материали към нас:
+			</p>
+			<ul>
+				<li>Вие потвърждавате, че имате право да споделите тази информация</li>
+				<li>Вие ни предоставяте право да използваме тази информация на Сайта</li>
+				<li>Запазваме си правото да редактираме или не публикуваме получени материали</li>
+			</ul>
+
+			<h2>6. Отказ от отговорност</h2>
+			<p>
+				Сайтът се предоставя „както е". Полагаме усилия информацията да бъде точна и актуална, но не гарантираме нейната пълнота или точност. Използването на информацията от Сайта е на ваша собствена отговорност.
+			</p>
+
+			<h2>7. Външни връзки</h2>
+			<p>
+				Сайтът може да съдържа връзки към външни уебсайтове. Не носим отговорност за съдържанието или практиките за поверителност на тези сайтове.
+			</p>
+
+			<h2>8. Ограничение на отговорността</h2>
+			<p>
+				В максимална степен, разрешена от закона, „Адресът на историята" и неговите създатели не носят отговорност за каквито и да е преки, непреки, случайни или последващи щети, произтичащи от използването на Сайта.
+			</p>
+
+			<h2>9. Промени в условията</h2>
+			<p>
+				Запазваме си правото да променяме тези Условия за използване по всяко време. Промените влизат в сила веднага след публикуването им на Сайта. Продължаващото използване на Сайта след промени означава приемане на новите условия.
+			</p>
+
+			<h2>10. Приложимо право</h2>
+			<p>
+				Тези Условия за използване се уреждат от законите на Република България.
+			</p>
+
+			<h2>11. Контакти</h2>
+			<p>
+				При въпроси относно тези Условия за използване, моля свържете се с нас на: 
+				<a href="mailto:historyaddressbg@gmail.com" style="color: var(--link);">historyaddressbg@gmail.com</a>
+			</p>
+
+			<div class="last-updated">
+				<em>Последна актуализация: 13 януари 2026</em>
+			</div>
+		</div>
+	</main>
+
+<footer class="site-footer">
+    <div class="footer-inner">
+        <div class="footer-social">
+            <a href="https://instagram.com/historyaddress.bg" target="_blank" rel="noopener noreferrer" class="social-link">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
+                Instagram
+            </a>
+            <a href="mailto:historyaddressbg@gmail.com" class="social-link" onclick="handleEmailClick(event)">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                Email
+            </a>
+        </div>
+
+        <a href="https://buymeacoffee.com/historyaddress.bg" target="_blank" rel="noopener noreferrer" class="footer-donate" aria-label="Подкрепете ни — дарение">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+          Подкрепете ни
+        </a>
+
+        <p class="footer-links">
+            <a href="privacy.html">Поверителност</a>
+            <span>•</span>
+            <a href="terms.html">Условия</a>
+            <span>•</span>
+            <a href="copyright.html">Авторски права</a>
+        </p>
+
+        <p class="footer-copy">© <span id="year"></span> Адресът на историята</p>
+    </div>
+</footer>
+
+	<script>document.getElementById('year').textContent = new Date().getFullYear();</script>
+</body>
+</html>

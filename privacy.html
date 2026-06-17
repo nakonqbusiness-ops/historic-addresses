@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="bg" data-theme="dark">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="icon" type="image/png" href="/assets/img/favicon-96x96.png" sizes="96x96" />
+<link rel="icon" type="image/svg+xml" href="/assets/img/favicon.svg" />
+<link rel="shortcut icon" href="/assets/img/favicon.ico" />
+<link rel="apple-touch-icon" sizes="180x180" href="/assets/img/apple-touch-icon.png" />
+<link rel="manifest" href="/assets/img/site.webmanifest" />
+
+	<title>Правила за поверителност - Адресът на историята</title>
+	<meta name="description" content="Правила за поверителност на Адресът на историята">
+	<script>
+		(function() {
+			try {
+				var stored = localStorage.getItem('theme-preference');
+				if (stored === 'system') stored = 'dark';
+				var theme = (stored === 'dark' || stored === 'light') ? stored : 'dark';
+				document.documentElement.setAttribute('data-theme', theme);
+			} catch(e) {}
+		})();
+	</script>
+	<link rel="stylesheet" href="assets/css/styles.css">
+	<script defer src="assets/js/theme.js"></script>
+	<script defer src="assets/js/transitions.js"></script>
+	<style>
+		.legal-content {
+			max-width: 900px;
+			margin: 0 auto;
+			line-height: 1.8;
+		}
+		.legal-content h2 {
+			color: var(--accent-strong);
+			margin-top: 2rem;
+			margin-bottom: 1rem;
+		}
+		.legal-content h3 {
+			color: var(--primary-color);
+			margin-top: 1.5rem;
+			margin-bottom: 0.75rem;
+		}
+		.legal-content p {
+			margin-bottom: 1rem;
+		}
+		.legal-content ul {
+			margin-left: 2rem;
+			margin-bottom: 1rem;
+		}
+		.legal-content li {
+			margin-bottom: 0.5rem;
+		}
+		.last-updated {
+			color: var(--text-muted);
+			font-size: 0.9rem;
+			margin-top: 2rem;
+			padding-top: 1rem;
+			border-top: 1px solid var(--border-color);
+		}
+	</style>
+	<script defer src="assets/js/calendar-popup.js?v=4.0"></script>
+	<script defer src="assets/js/account-nav.js?v=5"></script>
+	<link rel="canonical" href="https://historyaddress.bg/privacy.html">
+	<meta name="robots" content="index, follow">
+</head>
+<script>
+function handleEmailClick(event) {
+    if (window.innerWidth <= 768) {
+        return;
+    }
+
+    event.preventDefault();
+    showEmailModal();
+}
+
+function showEmailModal() {
+    var modal = document.getElementById('emailModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'emailModal';
+        modal.className = 'email-modal';
+        modal.innerHTML = `
+            <div class="email-modal-content">
+                <h3>📧 Свържете се с нас</h3>
+                <div class="email-address-display" id="emailDisplay">historyaddressbg@gmail.com</div>
+                <div class="email-modal-buttons">
+                    <button class="btn-copy" onclick="copyEmail()">
+                        <span id="copyText">📋 Копирай Email</span>
+                    </button>
+                    <button class="btn-close" onclick="closeEmailModal()">✕ Затвори</button>
+                </div>
+                <p>Можете да ни пишете за въпроси или подкрепа</p>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                closeEmailModal();
+            }
+        });
+    }
+
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+}
+
+function closeEmailModal() {
+    var modal = document.getElementById('emailModal');
+    if (modal) {
+        modal.style.display = 'none';
+        document.body.style.overflow = '';
+    }
+}
+
+function copyEmail() {
+    var email = 'historyaddressbg@gmail.com';
+    navigator.clipboard.writeText(email).then(function() {
+        var btn = document.querySelector('.btn-copy');
+        var text = document.getElementById('copyText');
+
+        btn.classList.add('copied');
+        text.textContent = '✓ Копирано!';
+
+        setTimeout(function() {
+            btn.classList.remove('copied');
+            text.textContent = '📋 Копирай Email';
+        }, 2000);
+    }).catch(function(err) {
+        alert('Email: ' + email);
+    });
+}
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeEmailModal();
+    }
+});
+</script>
+<body>
+	<header class="site-header">
+		<a class="logo-link" href="index.html">
+			<img src="assets/img/HistAdrLogo.png" alt="Адресът на историята" class="header-logo">
+			<span class="logo-text">Адресът на историята</span>
+		</a>
+<nav class="nav">
+    <a href="index.html">Начало</a>
+    <a href="map.html">Карта</a>
+    <a href="addresses.html">Адреси</a>
+    <a href="calendar.html">Календар</a>
+    <a href="news.html">Новини</a>
+    <a href="about.html">За Нас</a>
+</nav>
+		<button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode"></button>
+	</header>
+
+	<main class="container">
+		<h1 class="page-title gradient-text">🔒 Правила за поверителност</h1>
+
+		<div class="legal-content">
+			<p><strong>Последна актуализация: Юни 2026</strong></p>
+
+			<h2>1. Въведение</h2>
+			<p>
+				Добре дошли в „Адресът на историята". Ние зачитаме вашата поверителност и се ангажираме да защитим личните ви данни. Тази политика за поверителност ще ви информира как се грижим за вашите лични данни, когато посещавате нашия уебсайт.
+			</p>
+
+			<h2>2. Каква информация събираме</h2>
+			<h3>2.1. Информация, която ни предоставяте</h3>
+			<ul>
+				<li>Имейл адрес (ако се свържете с нас или си създадете профил)</li>
+				<li>Съобщения, които ни изпращате</li>
+			</ul>
+
+			<h3>2.2. Информация, която събираме автоматично</h3>
+			<ul>
+				<li>IP адрес</li>
+				<li>Тип на браузъра и операционната система</li>
+				<li>Страници, които посещавате на нашия сайт</li>
+				<li>Дата и час на посещението</li>
+			</ul>
+
+			<h2>3. Как използваме вашата информация</h2>
+			<p>Използваме събраната информация за:</p>
+			<ul>
+				<li>Поддръжка и подобряване на уебсайта</li>
+				<li>Анализ на използването на сайта</li>
+				<li>Отговор на вашите запитвания</li>
+				<li>Осигуряване на сигурността на сайта</li>
+			</ul>
+
+			<h2>4. Бисквитки (Cookies)</h2>
+			<p>
+				Нашият уебсайт използва бисквитки само за запазване на вашите предпочитания за тема (светла/тъмна). Тези бисквитки се съхраняват локално във вашия браузър и не се споделят с трети страни.
+			</p>
+
+			<h2>5. Споделяне на данни</h2>
+			<p>
+				Ние НЕ продаваме, НЕ обменяме и НЕ предаваме вашите лични данни на трети страни. Единственото изключение е, ако това е необходимо по закон.
+			</p>
+
+			<h2>6. Сигурност на данните</h2>
+			<p>
+				Прилагаме подходящи технически и организационни мерки за защита на вашите лични данни срещу неоторизиран достъп, промяна, разкриване или унищожаване.
+			</p>
+
+			<h2>7. Вашите права</h2>
+			<p>Имате право да:</p>
+			<ul>
+				<li>Поискате достъп до вашите лични данни</li>
+				<li>Поискате коригиране на неточни данни</li>
+				<li>Поискате изтриване на вашите данни</li>
+				<li>Оттеглите съгласието си за обработка на данни</li>
+			</ul>
+
+			<h2>8. Контакти</h2>
+			<p>
+				Ако имате въпроси относно тази политика за поверителност, моля свържете се с нас на:
+				<a href="mailto:historyaddressbg@gmail.com" style="color: var(--link);">historyaddressbg@gmail.com</a>
+			</p>
+
+			<h2>9. Промени в политиката</h2>
+			<p>
+				Можем да актуализираме тази политика. Всички промени ще бъдат публикувани на тази страница с актуализирана дата.
+			</p>
+
+			<div class="last-updated">
+				<em>Последна актуализация: 13 януари 2026</em>
+			</div>
+		</div>
+	</main>
+
+<footer class="site-footer">
+    <div class="footer-inner">
+        <div class="footer-social">
+            <a href="https://instagram.com/historyaddress.bg" target="_blank" rel="noopener noreferrer" class="social-link">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
+                Instagram
+            </a>
+            <a href="mailto:historyaddressbg@gmail.com" class="social-link" onclick="handleEmailClick(event)">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                Email
+            </a>
+        </div>
+
+        <a href="https://buymeacoffee.com/historyaddress.bg" target="_blank" rel="noopener noreferrer" class="footer-donate" aria-label="Подкрепете ни — дарение">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+            Подкрепете ни
+        </a>
+
+        <p class="footer-links">
+            <a href="privacy.html">Поверителност</a>
+            <span>•</span>
+            <a href="terms.html">Условия</a>
+            <span>•</span>
+            <a href="copyright.html">Авторски права</a>
+        </p>
+
+        <p class="footer-copy">© <span id="year"></span> Адресът на историята</p>
+    </div>
+</footer>
+
+	<script>document.getElementById('year').textContent = new Date().getFullYear();</script>
+</body>
+</html>

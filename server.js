@@ -1,0 +1,2198 @@
+require('dotenv').config();
+const express  = require('express');
+const sqlite3  = require('sqlite3').verbose();
+const cors     = require('cors');
+const path     = require('path');
+const fs       = require('fs');
+const os       = require('os');
+const multer   = require('multer');
+const sharp    = require('sharp');
+const crypto   = require('crypto');
+const bcrypt       = require('bcrypt');
+const jwt          = require('jsonwebtoken');
+const cookieParser = require('cookie-parser');
+const compression  = require('compression');
+const { Resend }   = require('resend');
+const { S3Client, PutObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
+
+// ─── Config ──────────────────────────────────────────────────────────────────
+
+const PORT      = process.env.PORT || 10000;
+const DOMAIN    = 'https://historyaddress.bg';
+const RAM_MB    = Math.round(os.totalmem() / 1024 / 1024);
+const LOW_SPEC  = RAM_MB < 1024;            // tune for 512 MB Railway instances
+
+// Database path resolution
+const DB_FILE = (() => {
+    const candidates = [
+        process.env.DATABASE_URL,
+        '/data/database.db',
+        path.join(__dirname, 'database.db'),
+    ].filter(Boolean);
+    for (const p of candidates) if (fs.existsSync(p)) return p;
+    return path.join(__dirname, 'database.db'); // fallback (will be created)
+})();
+
+console.log(`\n🚀 HistoryAddress starting…`);
+console.log(`📦 DB: ${DB_FILE}  |  RAM: ${RAM_MB} MB  |  Mode: ${LOW_SPEC ? 'LEAN' : 'PERFORMANCE'}`);
+
+// ─── In-memory API cache ──────────────────────────────────────────────────────
+
+const cache = {
+    _store: new Map(),
+    _max:   LOW_SPEC ? 50 : 200,
+
+    get(key) {
+        const item = this._store.get(key);
+        if (!item) return null;
+        if (Date.now() > item.exp) { this._store.delete(key); return null; }
+        return item.val;
+    },
+
+    set(key, val, ttlSecs = 60) {
+        // Evict oldest 25 % when full
+        if (this._store.size >= this._max) {
+            const cut = Math.ceil(this._max * 0.25);
+            for (const k of this._store.keys()) {
+                if (--cut < 0) break;  // eslint-disable-line no-plusplus
+                this._store.delete(k);
+            }
+        }
+        this._store.set(key, { val, exp: Date.now() + ttlSecs * 1000 });
+    },
+
+    clear() { this._store.clear(); },
+    stats() { return { size: this._store.size, max: this._max }; },
+};
+
+// ─── R2 / upload setup ───────────────────────────────────────────────────────
+
+const r2 = new S3Client({
+    region:   'auto',
+    endpoint: 'https://ae436e2433a501e9b779b8993e95d5b1.r2.cloudflarestorage.com',
+    credentials: {
+        accessKeyId:     process.env.R2_ACCESS_KEY_ID,
+        secretAccessKey: process.env.R2_SECRET_KEY,
+    },
+});
+const R2_BUCKET     = 'history-address-images';
+const R2_PUBLIC_URL = 'https://pub-b40e453eddaf4bc5b299af8f6d7b7de2.r2.dev';
+
+const upload = multer({
+    storage:    multer.memoryStorage(),
+    limits:     { fileSize: 20 * 1024 * 1024 },
+    fileFilter: (_req, file, cb) =>
+        file.mimetype.startsWith('image/')
+            ? cb(null, true)
+            : cb(new Error('Only images are allowed'), false),
+});
+
+// Hardened uploader for crowdsourced photos: max 10 MB each, up to MAX_PHOTOS,
+// images only. Returns clean Bulgarian JSON on any upload error so a malformed
+// request can never crash or hang the route.
+const MAX_PHOTOS = 6;
+const suggestUpload = multer({
+    storage:    multer.memoryStorage(),
+    limits:     { fileSize: 10 * 1024 * 1024, files: MAX_PHOTOS },
+    fileFilter: (_req, file, cb) =>
+        file.mimetype.startsWith('image/')
+            ? cb(null, true)
+            : cb(new Error('NOT_IMAGE'), false),
+});
+function acceptPhotos(field) {
+    const mw = suggestUpload.array(field, MAX_PHOTOS);
+    return (req, res, next) => mw(req, res, (err) => {
+        if (!err) return next();
+        if (err.code === 'LIMIT_FILE_SIZE')  return res.status(400).json({ error: 'Снимката е твърде голяма (макс. 10 MB).' });
+        if (err.code === 'LIMIT_FILE_COUNT')  return res.status(400).json({ error: 'Твърде много снимки (макс. ' + MAX_PHOTOS + ').' });
+        if (err.code === 'LIMIT_UNEXPECTED_FILE') return res.status(400).json({ error: 'Твърде много снимки (макс. ' + MAX_PHOTOS + ').' });
+        return res.status(400).json({ error: 'Невалиден файл — качете изображение (JPG/PNG).' });
+    });
+}
+
+// Validate the actual file bytes (magic numbers) — never trust the client's
+// Content-Type. Rejects .html/.js/.svg/PDF/etc. dressed up as image/jpeg.
+function looksLikeImage(buf) {
+    if (!buf || buf.length < 12) return false;
+    const h = buf.subarray(0, 12);
+    const hex = h.toString('hex').toLowerCase();
+    if (hex.startsWith('ffd8ff')) return true;                          // JPEG
+    if (hex.startsWith('89504e470d0a1a0a')) return true;                // PNG
+    if (hex.startsWith('474946383')) return true;                       // GIF87a/89a
+    if (h.toString('latin1', 0, 4) === 'RIFF' && h.toString('latin1', 8, 12) === 'WEBP') return true; // WebP
+    return false;
+}
+// sharp options that cap pixel count → blocks decompression "bombs".
+const SHARP_OPTS = { limitInputPixels: 50_000_000, failOn: 'truncated' };
+
+// Process one image buffer → {full, thumb} JPEG buffers. Throws on a non-image.
+async function processPhoto(buf) {
+    if (!looksLikeImage(buf)) throw new Error('NOT_IMAGE');
+    const full  = await sharp(buf, SHARP_OPTS).rotate().resize({ width: 2000, withoutEnlargement: true }).jpeg({ quality: 85 }).toBuffer();
+    const thumb = await sharp(full).resize({ width: 600, withoutEnlargement: true }).jpeg({ quality: 70 }).toBuffer();
+    return { full, thumb };
+}
+// Upload a processed photo to R2 under a key prefix; returns its public URL.
+async function uploadPhotoToR2(buf, keyBase) {
+    const fullKey  = keyBase + '.jpg';
+    const thumbKey = keyBase + '_thumb.jpg';
+    const { full, thumb } = await processPhoto(buf);
+    await Promise.all([
+        r2.send(new PutObjectCommand({ Bucket: R2_BUCKET, Key: fullKey,  Body: full,  ContentType: 'image/jpeg', CacheControl: 'public, max-age=31536000' })),
+        r2.send(new PutObjectCommand({ Bucket: R2_BUCKET, Key: thumbKey, Body: thumb, ContentType: 'image/jpeg', CacheControl: 'public, max-age=31536000' })),
+    ]);
+    return `${R2_PUBLIC_URL}/${fullKey}`;
+}
+
+async function buildWatermark(buf, photographer) {
+    if (!looksLikeImage(buf)) throw new Error('NOT_IMAGE');
+    const img  = sharp(buf, SHARP_OPTS);
+    const meta = await img.metadata();
+    const w    = meta.width  || 800;
+    const h    = meta.height || 600;
+
+    const fs_px   = Math.max(14, Math.min(Math.round(Math.min(w, h) * (h > w ? 0.032 : 0.028)), 48));
+    const pad     = Math.round(fs_px * 0.8);
+    const xmlEsc  = s => String(s).replace(/[<>&"']/g, c => ({ '<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;' }[c]));
+    const name    = xmlEsc((photographer && photographer.trim()) || 'Адресът на историята');
+    const text    = `© ${name} via Адресът на историята`;
+    const bgW     = Math.round(text.length * fs_px * 0.52 + pad * 2);
+    const bgH     = Math.round(fs_px * 1.4 + pad);
+
+    const svg = `<svg width="${bgW}" height="${bgH}" xmlns="http://www.w3.org/2000/svg">
+      <rect x="0" y="0" width="${bgW}" height="${bgH}" fill="rgba(0,0,0,0.38)" rx="4"/>
+      <text x="${pad}" y="${Math.round(bgH * 0.72)}"
+        font-family="Arial, Helvetica, sans-serif"
+        font-size="${fs_px}" font-weight="600"
+        fill="white" opacity="0.92">${text}</text>
+    </svg>`;
+
+    return img
+        .composite([{ input: Buffer.from(svg), top: Math.max(0, h - bgH - pad), left: Math.max(0, pad) }])
+        .jpeg({ quality: 88 })
+        .toBuffer();
+}
+
+function randomSuffix(n = 6) { return Math.random().toString(36).substring(2, 2 + n); }
+
+// ─── Admin auth ────────────────────────────────────────────────────────────────
+// Password → role map (SHA-256 hex of the password). The raw password is sent
+// once to /api/login over HTTPS; the server verifies it here and returns a signed
+// token. Every mutating API route then requires that token in an X-Admin-Token
+// header — so the panel is no longer just hidden on the client, it is enforced.
+const ADMIN_ACCOUNTS = {
+    '135a21d2896b3b414a72f31aa2ada261c499b0740bc747b731dcfbd4315619ec': { role: 'owner',  name: 'Георги'  },
+    'f31f00416e795e7c9f539624a907f8dd0e7a363d58a2a406e8f73f1702ab6826': { role: 'editor', name: 'Божидар' },
+};
+
+const ADMIN_SECRET = process.env.ADMIN_SECRET || crypto.randomBytes(32).toString('hex');
+if (!process.env.ADMIN_SECRET) {
+    console.warn('⚠️  ADMIN_SECRET not set — using a random per-boot secret. Set it in env so admin logins survive restarts.');
+}
+
+const sha256hex   = s => crypto.createHash('sha256').update(String(s)).digest('hex');
+const b64url      = b => Buffer.from(b).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const b64urlDecode = s => Buffer.from(s.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString();
+
+function signToken(payloadObj) {
+    const payload = b64url(JSON.stringify(payloadObj));
+    const sig     = b64url(crypto.createHmac('sha256', ADMIN_SECRET).update(payload).digest());
+    return payload + '.' + sig;
+}
+function verifyToken(token) {
+    if (!token || token.indexOf('.') === -1) return null;
+    const [payload, sig] = token.split('.');
+    const expected = b64url(crypto.createHmac('sha256', ADMIN_SECRET).update(payload).digest());
+    const a = Buffer.from(sig), b = Buffer.from(expected);
+    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
+    try { return JSON.parse(b64urlDecode(payload)); } catch { return null; }
+}
+function readToken(req) {
+    return req.headers['x-admin-token'] || (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+}
+function requireAuth(req, res, next) {
+    const data = verifyToken(readToken(req));
+    if (!data) return res.status(401).json({ error: 'Unauthorized' });
+    req.admin = data;
+    next();
+}
+function requireOwner(req, res, next) {
+    requireAuth(req, res, () => {
+        if (req.admin.role !== 'owner') return res.status(403).json({ error: 'Forbidden — owner only' });
+        next();
+    });
+}
+
+// ─── User accounts (public profiles + RBAC) ─────────────────────────────────────
+// Separate from the admin token above: these are end-user logins using a JWT
+// delivered in an HttpOnly cookie (never exposed to JavaScript / localStorage).
+const JWT_SECRET    = process.env.JWT_SECRET || crypto.randomBytes(32).toString('hex');
+if (!process.env.JWT_SECRET) {
+    console.warn('⚠️  JWT_SECRET not set — using a random per-boot secret. Set it in env so user logins survive restarts.');
+}
+const JWT_EXPIRES   = '7d';
+const AUTH_COOKIE   = 'auth_token';
+const BCRYPT_ROUNDS = 12;
+// Secure cookies require HTTPS. Railway injects RAILWAY_* env vars in production;
+// locally (http://localhost) we must NOT set Secure or the cookie is dropped.
+const COOKIE_SECURE = !!(process.env.RAILWAY_ENVIRONMENT_NAME || process.env.RAILWAY_PROJECT_ID || process.env.NODE_ENV === 'production');
+const COOKIE_OPTS   = {
+    httpOnly: true,          // not readable by JS → mitigates XSS token theft
+    sameSite: 'strict',      // not sent on cross-site requests → mitigates CSRF
+    secure:   COOKIE_SECURE, // HTTPS-only in production
+    path:     '/',
+    maxAge:   7 * 24 * 60 * 60 * 1000, // 7 days, matches JWT_EXPIRES
+};
+// Constant-time dummy compare target, so a missing email takes ~the same time as
+// a wrong password (mitigates user-enumeration via timing).
+const DUMMY_HASH = bcrypt.hashSync('unused-placeholder-password', BCRYPT_ROUNDS);
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+function validEmail(e) { return typeof e === 'string' && e.length <= 254 && EMAIL_RE.test(e); }
+function passwordIssue(p) {
+    if (typeof p !== 'string' || p.length < 8) return 'Password must be at least 8 characters';
+    if (p.length > 200) return 'Password is too long';
+    if (!/[A-Za-z]/.test(p) || !/[0-9]/.test(p)) return 'Password must contain both letters and numbers';
+    return null;
+}
+
+// ─── Email (Resend) ──────────────────────────────────────────────────────────
+// Configured only if RESEND_API_KEY is present; otherwise email is skipped so the
+// app still runs locally / before the key is set. EMAIL_FROM must use a domain you
+// have verified in Resend (the sandbox 'onboarding@resend.dev' only delivers to the
+// Resend account owner's address).
+const resend    = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
+const EMAIL_FROM = process.env.EMAIL_FROM || 'Адресът на историята <onboarding@resend.dev>';
+
+async function sendEmail({ to, subject, html }) {
+    if (!resend) { console.warn('✉️  RESEND_API_KEY not set — skipping email to', to); return false; }
+    try {
+        const { error } = await resend.emails.send({ from: EMAIL_FROM, to, subject, html });
+        if (error) { console.error('Resend error:', error.message || JSON.stringify(error)); return false; }
+        return true;
+    } catch (e) {
+        console.error('Email send failed:', e.message);
+        return false;
+    }
+}
+
+// Shared, email-client-safe HTML shell (inline styles, table layout, light theme).
+function emailLayout(bodyHtml, preheader = '') {
+    return `<!doctype html><html lang="bg"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#ece5d8;font-family:'Mulish',Segoe UI,Arial,sans-serif;color:#3a2f1f;-webkit-font-smoothing:antialiased;">
+<span style="display:none!important;visibility:hidden;opacity:0;color:transparent;height:0;width:0;overflow:hidden;mso-hide:all;">${preheader}</span>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#ece5d8;padding:28px 12px;">
+  <tr><td align="center">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#fffaf0;border-radius:16px;overflow:hidden;border:1px solid #e6d9c2;">
+      <tr><td style="background:#cd853f;background:linear-gradient(135deg,#cd853f,#daa520);padding:28px 32px;text-align:center;">
+        <div style="font-family:Georgia,'Times New Roman',serif;font-size:23px;font-weight:700;color:#fffaf0;">Адресът на историята</div>
+        <div style="font-size:11px;color:rgba(255,250,240,0.9);letter-spacing:2px;text-transform:uppercase;margin-top:5px;">Историята на всеки адрес</div>
+      </td></tr>
+      <tr><td style="padding:34px 32px 8px;">${bodyHtml}</td></tr>
+      <tr><td style="padding:18px 32px 30px;border-top:1px solid #efe5d2;">
+        <p style="margin:0;font-size:12px;color:#8b7355;line-height:1.6;text-align:center;">
+          © ${new Date().getFullYear()} Адресът на историята · <a href="${DOMAIN}" style="color:#cd853f;text-decoration:none;">historyaddress.bg</a>
+        </p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table></body></html>`;
+}
+function emailButton(href, label) {
+    return `<table role="presentation" cellpadding="0" cellspacing="0" align="center" style="margin:26px auto;">
+      <tr><td align="center" style="border-radius:30px;background:#cd853f;background:linear-gradient(135deg,#cd853f,#daa520);">
+        <a href="${href}" style="display:inline-block;padding:14px 36px;font-family:'Mulish',Arial,sans-serif;font-size:16px;font-weight:700;color:#fffaf0;text-decoration:none;border-radius:30px;">${label}</a>
+      </td></tr></table>`;
+}
+function welcomeEmailHtml() {
+    const body =
+      `<h1 style="margin:0 0 14px;font-family:Georgia,serif;font-size:26px;font-weight:700;color:#3a2f1f;">Добре дошли! 🏛️</h1>
+       <p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:#5a4a33;">Радваме се, че се присъединихте към <strong style="color:#cd853f;">Адресът на историята</strong> — мястото, където оживява историята на сгради, личности и събития от България.</p>
+       <p style="margin:0 0 8px;font-size:15px;line-height:1.7;color:#5a4a33;">Ето какво можете да правите вече:</p>
+       <ul style="margin:0 0 6px;padding-left:20px;font-size:15px;line-height:1.85;color:#5a4a33;">
+         <li>❤️ Запазвайте любими места</li>
+         <li>📍 Отбелязвайте посетени адреси</li>
+         <li>📸 Предлагайте нови исторически локации</li>
+       </ul>
+       ${emailButton(DOMAIN + '/addresses.html', 'Разгледай адресите')}
+       <p style="margin:14px 0 0;font-size:13px;line-height:1.6;color:#8b7355;">Благодарим Ви, че пазите историята жива.</p>`;
+    return emailLayout(body, 'Добре дошли в Адресът на историята!');
+}
+function resetEmailHtml(link) {
+    const body =
+      `<h1 style="margin:0 0 14px;font-family:Georgia,serif;font-size:24px;font-weight:700;color:#3a2f1f;">Нулиране на паролата</h1>
+       <p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:#5a4a33;">Получихме заявка за нулиране на паролата за Вашия профил. Натиснете бутона по-долу, за да зададете нова парола. Връзката е валидна <strong>1 час</strong>.</p>
+       ${emailButton(link, 'Нулирай паролата')}
+       <p style="margin:8px 0 0;font-size:13px;line-height:1.6;color:#8b7355;">Ако бутонът не работи, копирайте този адрес в браузъра си:<br><a href="${link}" style="color:#cd853f;word-break:break-all;">${link}</a></p>
+       <p style="margin:16px 0 0;font-size:13px;line-height:1.6;color:#8b7355;">Ако не сте поискали това, просто игнорирайте имейла — паролата Ви няма да бъде променена.</p>`;
+    return emailLayout(body, 'Връзка за нулиране на паролата (валидна 1 час)');
+}
+
+function issueAuthCookie(res, user) {
+    const token = jwt.sign({ sub: user.id, role: user.role }, JWT_SECRET, { expiresIn: JWT_EXPIRES });
+    res.cookie(AUTH_COOKIE, token, COOKIE_OPTS);
+}
+
+// Verify the JWT cookie on protected routes; attaches req.user = { sub, role }.
+function requireUser(req, res, next) {
+    const token = req.cookies && req.cookies[AUTH_COOKIE];
+    if (!token) return res.status(401).json({ error: 'Not authenticated' });
+    try {
+        req.user = jwt.verify(token, JWT_SECRET);
+        next();
+    } catch {
+        res.status(401).json({ error: 'Invalid or expired session' });
+    }
+}
+// Role gate, e.g. requireUserRole('owner','admin')
+function requireUserRole(...roles) {
+    return (req, res, next) => requireUser(req, res, () => {
+        if (!roles.includes(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
+        next();
+    });
+}
+// Fine-grained permission gate (owners bypass). Reads live perms from the DB.
+function requireUserPermission(perm) {
+    return (req, res, next) => requireUser(req, res, async () => {
+        try {
+            const row = await dbGet('SELECT role, permissions FROM users WHERE id=?', [req.user.sub]);
+            if (!row) return res.status(401).json({ error: 'Not authenticated' });
+            if (row.role === 'owner') return next();
+            let perms = []; try { perms = JSON.parse(row.permissions || '[]'); } catch {}
+            if (!perms.includes(perm)) return res.status(403).json({ error: 'Forbidden' });
+            next();
+        } catch (e) { res.status(500).json({ error: 'Server error' }); }
+    });
+}
+
+// Moderator gate: role owner/moderator, OR the 'approve:photos' permission.
+// Re-reads from the DB so a freshly changed role/permission takes effect.
+function requireModerator(req, res, next) {
+    requireUser(req, res, async () => {
+        try {
+            const row = await dbGet('SELECT role, permissions FROM users WHERE id=?', [req.user.sub]);
+            if (!row) return res.status(401).json({ error: 'Not authenticated' });
+            let perms = []; try { perms = JSON.parse(row.permissions || '[]'); } catch {}
+            if (row.role === 'owner' || row.role === 'moderator' || perms.includes('approve:photos')) {
+                req.user.role = row.role;
+                return next();
+            }
+            return res.status(403).json({ error: 'Forbidden — moderators only' });
+        } catch (e) { res.status(500).json({ error: 'Server error' }); }
+    });
+}
+
+// Owner-only gate, re-read from the DB (so role management is always current).
+function requireOwnerUser(req, res, next) {
+    requireUser(req, res, async () => {
+        try {
+            const row = await dbGet('SELECT role FROM users WHERE id=?', [req.user.sub]);
+            if (!row) return res.status(401).json({ error: 'Not authenticated' });
+            if (row.role !== 'owner') return res.status(403).json({ error: 'Forbidden — owner only' });
+            req.user.role = row.role;
+            next();
+        } catch (e) { res.status(500).json({ error: 'Server error' }); }
+    });
+}
+
+// ─── Cyrillic → Latin slug helpers (for crowdsourced titles) ─────────────────────
+const TRANSLIT = {
+    а:'a',б:'b',в:'v',г:'g',д:'d',е:'e',ж:'zh',з:'z',и:'i',й:'y',к:'k',л:'l',м:'m',
+    н:'n',о:'o',п:'p',р:'r',с:'s',т:'t',у:'u',ф:'f',х:'h',ц:'ts',ч:'ch',ш:'sh',щ:'sht',
+    ъ:'a',ь:'y',ю:'yu',я:'ya',
+};
+function slugifyTitle(title) {
+    const s = String(title || '').toLowerCase()
+        .replace(/[а-яё]/g, ch => TRANSLIT[ch] ?? '')   // transliterate Cyrillic
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '');
+    return s || ('obekt-' + randomSuffix());
+}
+async function uniqueHomeSlug(base) {
+    let slug = base, n = 2;
+    // Append -2, -3… until the slug (and id) is free in homes.
+    /* eslint-disable no-await-in-loop */
+    while (await dbGet('SELECT 1 FROM homes WHERE slug=? OR id=?', [slug, slug])) {
+        slug = base + '-' + n++;
+    }
+    return slug;
+}
+
+// Strip HTML/scripts from free-text fields before they are stored. These fields
+// are always plain text, so removing tags (and control chars) neutralises stored
+// XSS at the source — defence in depth alongside frontend escaping.
+function sanitizeText(s, max = 5000) {
+    if (s == null) return '';
+    return String(s)
+        .replace(/<[^>]*>/g, '')
+        .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '')
+        .trim()
+        .slice(0, max);
+}
+
+function clientIp(req) {
+    return (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
+}
+
+// Reusable in-memory rate limiter (per key, sliding fixed-window).
+function makeRateLimiter({ windowMs, max, key, message }) {
+    const hits = new Map();
+    return (req, res, next) => {
+        const id  = key ? key(req) : clientIp(req);
+        const now = Date.now();
+        const rec = hits.get(id) || { count: 0, reset: now + windowMs };
+        if (now > rec.reset) { rec.count = 0; rec.reset = now + windowMs; }
+        rec.count++;
+        hits.set(id, rec);
+        if (hits.size > 10000) for (const [k, v] of hits) if (now > v.reset) hits.delete(k);
+        if (rec.count > max) {
+            res.setHeader('Retry-After', Math.ceil((rec.reset - now) / 1000));
+            return res.status(429).json({ error: message || 'Твърде много заявки. Опитайте по-късно.' });
+        }
+        next();
+    };
+}
+// Brute-force throttle for auth endpoints (per IP).
+const rateLimitAuth = makeRateLimiter({ windowMs: 15 * 60 * 1000, max: 20, message: 'Too many attempts. Please try again later.' });
+// Throttle crowdsourced submissions (per user, falls back to IP) so a bot can't
+// spam our R2 bucket and run up storage costs.
+const rateLimitSuggest = makeRateLimiter({
+    windowMs: 60 * 60 * 1000, max: 25,
+    key: req => (req.user && req.user.sub) || clientIp(req),
+    message: 'Изпратихте твърде много предложения за кратко време. Опитайте по-късно.',
+});
+// Light throttle for favorite/visited toggles (per user) to curb write spam.
+const rateLimitActivity = makeRateLimiter({
+    windowMs: 60 * 1000, max: 60,
+    key: req => (req.user && req.user.sub) || clientIp(req),
+    message: 'Твърде много заявки. Опитайте отново след малко.',
+});
+
+// ─── Express app ─────────────────────────────────────────────────────────────
+
+const app = express();
+app.disable('x-powered-by');
+// Behind Railway's HTTPS proxy — needed for Secure cookies + req.secure to work.
+app.set('trust proxy', 1);
+app.use(compression());                       // gzip HTML/CSS/JS/JSON responses
+// CORS: the site and its API share one origin, so cross-origin access is not
+// needed. We disable it by default (no Access-Control-Allow-Origin header) and
+// only allow explicit origins listed in ALLOWED_ORIGINS (comma-separated). This
+// stops other sites from scripting our API in a browser. Same-origin is unaffected.
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
+app.use(cors({ origin: ALLOWED_ORIGINS.length ? ALLOWED_ORIGINS : false, credentials: false }));
+app.use(express.json({ limit: '1mb' }));      // JSON bodies are tiny; cap tightly
+app.use(cookieParser());
+
+// ── Security headers (applied to every response) ──────────────────────────────
+app.use((_req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');        // no MIME sniffing
+    res.setHeader('X-Frame-Options', 'DENY');                  // anti-clickjacking
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+    next();
+});
+
+// ── Maintenance mode ──────────────────────────────────────────────────────────
+// When MAINTENANCE_MODE=true the public gets a branded 503 page. We still allow:
+// the page's own assets, the favicon, the login page + auth API (so an owner can
+// sign in), and /api/health (so the host's health check doesn't restart us). A
+// logged-in owner bypasses everything and keeps using the live site.
+function isOwnerCookie(req) {
+    try {
+        const t = req.cookies && req.cookies[AUTH_COOKIE];
+        return !!t && jwt.verify(t, JWT_SECRET).role === 'owner';
+    } catch { return false; }
+}
+const MAINT_ALLOW = new Set(['/maintenance.html', '/login.html', '/favicon.ico', '/api/health']);
+app.use((req, res, next) => {
+    if (process.env.MAINTENANCE_MODE !== 'true') return next();
+    if (req.path.startsWith('/assets/') || MAINT_ALLOW.has(req.path)) return next();
+    if (isOwnerCookie(req)) return next();                 // owner sees the live site
+    if (req.path.startsWith('/api/auth/')) return next();  // allow the login flow
+    if (req.path.startsWith('/api/')) {
+        return res.status(503).json({ error: 'Сайтът е в техническа поддръжка. Опитайте по-късно.' });
+    }
+    res.status(503).set('Retry-After', '3600').sendFile(path.join(__dirname, 'maintenance.html'));
+});
+
+// ── Request logger (deduplicated per IP / 10 s) ───────────────────────────────
+const recentVisits = new Map();
+app.use((req, _res, next) => {
+    if (/\.(css|js|png|jpg|jpeg|ico|svg|webp|woff2?|ttf)$/.test(req.originalUrl)) return next();
+    const ip  = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress;
+    const now = Date.now();
+    if (!recentVisits.has(ip) || now - recentVisits.get(ip) > 10_000) {
+        const ts = new Date().toISOString().replace('T', ' ').slice(0, 19);
+        console.log(`[${ts}] ${ip} → ${req.method} ${req.originalUrl.slice(0, 80)}`);
+        recentVisits.set(ip, now);
+    }
+    // Prune old entries periodically
+    if (recentVisits.size > 300) {
+        const cutoff = now - 60_000;
+        for (const [k, v] of recentVisits) if (v < cutoff) recentVisits.delete(k);
+    }
+    next();
+});
+
+// ── Static files ──────────────────────────────────────────────────────────────
+// HTML must always revalidate (otherwise edited pages stay stale for up to a day);
+// hashed/versioned assets can cache long.
+app.use(express.static(__dirname, {
+    etag: true,
+    setHeaders: (res, filePath) => {
+        res.setHeader('Cache-Control', /\.html?$/i.test(filePath) ? 'no-cache' : 'public, max-age=86400');
+    },
+}));
+
+// Favicon aliases
+const faviconFile = path.join(__dirname, 'assets', 'img', 'Historyaddress.bg2.png');
+const sendFavicon = (_req, res) => {
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.sendFile(faviconFile);
+};
+['/favicon.ico', '/apple-touch-icon.png', '/android-chrome-192x192.png',
+ '/android-chrome-512x512.png', '/assets/img/HistAdrLogoOrig.ico'].forEach(p => app.get(p, sendFavicon));
+
+// ─── SQLite DB ────────────────────────────────────────────────────────────────
+
+// Ensure DB directory exists and is writable
+const dbDir = path.dirname(DB_FILE);
+if (!fs.existsSync(dbDir)) fs.mkdirSync(dbDir, { recursive: true });
+try { fs.accessSync(dbDir, fs.constants.W_OK); }
+catch { console.error('❌ DB directory not writable:', dbDir); process.exit(1); }
+
+const db = new sqlite3.Database(DB_FILE, err => {
+    if (err) { console.error('❌ DB open failed:', err); process.exit(1); }
+    console.log('✅ SQLite connected:', DB_FILE);
+});
+
+// PRAGMA tuning
+db.serialize(() => {
+    db.run('PRAGMA journal_mode = WAL');
+    db.run('PRAGMA synchronous  = NORMAL');
+    db.run('PRAGMA temp_store   = MEMORY');
+    db.run('PRAGMA busy_timeout = 5000');
+    db.run(`PRAGMA cache_size   = ${LOW_SPEC ? -2000 : -64000}`);
+    db.run('PRAGMA mmap_size    = 0');
+    // Enforce referential integrity for the user system (user_activity → users).
+    // No existing table declares a foreign key, so this does not affect homes/
+    // partners/news/team behaviour in any way.
+    db.run('PRAGMA foreign_keys  = ON');
+});
+
+// ─── Schema init ─────────────────────────────────────────────────────────────
+
+function initDB() {
+    db.serialize(() => {
+        // Homes
+        db.run(`CREATE TABLE IF NOT EXISTS homes (
+            id          TEXT PRIMARY KEY,
+            slug        TEXT UNIQUE,
+            name        TEXT NOT NULL,
+            biography   TEXT,
+            address     TEXT,
+            lat         REAL,
+            lng         REAL,
+            images      TEXT,
+            photo_date  TEXT,
+            sources     TEXT,
+            tags        TEXT,
+            published   INTEGER DEFAULT 1,
+            created_at  TEXT,
+            updated_at  TEXT,
+            portrait_url TEXT,
+            birth_date  TEXT,
+            death_date  TEXT,
+            category    TEXT DEFAULT 'home',
+            name_lower  TEXT,
+            credited_to TEXT
+        )`);
+        db.run('CREATE INDEX IF NOT EXISTS idx_homes_published ON homes(published)');
+        db.run('CREATE INDEX IF NOT EXISTS idx_homes_slug      ON homes(slug)');
+        db.run('CREATE INDEX IF NOT EXISTS idx_homes_name      ON homes(name)');
+        // NOTE: idx_homes_category is created in migrateHomes() — only after the
+        // `category` column is guaranteed to exist (older DBs add it via ALTER).
+
+        // Partners
+        db.run(`CREATE TABLE IF NOT EXISTS partners (
+            id            TEXT PRIMARY KEY,
+            name          TEXT NOT NULL,
+            description   TEXT,
+            logo_url      TEXT,
+            website       TEXT,
+            instagram     TEXT,
+            email         TEXT,
+            published     INTEGER DEFAULT 1,
+            display_order INTEGER DEFAULT 0,
+            created_at    TEXT,
+            updated_at    TEXT
+        )`);
+
+        // News
+        db.run(`CREATE TABLE IF NOT EXISTS news (
+            id             INTEGER PRIMARY KEY AUTOINCREMENT,
+            title          TEXT NOT NULL,
+            slug           TEXT UNIQUE NOT NULL,
+            content        TEXT NOT NULL,
+            excerpt        TEXT,
+            cover_image    TEXT,
+            published_date TEXT NOT NULL,
+            author         TEXT DEFAULT 'Екипът на Адресът на историята',
+            is_published   INTEGER DEFAULT 1,
+            created_at     TEXT DEFAULT CURRENT_TIMESTAMP,
+            updated_at     TEXT DEFAULT CURRENT_TIMESTAMP
+        )`);
+        db.run('CREATE INDEX IF NOT EXISTS idx_news_slug      ON news(slug)');
+        db.run('CREATE INDEX IF NOT EXISTS idx_news_published ON news(is_published, published_date DESC)');
+
+        // Team
+        db.run(`CREATE TABLE IF NOT EXISTS team (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            name          TEXT NOT NULL,
+            role          TEXT,
+            bio           TEXT,
+            photo         TEXT,
+            display_order INTEGER DEFAULT 0,
+            is_published  INTEGER DEFAULT 1,
+            created_at    TEXT DEFAULT CURRENT_TIMESTAMP
+        )`);
+        db.run('CREATE INDEX IF NOT EXISTS idx_team_order ON team(display_order, is_published)');
+
+        // ── User accounts (RBAC) ──────────────────────────────────────────────
+        db.run(`CREATE TABLE IF NOT EXISTS users (
+            id                  TEXT PRIMARY KEY,
+            email               TEXT UNIQUE NOT NULL,
+            password_hash       TEXT NOT NULL,
+            role                TEXT NOT NULL DEFAULT 'user',
+            permissions         TEXT NOT NULL DEFAULT '[]',
+            display_name        TEXT,
+            reset_token_hash    TEXT,
+            reset_token_expires INTEGER,
+            created_at          TEXT NOT NULL
+        )`);
+        db.run('CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)');
+        // Migrations: older DBs predate these columns. The no-op callbacks swallow
+        // the "duplicate column" error when a column already exists.
+        db.run('ALTER TABLE users ADD COLUMN display_name TEXT', () => {});
+        db.run('ALTER TABLE users ADD COLUMN reset_token_hash TEXT', () => {});
+        db.run('ALTER TABLE users ADD COLUMN reset_token_expires INTEGER', () => {});
+        db.run('CREATE INDEX IF NOT EXISTS idx_users_reset ON users(reset_token_hash)', () => {});
+
+        // ── Per-user activity (favorites / visited) ───────────────────────────
+        // address_id references a home id; user_id cascades on user deletion.
+        db.run(`CREATE TABLE IF NOT EXISTS user_activity (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id     TEXT NOT NULL,
+            address_id  TEXT NOT NULL,
+            status      TEXT NOT NULL CHECK(status IN ('favorite','visited')),
+            created_at  TEXT NOT NULL,
+            UNIQUE(user_id, address_id, status),
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        )`);
+        db.run('CREATE INDEX IF NOT EXISTS idx_activity_user ON user_activity(user_id, status)');
+        db.run('CREATE INDEX IF NOT EXISTS idx_activity_addr ON user_activity(address_id)');
+
+        // ── Crowdsourced submissions (moderation queue) ───────────────────────
+        // Never touches the live `homes` table until a moderator approves.
+        db.run(`CREATE TABLE IF NOT EXISTS pending_addresses (
+            id           TEXT PRIMARY KEY,
+            user_id      TEXT NOT NULL,
+            title        TEXT NOT NULL,
+            description  TEXT,
+            city         TEXT,
+            address      TEXT,
+            lat          REAL,
+            lng          REAL,
+            category     TEXT NOT NULL DEFAULT 'home',
+            image_path   TEXT,
+            status       TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','approved','rejected')),
+            created_at   TEXT NOT NULL,
+            reviewed_at  TEXT,
+            reviewed_by  TEXT,
+            result_slug  TEXT,
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        )`);
+        db.run('CREATE INDEX IF NOT EXISTS idx_pending_status ON pending_addresses(status, created_at)');
+        db.run('CREATE INDEX IF NOT EXISTS idx_pending_user   ON pending_addresses(user_id, created_at)');
+
+        // Migrations: add columns that older DBs may be missing
+        migrateHomes();
+    });
+}
+
+function migrateHomes() {
+    db.all('PRAGMA table_info(homes)', (err, cols) => {
+        if (err) { importSeedData(); return; }
+        const have = new Set(cols.map(c => c.name));
+        const needed = [
+            { name: 'portrait_url', type: 'TEXT' },
+            { name: 'birth_date',   type: 'TEXT' },
+            { name: 'death_date',   type: 'TEXT' },
+            // New: location category. Existing rows are backfilled to 'home'
+            // automatically by SQLite via the column DEFAULT.
+            { name: 'category',     type: "TEXT DEFAULT 'home'" },
+            // Unicode-lowercased copy of `name` for case-insensitive search
+            // (SQLite's LOWER() only folds ASCII, so Cyrillic needs this).
+            { name: 'name_lower',   type: 'TEXT' },
+            // Optional credit shown on the address page ("Предложено от …").
+            { name: 'credited_to',  type: 'TEXT' },
+        ].filter(c => !have.has(c.name));
+
+        // Create indexes only once their columns are guaranteed to exist,
+        // backfill name_lower for any rows missing it, then continue seeding.
+        const finish = () =>
+            db.run('CREATE INDEX IF NOT EXISTS idx_homes_category   ON homes(category)', () =>
+            db.run('CREATE INDEX IF NOT EXISTS idx_homes_name_lower ON homes(name_lower)', () =>
+                populateNameLower(() => importSeedData())));
+
+        if (!needed.length) { finish(); return; }
+
+        let pending = needed.length;
+        for (const col of needed) {
+            db.run(`ALTER TABLE homes ADD COLUMN ${col.name} ${col.type}`, () => {
+                if (--pending === 0) finish();
+            });
+        }
+    });
+}
+
+// Fill name_lower (JS toLowerCase is Unicode-aware, unlike SQLite's LOWER)
+function populateNameLower(cb) {
+    db.all('SELECT id, name FROM homes WHERE name_lower IS NULL', (err, rows) => {
+        if (err || !rows || !rows.length) return cb();
+        db.serialize(() => {
+            db.run('BEGIN');
+            for (const r of rows) {
+                db.run('UPDATE homes SET name_lower=? WHERE id=?', [(r.name || '').toLowerCase(), r.id]);
+            }
+            db.run('COMMIT', () => { console.log(`🔤 Backfilled name_lower for ${rows.length} rows.`); cb(); });
+        });
+    });
+}
+
+function importSeedData() {
+    db.get('SELECT COUNT(*) AS n FROM homes', (err, row) => {
+        if (err || (row && row.n > 0)) {
+            if (!err) console.log(`📊 DB has ${row.n} homes — ready.`);
+            return;
+        }
+        const dataPath = path.join(__dirname, 'data', 'people.js');
+        if (!fs.existsSync(dataPath)) {
+            console.warn('⚠️  people.js not found — skipping seed.');
+            return;
+        }
+        try {
+            const src   = fs.readFileSync(dataPath, 'utf8');
+            const match = src.match(/var\s+PEOPLE\s*=\s*(\[[\s\S]*?\]);/);
+            if (!match) { console.warn('⚠️  Could not parse people.js'); return; }
+            const people = JSON.parse(match[1]);
+            db.serialize(() => {
+                db.run('BEGIN');
+                people.forEach(insertHome);
+                db.run('COMMIT', () => {
+                    console.log(`✅ Seeded ${people.length} homes.`);
+                    cache.clear();
+                });
+            });
+        } catch (e) {
+            console.error('❌ Seed error:', e.message);
+        }
+    });
+}
+
+// Ensure default team member exists after team table is ready
+function seedDefaultTeamMember() {
+    db.get('SELECT COUNT(*) AS n FROM team', (err, row) => {
+        if (err || !row || row.n > 0) return;
+        db.run(`INSERT INTO team (name, role, bio, display_order) VALUES (?, ?, ?, ?)`, [
+            'Георги Георгиев Петков',
+            'Основател и Администратор',
+            'Основател и администратор на проекта „Адресът на историята".',
+            1,
+        ]);
+    });
+}
+
+initDB();
+// Give the CREATE TABLE statements a moment to settle, then seed team
+setTimeout(seedDefaultTeamMember, 500);
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+// Allowed location categories. Anything unknown falls back to 'home' so we never
+// store invalid values and existing behaviour stays unchanged.
+const CATEGORIES = ['home', 'monument', 'events'];
+function normCategory(c) {
+    return CATEGORIES.includes(c) ? c : 'home';
+}
+
+function insertHome(h) {
+    const c   = h.coordinates || {};
+    const now = new Date().toISOString();
+    db.run(`INSERT OR REPLACE INTO homes
+        (id,slug,name,name_lower,biography,address,lat,lng,images,photo_date,
+         sources,tags,published,created_at,updated_at,portrait_url,birth_date,death_date,category,credited_to)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        [
+            h.id || h.slug, h.slug, h.name, (h.name || '').toLowerCase(), h.biography, h.address,
+            c.lat || null, c.lng || null,
+            JSON.stringify(h.images  || []),
+            h.photo_date  || null,
+            JSON.stringify(h.sources || []),
+            JSON.stringify(h.tags    || []),
+            h.published !== false ? 1 : 0,
+            h.created_at || now, h.updated_at || now,
+            h.portrait_url || null, h.birth_date || null, h.death_date || null,
+            normCategory(h.category), h.credited_to || null,
+        ]
+    );
+}
+
+function rowToHome(row, listMode = false) {
+    const parse = (s, def = []) => { try { return JSON.parse(s || 'null') ?? def; } catch { return def; } };
+    if (listMode) {
+        const imgs = parse(row.images);
+        return {
+            id:          row.id,
+            slug:        row.slug,
+            name:        row.name,
+            address:     row.address || '',
+            coordinates: row.lat && row.lng ? { lat: row.lat, lng: row.lng } : null,
+            images:      imgs.length ? [imgs[0]] : [],
+            tags:        parse(row.tags),
+            category:    row.category || 'home',
+            published:   true,
+            biography:   row.bio_snippet ? row.bio_snippet + '…' : '',
+        };
+    }
+    return {
+        id:          row.id,
+        slug:        row.slug,
+        name:        row.name,
+        biography:   row.biography,
+        address:     row.address,
+        coordinates: row.lat && row.lng ? { lat: row.lat, lng: row.lng } : null,
+        images:      parse(row.images),
+        photo_date:  row.photo_date,
+        sources:     parse(row.sources),
+        tags:        parse(row.tags),
+        published:   row.published === 1,
+        created_at:  row.created_at,
+        updated_at:  row.updated_at,
+        portrait_url: row.portrait_url,
+        birth_date:  row.birth_date,
+        death_date:  row.death_date,
+        category:    row.category || 'home',
+        credited_to: row.credited_to || null,
+    };
+}
+
+// Wrap db.get / db.all in promises for cleaner async routes
+function dbGet(sql, params = []) {
+    return new Promise((res, rej) => db.get(sql, params, (e, r) => e ? rej(e) : res(r)));
+}
+function dbAll(sql, params = []) {
+    return new Promise((res, rej) => db.all(sql, params, (e, r) => e ? rej(e) : res(r)));
+}
+function dbRun(sql, params = []) {
+    return new Promise((res, rej) => db.run(sql, params, function(e) { e ? rej(e) : res(this); }));
+}
+
+// ─── Routes ──────────────────────────────────────────────────────────────────
+
+// ── Auth ────────────────────────────────────────────────────────────────────
+app.post('/api/login', (req, res) => {
+    const account = ADMIN_ACCOUNTS[sha256hex((req.body && req.body.password) || '')];
+    if (!account) return res.status(401).json({ error: 'Invalid password' });
+    const token = signToken({ role: account.role, name: account.name, iat: Date.now() });
+    res.json({ token, role: account.role, name: account.name });
+});
+app.get('/api/me', (req, res) => {
+    const data = verifyToken(readToken(req));
+    if (!data) return res.status(401).json({ error: 'Unauthorized' });
+    res.json({ role: data.role, name: data.name });
+});
+
+// ── User auth & profile ───────────────────────────────────────────────────────
+
+// Register: validate, ensure unique email, bcrypt-hash, store, log the user in.
+app.post('/api/auth/register', rateLimitAuth, async (req, res) => {
+    const email    = String((req.body && req.body.email) || '').trim().toLowerCase();
+    const password = (req.body && req.body.password) || '';
+    if (!validEmail(email)) return res.status(400).json({ error: 'Please enter a valid email address' });
+    const issue = passwordIssue(password);
+    if (issue) return res.status(400).json({ error: issue });
+    try {
+        const existing = await dbGet('SELECT id FROM users WHERE email=?', [email]);
+        if (existing) return res.status(409).json({ error: 'This email is already registered' });
+
+        const password_hash = await bcrypt.hash(password, BCRYPT_ROUNDS); // never store plaintext
+        const id  = crypto.randomUUID();
+        const now = new Date().toISOString();
+        await dbRun(
+            'INSERT INTO users (id,email,password_hash,role,permissions,created_at) VALUES (?,?,?,?,?,?)',
+            [id, email, password_hash, 'user', '[]', now]
+        );
+        issueAuthCookie(res, { id, role: 'user' });
+        res.status(201).json({ id, email, role: 'user' });
+
+        // Fire-and-forget welcome email — never blocks or fails the registration.
+        sendEmail({
+            to: email,
+            subject: 'Добре дошли в Адресът на историята! 🏛️',
+            html: welcomeEmailHtml(),
+        }).catch(() => {});
+    } catch (e) {
+        console.error('register error:', e.message);
+        res.status(500).json({ error: 'Registration failed' });
+    }
+});
+
+// Login: verify credentials (constant-time), set the secure cookie.
+app.post('/api/auth/login', rateLimitAuth, async (req, res) => {
+    const email    = String((req.body && req.body.email) || '').trim().toLowerCase();
+    const password = (req.body && req.body.password) || '';
+    try {
+        const user = await dbGet('SELECT id,email,password_hash,role FROM users WHERE email=?', [email]);
+        // Always run a compare to keep timing uniform whether or not the email exists.
+        const ok = await bcrypt.compare(password, user ? user.password_hash : DUMMY_HASH);
+        if (!user || !ok) return res.status(401).json({ error: 'Invalid email or password' });
+
+        issueAuthCookie(res, { id: user.id, role: user.role });
+        res.json({ id: user.id, email: user.email, role: user.role });
+    } catch (e) {
+        console.error('login error:', e.message);
+        res.status(500).json({ error: 'Login failed' });
+    }
+});
+
+// Logout: clear the cookie (must match the attributes it was set with).
+app.post('/api/auth/logout', (req, res) => {
+    res.clearCookie(AUTH_COOKIE, { httpOnly: true, sameSite: 'strict', secure: COOKIE_SECURE, path: '/' });
+    res.json({ message: 'Logged out' });
+});
+
+// Forgot password: if the email exists, store a hashed one-hour reset token and
+// email a reset link. The response is ALWAYS the same generic message so the
+// endpoint can't be used to discover which emails are registered.
+app.post('/api/auth/forgot-password', rateLimitAuth, async (req, res) => {
+    const email = String((req.body && req.body.email) || '').trim().toLowerCase();
+    const generic = { message: 'Ако този имейл съществува в системата, изпратихме връзка за нулиране на паролата.' };
+    if (!validEmail(email)) return res.json(generic);
+    try {
+        const user = await dbGet('SELECT id FROM users WHERE email=?', [email]);
+        if (user) {
+            const token   = crypto.randomBytes(32).toString('hex');   // raw token → goes in the link
+            const hash    = sha256hex(token);                          // only the hash is stored
+            const expires = Date.now() + 60 * 60 * 1000;               // 1 hour
+            await dbRun('UPDATE users SET reset_token_hash=?, reset_token_expires=? WHERE id=?', [hash, expires, user.id]);
+            const link = `${DOMAIN}/reset-password.html?token=${token}`;
+            await sendEmail({
+                to: email,
+                subject: 'Нулиране на паролата — Адресът на историята',
+                html: resetEmailHtml(link),
+            });
+        }
+        res.json(generic);
+    } catch (e) {
+        console.error('forgot-password error:', e.message);
+        res.json(generic);   // stay generic even on error → no information leak
+    }
+});
+
+// Reset password: validate the token (hash match + not expired), set the new
+// bcrypt-hashed password, and invalidate the token so it can't be reused.
+app.post('/api/auth/reset-password', rateLimitAuth, async (req, res) => {
+    const token    = String((req.body && req.body.token) || '').trim();
+    const password = (req.body && req.body.password) || '';
+    if (!token || token.length < 32) return res.status(400).json({ error: 'Невалидна заявка за нулиране.' });
+    if (passwordIssue(password))      return res.status(400).json({ error: 'Паролата трябва да е поне 8 символа и да съдържа букви и цифри.' });
+    try {
+        const hash = sha256hex(token);
+        const user = await dbGet('SELECT id, reset_token_expires FROM users WHERE reset_token_hash=?', [hash]);
+        if (!user || !user.reset_token_expires || user.reset_token_expires < Date.now()) {
+            return res.status(400).json({ error: 'Връзката е невалидна или изтекла. Моля, заявете нова.' });
+        }
+        const password_hash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+        await dbRun(
+            'UPDATE users SET password_hash=?, reset_token_hash=NULL, reset_token_expires=NULL WHERE id=?',
+            [password_hash, user.id]
+        );
+        res.json({ message: 'Паролата е променена успешно. Вече можете да влезете.' });
+    } catch (e) {
+        console.error('reset-password error:', e.message);
+        res.status(500).json({ error: 'Възникна грешка. Моля, опитайте отново.' });
+    }
+});
+
+// Change password from the profile (logged-in users): verify the current password,
+// then store the new bcrypt hash. Rate-limited to blunt current-password guessing.
+app.post('/api/auth/change-password', requireUser, rateLimitAuth, async (req, res) => {
+    const current = (req.body && req.body.current_password) || '';
+    const next    = (req.body && req.body.new_password) || '';
+    if (!current) return res.status(400).json({ error: 'Въведете текущата си парола.' });
+    if (passwordIssue(next)) return res.status(400).json({ error: 'Новата парола трябва да е поне 8 символа и да съдържа букви и цифри.' });
+    if (current === next) return res.status(400).json({ error: 'Новата парола трябва да е различна от текущата.' });
+    try {
+        const user = await dbGet('SELECT password_hash FROM users WHERE id=?', [req.user.sub]);
+        if (!user) return res.status(404).json({ error: 'User not found' });
+        const ok = await bcrypt.compare(current, user.password_hash);
+        if (!ok) return res.status(401).json({ error: 'Текущата парола е грешна.' });
+
+        const password_hash = await bcrypt.hash(next, BCRYPT_ROUNDS);
+        await dbRun('UPDATE users SET password_hash=? WHERE id=?', [password_hash, req.user.sub]);
+        res.json({ message: 'Паролата е променена успешно.' });
+    } catch (e) {
+        console.error('change-password error:', e.message);
+        res.status(500).json({ error: 'Възникна грешка. Опитайте отново.' });
+    }
+});
+
+// Cheap "am I logged in?" check for the frontend.
+app.get('/api/auth/me', requireUser, async (req, res) => {
+    const user = await dbGet('SELECT id,email,role,display_name FROM users WHERE id=?', [req.user.sub]);
+    if (!user) return res.status(401).json({ error: 'Not authenticated' });
+    res.json(user);
+});
+
+// Profile: the user's data + their favorite and visited addresses.
+app.get('/api/user/profile', requireUser, async (req, res) => {
+    try {
+        const user = await dbGet('SELECT id,email,role,permissions,display_name,created_at FROM users WHERE id=?', [req.user.sub]);
+        if (!user) return res.status(404).json({ error: 'User not found' });
+
+        const rows = await dbAll(
+            `SELECT a.status, a.created_at AS saved_at,
+                    h.id, h.slug, h.name, h.address, h.category, h.images
+             FROM user_activity a
+             JOIN homes h ON h.id = a.address_id
+             WHERE a.user_id = ?
+             ORDER BY a.created_at DESC`,
+            [req.user.sub]
+        );
+        const toItem = r => {
+            let imgs = []; try { imgs = JSON.parse(r.images || '[]'); } catch {}
+            return {
+                id: r.id, slug: r.slug, name: r.name, address: r.address || '',
+                category: r.category || 'home',
+                image: imgs[0] ? (imgs[0].thumb || imgs[0].path) : null,
+                saved_at: r.saved_at,
+            };
+        };
+
+        // This user's crowdsourced submissions. For approved ones we pull the
+        // live thumbnail from homes; pending ones use the protected image route.
+        const subs = await dbAll(
+            `SELECT p.id, p.title, p.category, p.status, p.created_at, p.image_path, p.result_slug,
+                    h.images AS live_images
+             FROM pending_addresses p
+             LEFT JOIN homes h ON h.slug = p.result_slug
+             WHERE p.user_id = ?
+             ORDER BY p.created_at DESC`,
+            [req.user.sub]
+        );
+        const submissions = subs.map(s => {
+            let image = null;
+            if (s.status === 'approved' && s.live_images) {
+                try { const li = JSON.parse(s.live_images); if (li[0]) image = li[0].thumb || li[0].path; } catch {}
+            } else if (s.status === 'pending') {
+                var firstPending = parsePendingImages(s.image_path)[0];
+                if (firstPending) image = pendingThumbUrl(firstPending);
+            }
+            return {
+                id: s.id, title: s.title, category: s.category || 'home',
+                status: s.status, created_at: s.created_at,
+                slug: s.result_slug || null, image,
+            };
+        });
+
+        res.json({
+            id:            user.id,
+            email:         user.email,
+            display_name:  user.display_name || null,
+            role:          user.role,
+            permissions:   (() => { try { return JSON.parse(user.permissions || '[]'); } catch { return []; } })(),
+            created_at:    user.created_at,
+            favorites:     rows.filter(r => r.status === 'favorite').map(toItem),
+            visited:       rows.filter(r => r.status === 'visited').map(toItem),
+            submissions:   submissions,
+            approved_count: submissions.filter(s => s.status === 'approved').length,
+        });
+    } catch (e) {
+        console.error('profile error:', e.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Update the user's editable profile fields (currently just display name).
+app.put('/api/user/profile', requireUser, async (req, res) => {
+    try {
+        const name = sanitizeText((req.body && req.body.display_name) || '', 60);
+        await dbRun('UPDATE users SET display_name=? WHERE id=?', [name || null, req.user.sub]);
+        res.json({ display_name: name || null });
+    } catch (e) {
+        console.error('profile update error:', e.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// GDPR data portability: download everything we store about this user as JSON.
+app.get('/api/user/export', requireUser, async (req, res) => {
+    try {
+        const user = await dbGet('SELECT email,display_name,role,created_at FROM users WHERE id=?', [req.user.sub]);
+        if (!user) return res.status(404).json({ error: 'User not found' });
+
+        const activity = await dbAll(
+            `SELECT a.status, a.created_at AS saved_at, h.name, h.address, h.slug
+             FROM user_activity a JOIN homes h ON h.id = a.address_id
+             WHERE a.user_id = ? ORDER BY a.created_at DESC`,
+            [req.user.sub]
+        );
+        const subs = await dbAll(
+            `SELECT title, category, status, created_at, result_slug
+             FROM pending_addresses WHERE user_id = ? ORDER BY created_at DESC`,
+            [req.user.sub]
+        );
+        const place = a => ({ name: a.name, address: a.address || '', slug: a.slug, saved_at: a.saved_at });
+
+        const data = {
+            exported_at: new Date().toISOString(),
+            account: {
+                email:        user.email,
+                display_name: user.display_name || null,
+                role:         user.role,
+                member_since: user.created_at,
+            },
+            favorites:   activity.filter(a => a.status === 'favorite').map(place),
+            visited:     activity.filter(a => a.status === 'visited').map(place),
+            submissions: subs.map(s => ({
+                title: s.title, category: s.category, status: s.status,
+                created_at: s.created_at, slug: s.result_slug || null,
+            })),
+        };
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.setHeader('Content-Disposition', 'attachment; filename="moite-danni.json"');
+        res.send(JSON.stringify(data, null, 2));
+    } catch (e) {
+        console.error('export error:', e.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// GDPR right to erasure: delete the account after re-confirming the password.
+// Cascades remove favorites/visited + pending submissions (FK ON DELETE CASCADE);
+// we also clean up R2 images for still-pending submissions. Approved content stays
+// published in `homes` (it is no longer personal data once curated and live).
+app.post('/api/user/delete', requireUser, async (req, res) => {
+    const password = (req.body && req.body.password) || '';
+    try {
+        const user = await dbGet('SELECT id, password_hash FROM users WHERE id=?', [req.user.sub]);
+        if (!user) return res.status(404).json({ error: 'User not found' });
+
+        const ok = await bcrypt.compare(password, user.password_hash);
+        if (!ok) return res.status(401).json({ error: 'Грешна парола' });
+
+        const pend = await dbAll(
+            "SELECT image_path FROM pending_addresses WHERE user_id=? AND status='pending'",
+            [user.id]
+        );
+        for (const row of pend) {
+            for (const url of parsePendingImages(row.image_path)) await deleteR2(url);
+        }
+
+        await dbRun('DELETE FROM users WHERE id=?', [user.id]);  // cascades to activity + pending
+        res.clearCookie(AUTH_COOKIE, { httpOnly: true, sameSite: 'strict', secure: COOKIE_SECURE, path: '/' });
+        res.json({ deleted: true });
+    } catch (e) {
+        console.error('account delete error:', e.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Activity: toggle an address as 'favorite' or 'visited' on/off for this user.
+app.post('/api/user/activity', requireUser, rateLimitActivity, async (req, res) => {
+    const addressRef = String((req.body && req.body.address_id) || '').trim();
+    const status     = (req.body && req.body.status) || '';
+    if (!addressRef) return res.status(400).json({ error: 'address_id is required' });
+    if (status !== 'favorite' && status !== 'visited') {
+        return res.status(400).json({ error: "status must be 'favorite' or 'visited'" });
+    }
+    try {
+        // Accept either an id or a slug; resolve to the canonical home id.
+        const addr = await dbGet('SELECT id FROM homes WHERE id=? OR slug=?', [addressRef, addressRef]);
+        if (!addr) return res.status(404).json({ error: 'Address not found' });
+
+        const existing = await dbGet(
+            'SELECT id FROM user_activity WHERE user_id=? AND address_id=? AND status=?',
+            [req.user.sub, addr.id, status]
+        );
+        if (existing) {
+            await dbRun('DELETE FROM user_activity WHERE id=?', [existing.id]);
+            return res.json({ address_id: addr.id, status, active: false });
+        }
+        await dbRun(
+            'INSERT INTO user_activity (user_id,address_id,status,created_at) VALUES (?,?,?,?)',
+            [req.user.sub, addr.id, status, new Date().toISOString()]
+        );
+        res.json({ address_id: addr.id, status, active: true });
+    } catch (e) {
+        console.error('activity error:', e.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Read this user's saved state for a single address (for toggle buttons).
+app.get('/api/user/activity', requireUser, async (req, res) => {
+    const ref = String(req.query.address_id || '').trim();
+    if (!ref) return res.status(400).json({ error: 'address_id is required' });
+    try {
+        const addr = await dbGet('SELECT id FROM homes WHERE id=? OR slug=?', [ref, ref]);
+        if (!addr) return res.status(404).json({ error: 'Address not found' });
+        const rows = await dbAll(
+            'SELECT status FROM user_activity WHERE user_id=? AND address_id=?',
+            [req.user.sub, addr.id]
+        );
+        const set = new Set(rows.map(r => r.status));
+        res.json({ address_id: addr.id, favorite: set.has('favorite'), visited: set.has('visited') });
+    } catch (e) {
+        console.error('activity status error:', e.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// ── Crowdsourced submissions ──────────────────────────────────────────────────
+
+// Pending images live in R2 under the `pending/` prefix. image_path stores the
+// full public URL; these helpers derive the thumbnail URL and the R2 object key.
+function isHttpUrl(s) { return /^https?:\/\//i.test(s || ''); }
+function pendingThumbUrl(url) {
+    return url ? url.replace(/\.jpg$/i, '_thumb.jpg') : null;
+}
+// pending_addresses.image_path holds a JSON array of R2 URLs (new), or a single
+// URL / legacy disk filename (old). Always return an array of usable R2 URLs.
+function parsePendingImages(image_path) {
+    if (!image_path) return [];
+    let list;
+    if (image_path.trim().charAt(0) === '[') {
+        try { list = JSON.parse(image_path); } catch { list = []; }
+    } else {
+        list = [image_path];
+    }
+    return (Array.isArray(list) ? list : []).filter(isHttpUrl);
+}
+function r2KeyFromUrl(url) {
+    if (!url || url.indexOf(R2_PUBLIC_URL + '/') !== 0) return null;
+    return url.substring(R2_PUBLIC_URL.length + 1); // e.g. "pending/abc.jpg"
+}
+async function deleteR2(url) {
+    const key = r2KeyFromUrl(url);
+    if (!key) return;
+    try { await r2.send(new DeleteObjectCommand({ Bucket: R2_BUCKET, Key: key })); }
+    catch (e) { console.warn('R2 delete failed for', key, '—', e.message); }
+}
+
+// Submit a suggestion (logged-in users). Accepts text fields + up to MAX_PHOTOS images.
+app.post('/api/suggest', requireUser, rateLimitSuggest, acceptPhotos('images'), async (req, res) => {
+    try {
+        const b = req.body || {};
+        const title = sanitizeText(b.title, 200);
+        if (!title) return res.status(400).json({ error: 'Заглавието е задължително' });
+
+        const category    = normCategory(b.category);
+        const description = sanitizeText(b.description, 5000);
+        const city        = sanitizeText(b.city, 120);
+        const address     = sanitizeText(b.address, 200);
+        const lat = (b.lat !== undefined && b.lat !== '' && isFinite(+b.lat)) ? +b.lat : null;
+        const lng = (b.lng !== undefined && b.lng !== '' && isFinite(+b.lng)) ? +b.lng : null;
+
+        // Anti-spam: cap how many pending submissions one user can have at once.
+        const cnt = await dbGet("SELECT COUNT(*) AS n FROM pending_addresses WHERE user_id=? AND status='pending'", [req.user.sub]);
+        if (cnt && cnt.n >= 20) return res.status(429).json({ error: 'Достигнахте лимита на чакащи предложения. Изчакайте модерация.' });
+
+        // Re-encode each upload (strips EXIF, normalises to JPEG, caps size) and
+        // store directly in R2 under `pending/`. Each photo is processed in its own
+        // try/catch so one corrupt file can't fail the whole submission.
+        const urls = [];
+        for (const f of (req.files || [])) {
+            try {
+                const base = crypto.randomBytes(16).toString('hex');
+                const url  = await uploadPhotoToR2(f.buffer, `pending/${base}`);
+                urls.push(url);
+            } catch (e) {
+                console.warn('suggest: skipped a bad photo —', e.message);
+            }
+        }
+        const image_path = urls.length ? JSON.stringify(urls) : null;
+
+        const id  = crypto.randomUUID();
+        const now = new Date().toISOString();
+        await dbRun(
+            `INSERT INTO pending_addresses (id,user_id,title,description,city,address,lat,lng,category,image_path,status,created_at)
+             VALUES (?,?,?,?,?,?,?,?,?,?,'pending',?)`,
+            [id, req.user.sub, title, description || null, city || null, address || null, lat, lng, category, image_path, now]
+        );
+        res.status(201).json({ id, status: 'pending', photos: urls.length });
+    } catch (e) {
+        console.error('suggest error:', e.message);
+        res.status(500).json({ error: 'Грешка при изпращане. Опитайте отново.' });
+    }
+});
+
+// Download a pending image (proxied from R2 so the browser forces a save, and
+// access stays gated to the submitter or a moderator). Rendering still uses the
+// direct R2 URL returned by /api/admin/pending.
+app.get('/api/pending-image/:id', requireUser, async (req, res) => {
+    try {
+        const row = await dbGet('SELECT user_id, image_path FROM pending_addresses WHERE id=?', [req.params.id]);
+        if (!row || !row.image_path) return res.status(404).end();
+
+        let allowed = row.user_id === req.user.sub;
+        if (!allowed) {
+            const u = await dbGet('SELECT role, permissions FROM users WHERE id=?', [req.user.sub]);
+            let perms = []; try { perms = JSON.parse((u && u.permissions) || '[]'); } catch {}
+            allowed = u && (u.role === 'owner' || u.role === 'moderator' || perms.includes('approve:photos'));
+        }
+        if (!allowed) return res.status(403).end();
+
+        const imgs = parsePendingImages(row.image_path);
+        const idx  = Math.max(0, parseInt(req.query.i, 10) || 0);
+        const target = imgs[idx];
+        if (!target) return res.status(404).end();
+
+        const r2resp = await fetch(target);
+        if (!r2resp.ok) return res.status(404).end();
+        const buf = Buffer.from(await r2resp.arrayBuffer());
+        res.setHeader('Content-Disposition', 'attachment; filename="predlozhenie-' + (idx + 1) + '.jpg"');
+        res.setHeader('Cache-Control', 'private, max-age=300');
+        res.type('image/jpeg');
+        res.send(buf);
+    } catch (e) {
+        res.status(500).end();
+    }
+});
+
+// Moderation queue (moderators/owners).
+app.get('/api/admin/pending', requireModerator, async (req, res) => {
+    const status = ['pending', 'approved', 'rejected'].includes(req.query.status) ? req.query.status : 'pending';
+    try {
+        const rows = await dbAll(
+            `SELECT p.id,p.title,p.description,p.city,p.address,p.lat,p.lng,p.category,p.image_path,
+                    p.status,p.created_at,p.result_slug, u.email AS user_email
+             FROM pending_addresses p JOIN users u ON u.id = p.user_id
+             WHERE p.status = ? ORDER BY p.created_at ASC LIMIT 500`,
+            [status]
+        );
+        res.json(rows.map(r => {
+            const imgs = parsePendingImages(r.image_path);  // array of R2 URLs (legacy paths excluded)
+            const images = imgs.map((u, i) => ({
+                url: u, thumb: pendingThumbUrl(u), download: '/api/pending-image/' + r.id + '?i=' + i,
+            }));
+            return {
+                id: r.id, title: r.title, description: r.description || '',
+                city: r.city || '', address: r.address || '',
+                lat: r.lat, lng: r.lng, category: r.category || 'home',
+                status: r.status, created_at: r.created_at,
+                user_email: r.user_email, slug: r.result_slug || null,
+                images: images,
+                image: images[0] ? images[0].url : null,         // first photo (for the card)
+                image_thumb: images[0] ? images[0].thumb : null,
+            };
+        }));
+    } catch (e) {
+        console.error('pending list error:', e.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Approve or reject a submission. Moderators may edit fields, keep/remove the
+// submitter's photos, add their own, and set tags / sources / dates.
+app.post('/api/admin/moderate/:id', requireModerator, acceptPhotos('images'), async (req, res) => {
+    const b = req.body || {};
+    const action = b.action || '';
+    if (action !== 'approve' && action !== 'reject') {
+        return res.status(400).json({ error: "action must be 'approve' or 'reject'" });
+    }
+    try {
+        const row = await dbGet('SELECT * FROM pending_addresses WHERE id=?', [req.params.id]);
+        if (!row) return res.status(404).json({ error: 'Submission not found' });
+        if (row.status !== 'pending') return res.status(409).json({ error: 'Това предложение вече е обработено' });
+
+        const now = new Date().toISOString();
+        const pendingUrls = parsePendingImages(row.image_path);
+
+        // ── Reject: delete every pending photo from R2, mark rejected ──
+        if (action === 'reject') {
+            for (const u of pendingUrls) { await deleteR2(u); await deleteR2(pendingThumbUrl(u)); }
+            await dbRun("UPDATE pending_addresses SET status='rejected', reviewed_at=?, reviewed_by=? WHERE id=?",
+                [now, req.user.sub, row.id]);
+            return res.json({ id: row.id, status: 'rejected' });
+        }
+
+        // ── Approve, applying moderator edits ──
+        const title       = sanitizeText(b.title, 200) || sanitizeText(row.title, 200);
+        const description = (b.description !== undefined ? sanitizeText(b.description, 5000) : sanitizeText(row.description, 5000)) || null;
+        const city        = (b.city    !== undefined ? sanitizeText(b.city, 120)    : sanitizeText(row.city, 120));
+        const addressStr  = (b.address !== undefined ? sanitizeText(b.address, 200) : sanitizeText(row.address, 200));
+        const category    = normCategory(b.category || row.category);
+        const lat = (b.lat !== undefined) ? (b.lat !== '' && isFinite(+b.lat) ? +b.lat : null) : row.lat;
+        const lng = (b.lng !== undefined) ? (b.lng !== '' && isFinite(+b.lng) ? +b.lng : null) : row.lng;
+        const credit = sanitizeText(b.credit, 120) || null;
+
+        // Tags (comma-separated) and sources (semicolon/newline-separated), like the admin panel.
+        const tags    = sanitizeText(b.tags, 500).split(',').map(s => s.trim()).filter(Boolean).slice(0, 30);
+        const sources = sanitizeText(b.sources, 3000).split(/[;\n]/).map(s => s.trim()).filter(Boolean).slice(0, 30);
+
+        // Dates: moderator picks 2 dates (person/building) or 1 (event) in the UI;
+        // we accept whatever YYYY-MM-DD values arrive.
+        const cleanDate = d => { d = String(d || '').trim(); return /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : null; };
+        const birth_date = cleanDate(b.birth_date);
+        const death_date = cleanDate(b.death_date);
+
+        const slug = await uniqueHomeSlug(slugifyTitle(title));
+
+        // Which pending photos to keep (defaults to all). Only real pending URLs
+        // are honoured — arbitrary URLs in the request are ignored.
+        let keep = pendingUrls;
+        if (b.keptImages !== undefined) {
+            try { const arr = JSON.parse(b.keptImages); keep = Array.isArray(arr) ? arr.filter(u => pendingUrls.includes(u)) : []; }
+            catch { keep = []; }
+        }
+
+        // Build the live image list: kept pending photos (re-watermarked) + new files.
+        const images = [];
+        for (const url of keep) {
+            try {
+                const pr = await fetch(url);
+                if (!pr.ok) continue;
+                const wm = await buildWatermark(Buffer.from(await pr.arrayBuffer()), '');
+                const liveUrl = await uploadPhotoToR2(wm, `img_sug_${slug}_${Date.now()}_${randomSuffix()}`);
+                images.push({ path: liveUrl, thumb: pendingThumbUrl(liveUrl), caption: '', alt: title });
+            } catch (e) { console.warn('promote kept photo failed:', e.message); }
+        }
+        for (const f of (req.files || [])) {
+            try {
+                const wm = await buildWatermark(f.buffer, '');
+                const liveUrl = await uploadPhotoToR2(wm, `img_sug_${slug}_${Date.now()}_${randomSuffix()}`);
+                images.push({ path: liveUrl, thumb: pendingThumbUrl(liveUrl), caption: '', alt: title });
+            } catch (e) { console.warn('add photo failed:', e.message); }
+        }
+
+        await dbRun(
+            `INSERT INTO homes
+                (id,slug,name,name_lower,biography,address,lat,lng,images,photo_date,
+                 sources,tags,published,created_at,updated_at,portrait_url,birth_date,death_date,category,credited_to)
+             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+            [slug, slug, title, (title || '').toLowerCase(), description,
+             (addressStr || city) || null, lat, lng,
+             JSON.stringify(images), null, JSON.stringify(sources), JSON.stringify(tags),
+             1, now, now, null, birth_date, death_date, category, credit]
+        );
+        await dbRun("UPDATE pending_addresses SET status='approved', reviewed_at=?, reviewed_by=?, result_slug=? WHERE id=?",
+            [now, req.user.sub, slug, row.id]);
+
+        // Delete ALL pending photos from R2 (kept ones now live under img_sug_ keys).
+        for (const u of pendingUrls) { await deleteR2(u); await deleteR2(pendingThumbUrl(u)); }
+        cache.clear();
+        res.json({ id: row.id, status: 'approved', slug, photos: images.length });
+    } catch (e) {
+        console.error('moderate error:', e.message);
+        res.status(500).json({ error: 'Грешка при обработка. Опитайте отново.' });
+    }
+});
+
+// ── User / role management (owner only) ───────────────────────────────────────
+app.get('/api/admin/users', requireOwnerUser, async (req, res) => {
+    try {
+        const rows = await dbAll(
+            `SELECT u.id, u.email, u.role, u.created_at,
+                    (SELECT COUNT(*) FROM pending_addresses p WHERE p.user_id = u.id) AS submissions
+             FROM users u ORDER BY
+                CASE u.role WHEN 'owner' THEN 0 WHEN 'moderator' THEN 1 ELSE 2 END, u.created_at ASC
+             LIMIT 2000`
+        );
+        res.json(rows.map(r => ({
+            id: r.id, email: r.email, role: r.role, created_at: r.created_at,
+            submissions: r.submissions, self: r.id === req.user.sub,
+        })));
+    } catch (e) {
+        console.error('users list error:', e.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+app.put('/api/admin/users/:id/role', requireOwnerUser, async (req, res) => {
+    const role = (req.body && req.body.role) || '';
+    if (!['user', 'moderator', 'owner'].includes(role)) {
+        return res.status(400).json({ error: 'Невалидна роля' });
+    }
+    // Guard against self-lockout: an owner can't change their own role.
+    if (req.params.id === req.user.sub) {
+        return res.status(400).json({ error: 'Не можете да променяте собствената си роля' });
+    }
+    try {
+        const r = await dbRun('UPDATE users SET role=? WHERE id=?', [role, req.params.id]);
+        if (!r.changes) return res.status(404).json({ error: 'Потребителят не е намерен' });
+        res.json({ id: req.params.id, role });
+    } catch (e) {
+        console.error('role update error:', e.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// robots.txt
+app.get('/robots.txt', (_req, res) =>
+    res.type('text/plain').send(`User-agent: *\nAllow: /\nSitemap: ${DOMAIN}/sitemap.xml`));
+
+// Sitemap
+app.get('/sitemap.xml', async (_req, res) => {
+    const key = 'sitemap';
+    const hit = cache.get(key);
+    if (hit) return res.type('application/xml').send(hit);
+
+    try {
+        const rows = await dbAll('SELECT slug, updated_at FROM homes WHERE published = 1');
+        const pages = ['index.html', 'addresses.html', 'map.html', 'calendar.html', 'about.html'];
+        let xml = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
+        for (const p of pages) xml += `  <url><loc>${DOMAIN}/${p}</loc><changefreq>weekly</changefreq></url>\n`;
+        for (const r of rows) {
+            const lm = r.updated_at ? `<lastmod>${r.updated_at.split('T')[0]}</lastmod>` : '';
+            xml += `  <url><loc>${DOMAIN}/address.html?slug=${r.slug}</loc>${lm}</url>\n`;
+        }
+        xml += '</urlset>';
+        cache.set(key, xml, 3600);
+        res.type('application/xml').send(xml);
+    } catch (e) {
+        console.error('Sitemap error:', e);
+        res.status(500).send('Error generating sitemap');
+    }
+});
+
+// ── Upload ────────────────────────────────────────────────────────────────────
+app.post('/api/upload', requireAuth, upload.single('image'), async (req, res) => {
+    if (!req.file) return res.status(400).json({ error: 'No image file provided' });
+    try {
+        const photographer = req.body.photographer || '';
+        const homeSlug     = (req.body.homeSlug || 'img').replace(/[^a-z0-9]/gi, '').slice(0, 10);
+        const applyWmark   = req.body.watermark === 'true';
+        const filename     = `img_${homeSlug}_${Date.now()}_${randomSuffix()}.jpg`;
+
+        const buf = applyWmark
+            ? await buildWatermark(req.file.buffer, photographer)
+            : await sharp(req.file.buffer).jpeg({ quality: 88 }).toBuffer();
+
+        // Lightweight thumbnail for grids / list cards / map panel.
+        // ~600px wide @ q70 is typically 10× smaller than the full image.
+        const thumbName = filename.replace(/\.jpg$/i, '_thumb.jpg');
+        const thumbBuf  = await sharp(buf)
+            .resize({ width: 600, withoutEnlargement: true })
+            .jpeg({ quality: 70 })
+            .toBuffer();
+
+        await Promise.all([
+            r2.send(new PutObjectCommand({
+                Bucket: R2_BUCKET, Key: filename, Body: buf,
+                ContentType: 'image/jpeg', CacheControl: 'public, max-age=31536000',
+            })),
+            r2.send(new PutObjectCommand({
+                Bucket: R2_BUCKET, Key: thumbName, Body: thumbBuf,
+                ContentType: 'image/jpeg', CacheControl: 'public, max-age=31536000',
+            })),
+        ]);
+
+        console.log(`📸 Uploaded ${filename} (+thumb) | wm:${applyWmark} | photographer:${photographer || '—'}`);
+        res.json({
+            url:      `${R2_PUBLIC_URL}/${filename}`,
+            thumb:    `${R2_PUBLIC_URL}/${thumbName}`,
+            filename,
+        });
+    } catch (e) {
+        console.error('Upload error:', e);
+        res.status(500).json({ error: e.message || 'Upload failed' });
+    }
+});
+
+// ── Homes ─────────────────────────────────────────────────────────────────────
+app.get('/api/homes', async (req, res) => {
+    const key    = req.url;
+    const cached = cache.get(key);
+    if (cached) return res.json(cached);
+
+    const showAll    = req.query.all === 'true';
+    const page       = Math.max(1, parseInt(req.query.page)  || 1);
+    const limit      = Math.min(20, parseInt(req.query.limit) || 6);
+    const search     = (req.query.search || '').trim();
+    const tag        = (req.query.tag    || '').trim();
+    const category   = (req.query.category || '').trim();
+    const searchMode = req.query.searchMode || 'all';
+    const offset     = (page - 1) * limit;
+
+    const where = [], params = [];
+    if (!showAll) { where.push('published = 1'); }
+
+    // Filter by location category ('home' | 'monument' | 'events').
+    // Rows with a NULL category (legacy) are treated as 'home'.
+    if (CATEGORIES.includes(category)) {
+        if (category === 'home') {
+            where.push("(category = 'home' OR category IS NULL)");
+        } else {
+            where.push('category = ?');
+            params.push(category);
+        }
+    }
+
+    if (search) {
+        const words = search.split(/\s+/).filter(Boolean);
+        if (searchMode === 'name') {
+            // name_lower holds a Unicode-lowercased copy, so this is truly
+            // case-insensitive — including for Cyrillic.
+            where.push('(' + words.map(() => 'name_lower LIKE ?').join(' AND ') + ')');
+            words.forEach(w => params.push(`%${w.toLowerCase()}%`));
+        } else {
+            where.push('(' + words.map(() =>
+                '(name_lower LIKE ? OR LOWER(biography) LIKE ? OR LOWER(address) LIKE ? OR LOWER(tags) LIKE ?)'
+            ).join(' AND ') + ')');
+            words.forEach(w => {
+                const wl = `%${w.toLowerCase()}%`;
+                params.push(wl, wl, wl, wl);
+            });
+        }
+    }
+
+    if (tag) { where.push('LOWER(tags) LIKE LOWER(?)'); params.push(`%${tag}%`); }
+
+    const W = where.length ? 'WHERE ' + where.join(' AND ') : '';
+
+    try {
+        const countRow = await dbGet(`SELECT COUNT(*) AS total FROM homes ${W}`, params);
+        const total      = countRow.total;
+        const rows       = await dbAll(
+            `SELECT id,slug,name,address,lat,lng,images,tags,category, SUBSTR(biography,1,200) AS bio_snippet
+             FROM homes ${W} ORDER BY name LIMIT ? OFFSET ?`,
+            [...params, limit, offset]
+        );
+        const result = {
+            data: rows.map(r => rowToHome(r, true)),
+            pagination: { page, limit, total, totalPages: Math.ceil(total / limit), hasNext: page * limit < total, hasPrev: page > 1 },
+        };
+        if (result.data.length > 0 || search || tag) cache.set(key, result, LOW_SPEC ? 10 : 30);
+        res.json(result);
+    } catch (e) {
+        console.error('/api/homes error:', e);
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
+app.get('/api/homes/map', async (_req, res) => {
+    const key = 'map_data';
+    const hit = cache.get(key);
+    if (hit) return res.json(hit);
+    try {
+        const rows = await dbAll(
+            'SELECT id,slug,name,lat,lng,category FROM homes WHERE published=1 AND lat IS NOT NULL AND lng IS NOT NULL ORDER BY name'
+        );
+        const data = rows.map(r => ({ id: r.id, slug: r.slug, name: r.name, lat: r.lat, lng: r.lng, category: r.category || 'home' }));
+        cache.set(key, data, 300);
+        res.json(data);
+    } catch (e) {
+        console.error('/api/homes/map error:', e);
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
+app.get('/api/homes/:slug', async (req, res) => {
+    const key = `home:${req.params.slug}`;
+    const hit = cache.get(key);
+    if (hit) return res.json(hit);
+    try {
+        const row = await dbGet('SELECT * FROM homes WHERE slug=? OR id=?', [req.params.slug, req.params.slug]);
+        if (!row) return res.status(404).json({ error: 'Home not found' });
+        const data = rowToHome(row);
+        cache.set(key, data, 60);
+        res.json(data);
+    } catch (e) {
+        console.error('/api/homes/:slug error:', e);
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
+app.post('/api/homes', requireAuth, async (req, res) => {
+    const h = req.body;
+    if (!h.name) return res.status(400).json({ error: 'Name is required' });
+    if (!h.slug) h.slug = h.name.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/(^-|-$)/g, '');
+    h.id = h.id || h.slug;
+    h.created_at = h.updated_at = new Date().toISOString();
+    try {
+        insertHome(h);
+        cache.clear();
+        res.status(201).json({ message: 'Home created', id: h.id, slug: h.slug });
+    } catch (e) {
+        console.error('POST /api/homes error:', e);
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
+app.put('/api/homes/:id', requireAuth, async (req, res) => {
+    const h = { ...req.body, updated_at: new Date().toISOString() };
+    const c = h.coordinates || {};
+    try {
+        const result = await dbRun(`UPDATE homes SET
+            slug=?,name=?,name_lower=?,biography=?,address=?,lat=?,lng=?,images=?,photo_date=?,
+            sources=?,tags=?,published=?,updated_at=?,portrait_url=?,birth_date=?,death_date=?,category=?,
+            credited_to=COALESCE(?,credited_to)
+            WHERE id=?`,
+            [
+                h.slug, h.name, (h.name || '').toLowerCase(), h.biography, h.address,
+                c.lat || null, c.lng || null,
+                JSON.stringify(h.images  || []), h.photo_date || null,
+                JSON.stringify(h.sources || []),
+                JSON.stringify(h.tags    || []),
+                h.published !== false ? 1 : 0,
+                h.updated_at, h.portrait_url || null, h.birth_date || null, h.death_date || null,
+                normCategory(h.category),
+                (h.credited_to !== undefined ? (h.credited_to || null) : null),
+                req.params.id,
+            ]
+        );
+        if (!result.changes) return res.status(404).json({ error: 'Home not found' });
+        cache.clear();
+        res.json({ message: 'Home updated' });
+    } catch (e) {
+        console.error('PUT /api/homes error:', e);
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
+app.delete('/api/homes/:id', requireAuth, async (req, res) => {
+    try {
+        await dbRun('DELETE FROM homes WHERE id=?', [req.params.id]);
+        cache.clear();
+        res.json({ message: 'Home deleted' });
+    } catch (e) {
+        console.error('DELETE /api/homes error:', e);
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
+// ── Tags ──────────────────────────────────────────────────────────────────────
+app.get('/api/tags', async (req, res) => {
+    const category = (req.query.category || '').trim();
+    const useCat   = CATEGORIES.includes(category);
+    const key = 'tags:' + (useCat ? category : 'all');
+    const hit = cache.get(key);
+    if (hit) return res.json(hit);
+    try {
+        let sql = 'SELECT DISTINCT tags FROM homes WHERE published=1';
+        const params = [];
+        if (useCat) {
+            if (category === 'home') { sql += " AND (category='home' OR category IS NULL)"; }
+            else { sql += ' AND category=?'; params.push(category); }
+        }
+        const rows = await dbAll(sql, params);
+        const set  = new Set();
+        for (const r of rows) {
+            try { JSON.parse(r.tags || '[]').forEach(t => t && set.add(t.trim())); } catch {}
+        }
+        const tags = [...set].sort((a, b) => a.localeCompare(b, 'bg'));
+        cache.set(key, tags, 600);
+        res.json(tags);
+    } catch (e) {
+        console.error('/api/tags error:', e);
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
+// ── Partners ──────────────────────────────────────────────────────────────────
+app.get('/api/partners', async (req, res) => {
+    const showAll = req.query.all === 'true';
+    const W = showAll ? '' : 'WHERE published=1';
+    try {
+        const rows = await dbAll(`SELECT * FROM partners ${W} ORDER BY display_order ASC, name ASC`);
+        res.json(rows);
+    } catch (e) {
+        console.error('/api/partners error:', e);
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
+// GET single partner (needed by admin edit)
+app.get('/api/partners/:id', async (req, res) => {
+    try {
+        const row = await dbGet('SELECT * FROM partners WHERE id=?', [req.params.id]);
+        if (!row) return res.status(404).json({ error: 'Partner not found' });
+        res.json(row);
+    } catch (e) {
+        console.error('/api/partners/:id error:', e);
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
+app.post('/api/partners', requireOwner, async (req, res) => {
+    const p = req.body;
+    if (!p.name) return res.status(400).json({ error: 'Name is required' });
+    const id  = p.id || p.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    const now = new Date().toISOString();
+    try {
+        await dbRun(
+            `INSERT INTO partners (id,name,description,logo_url,website,instagram,email,published,display_order,created_at,updated_at)
+             VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+            [id, p.name, p.description||null, p.logo_url||null, p.website||null,
+             p.instagram||null, p.email||null, p.published!==false?1:0, p.display_order||0, now, now]
+        );
+        res.status(201).json({ id, message: 'Partner created' });
+    } catch (e) {
+        console.error('POST /api/partners error:', e);
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
+app.put('/api/partners/:id', requireOwner, async (req, res) => {
+    const p   = req.body;
+    const now = new Date().toISOString();
+    try {
+        const r = await dbRun(
+            `UPDATE partners SET name=?,description=?,logo_url=?,website=?,instagram=?,email=?,published=?,display_order=?,updated_at=? WHERE id=?`,
+            [p.name, p.description||null, p.logo_url||null, p.website||null,
+             p.instagram||null, p.email||null, p.published!==false?1:0, p.display_order||0, now, req.params.id]
+        );
+        if (!r.changes) return res.status(404).json({ error: 'Partner not found' });
+        res.json({ message: 'Partner updated' });
+    } catch (e) {
+        console.error('PUT /api/partners error:', e);
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
+app.delete('/api/partners/:id', requireOwner, async (req, res) => {
+    try {
+        await dbRun('DELETE FROM partners WHERE id=?', [req.params.id]);
+        res.json({ message: 'Partner deleted' });
+    } catch (e) {
+        console.error('DELETE /api/partners error:', e);
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
+// ── News ──────────────────────────────────────────────────────────────────────
+app.get('/api/news', async (req, res) => {
+    const page    = Math.max(1, parseInt(req.query.page)  || 1);
+    const limit   = Math.min(100, parseInt(req.query.limit) || 10);
+    const offset  = (page - 1) * limit;
+    const showAll = req.query.all === 'true';
+    const W       = showAll ? '' : 'WHERE is_published=1';
+    try {
+        const countRow = await dbGet(`SELECT COUNT(*) AS total FROM news ${W}`);
+        const rows     = await dbAll(
+            `SELECT id,title,slug,excerpt,cover_image,published_date,author,is_published
+             FROM news ${W} ORDER BY published_date DESC LIMIT ? OFFSET ?`,
+            [limit, offset]
+        );
+        res.json({
+            data: rows,
+            pagination: { page, limit, total: countRow.total, totalPages: Math.ceil(countRow.total / limit) },
+        });
+    } catch (e) {
+        console.error('/api/news error:', e);
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
+// GET single article — public by slug OR admin by numeric id
+app.get('/api/news/:ref', async (req, res) => {
+    const ref = req.params.ref;
+    try {
+        // Numeric id → admin fetch (no published filter)
+        const row = /^\d+$/.test(ref)
+            ? await dbGet('SELECT * FROM news WHERE id=?', [ref])
+            : await dbGet('SELECT * FROM news WHERE slug=? AND is_published=1', [ref]);
+        if (!row) return res.status(404).json({ error: 'Article not found' });
+        res.json(row);
+    } catch (e) {
+        console.error('/api/news/:ref error:', e);
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
+app.post('/api/news', requireAuth, async (req, res) => {
+    const { title, slug, content, excerpt, cover_image, published_date, author, is_published } = req.body;
+    if (!title || !slug || !content) return res.status(400).json({ error: 'title, slug and content are required' });
+    try {
+        const r = await dbRun(
+            `INSERT INTO news (title,slug,content,excerpt,cover_image,published_date,author,is_published) VALUES (?,?,?,?,?,?,?,?)`,
+            [title, slug, content, excerpt||'', cover_image||'',
+             published_date || new Date().toISOString().split('T')[0],
+             author || 'Екипът на Адресът на историята',
+             is_published !== false ? 1 : 0]
+        );
+        cache.clear();
+        res.json({ success: true, id: r.lastID });
+    } catch (e) {
+        console.error('POST /api/news error:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.put('/api/news/:id', requireAuth, async (req, res) => {
+    const { title, slug, content, excerpt, cover_image, published_date, author, is_published } = req.body;
+    try {
+        await dbRun(
+            `UPDATE news SET title=?,slug=?,content=?,excerpt=?,cover_image=?,published_date=?,author=?,is_published=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`,
+            [title, slug, content, excerpt, cover_image, published_date, author, is_published, req.params.id]
+        );
+        cache.clear();
+        res.json({ success: true });
+    } catch (e) {
+        console.error('PUT /api/news error:', e);
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
+app.delete('/api/news/:id', requireAuth, async (req, res) => {
+    try {
+        await dbRun('DELETE FROM news WHERE id=?', [req.params.id]);
+        cache.clear();
+        res.json({ success: true });
+    } catch (e) {
+        console.error('DELETE /api/news error:', e);
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
+// ── Calendar ──────────────────────────────────────────────────────────────────
+app.get('/api/calendar', async (req, res) => {
+    const month = String(parseInt(req.query.month) || new Date().getMonth() + 1).padStart(2, '0');
+    const year  = parseInt(req.query.year) || new Date().getFullYear();
+    const key   = `cal:${month}:${year}`;
+    const hit   = cache.get(key);
+    if (hit) return res.json(hit);
+
+    try {
+        const rows = await dbAll(
+            `SELECT name,slug,birth_date,death_date FROM homes WHERE published=1
+             AND (strftime('%m',birth_date)=? OR strftime('%m',death_date)=?)`,
+            [month, month]
+        );
+        const events = {};
+        for (const r of rows) {
+            for (const [field, type] of [['birth_date','birth'],['death_date','death']]) {
+                const d = r[field];
+                if (!d || !d.includes(`-${month}-`)) continue;
+                const date = new Date(d);
+                const day  = String(date.getDate()).padStart(2,'0');
+                const k    = `${month}-${day}`;
+                if (!events[k]) events[k] = [];
+                events[k].push({ name: r.name, slug: r.slug, type, full_date: d, years_ago: year - date.getFullYear() });
+            }
+        }
+        cache.set(key, events, 300);
+        res.json(events);
+    } catch (e) {
+        console.error('/api/calendar error:', e);
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
+app.get('/api/calendar/today', async (req, res) => {
+    const today     = new Date();
+    const monthDay  = String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
+    const viewYear  = parseInt(req.query.year) || today.getFullYear();
+    const key       = `cal_today:${monthDay}`;
+    const hit       = cache.get(key);
+    if (hit) return res.json(hit);
+
+    try {
+        const rows = await dbAll(
+            `SELECT name,slug,birth_date,death_date FROM homes WHERE published=1
+             AND (strftime('%m-%d',birth_date)=? OR strftime('%m-%d',death_date)=?)`,
+            [monthDay, monthDay]
+        );
+        const events = [];
+        for (const r of rows) {
+            for (const [field, type] of [['birth_date','birth'],['death_date','death']]) {
+                if (r[field] && r[field].substring(5) === monthDay) {
+                    events.push({ name: r.name, slug: r.slug, type, full_date: r[field], years_ago: viewYear - new Date(r[field]).getFullYear() });
+                }
+            }
+        }
+        cache.set(key, events, 300);
+        res.json(events);
+    } catch (e) {
+        console.error('/api/calendar/today error:', e);
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
+app.get('/api/calendar/all', async (_req, res) => {
+    const key = 'cal_all';
+    const hit = cache.get(key);
+    if (hit) return res.json(hit);
+    try {
+        const rows = await dbAll(
+            'SELECT name,slug,birth_date,death_date FROM homes WHERE published=1 AND (birth_date IS NOT NULL OR death_date IS NOT NULL)'
+        );
+        cache.set(key, rows, 1800);
+        res.json(rows);
+    } catch (e) {
+        console.error('/api/calendar/all error:', e);
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
+// ── Team ──────────────────────────────────────────────────────────────────────
+app.get('/api/team', async (req, res) => {
+    // ?all=true used by admin panel to see hidden members too
+    const showAll = req.query.all === 'true';
+    const W = showAll ? '' : 'WHERE is_published=1';
+    try {
+        const rows = await dbAll(`SELECT id,name,role,bio,photo,display_order,is_published FROM team ${W} ORDER BY display_order ASC, id ASC`);
+        res.json(rows);
+    } catch (e) {
+        console.error('/api/team error:', e);
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
+app.get('/api/team/:id', async (req, res) => {
+    try {
+        const row = await dbGet('SELECT * FROM team WHERE id=?', [req.params.id]);
+        if (!row) return res.status(404).json({ error: 'Not found' });
+        res.json(row);
+    } catch (e) {
+        console.error('/api/team/:id error:', e);
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
+app.post('/api/team', requireOwner, async (req, res) => {
+    const { name, role, bio, photo, display_order } = req.body;
+    if (!name) return res.status(400).json({ error: 'Name is required' });
+    try {
+        const r = await dbRun(
+            'INSERT INTO team (name,role,bio,photo,display_order) VALUES (?,?,?,?,?)',
+            [name, role||'', bio||'', photo||'', display_order||0]
+        );
+        cache.clear();
+        res.json({ success: true, id: r.lastID });
+    } catch (e) {
+        console.error('POST /api/team error:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.put('/api/team/:id', requireOwner, async (req, res) => {
+    const { name, role, bio, photo, display_order, is_published } = req.body;
+    try {
+        const r = await dbRun(
+            'UPDATE team SET name=?,role=?,bio=?,photo=?,display_order=?,is_published=? WHERE id=?',
+            [name, role, bio, photo, display_order, is_published, req.params.id]
+        );
+        cache.clear();
+        res.json({ success: true, changes: r.changes });
+    } catch (e) {
+        console.error('PUT /api/team error:', e);
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
+app.delete('/api/team/:id', requireOwner, async (req, res) => {
+    try {
+        const r = await dbRun('DELETE FROM team WHERE id=?', [req.params.id]);
+        cache.clear();
+        res.json({ success: true, deleted: r.changes > 0 });
+    } catch (e) {
+        console.error('DELETE /api/team error:', e);
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
+// ── Health ────────────────────────────────────────────────────────────────────
+app.get('/api/health', (_req, res) => {
+    const mem = process.memoryUsage();
+    res.json({
+        status:  'healthy',
+        uptime:  Math.round(process.uptime()),
+        memory:  { rss: mb(mem.rss), heap: mb(mem.heapUsed) },
+        cache:   cache.stats(),
+        mode:    LOW_SPEC ? 'lean' : 'performance',
+    });
+    function mb(b) { return Math.round(b / 1024 / 1024) + ' MB'; }
+});
+
+// ── Owner-only database backup (hidden) ───────────────────────────────────────
+// Lets the owner download a full, consistent SQLite snapshot for off-site safe-
+// keeping. Double-gated: the request must (1) supply the secret DB_BACKUP_KEY and
+// (2) come from a logged-in owner. ANY failure returns the normal 404 page, so the
+// route is invisible to anyone lacking both. VACUUM INTO yields a clean, WAL-
+// consistent copy that is streamed and then deleted.
+function safeEqual(a, b) {
+    const ba = Buffer.from(String(a)), bb = Buffer.from(String(b));
+    return ba.length === bb.length && crypto.timingSafeEqual(ba, bb);
+}
+app.get('/api/sys/db-export', async (req, res) => {
+    const notFound = () => { try { res.status(404).sendFile(path.join(__dirname, '404.html')); } catch {} };
+    try {
+        const key = req.get('x-backup-key') || req.query.key || '';
+        if (!process.env.DB_BACKUP_KEY || !safeEqual(key, process.env.DB_BACKUP_KEY)) return notFound();
+
+        const token = req.cookies && req.cookies[AUTH_COOKIE];
+        if (!token) return notFound();
+        let payload;
+        try { payload = jwt.verify(token, JWT_SECRET); } catch { return notFound(); }
+        const row = await dbGet('SELECT role FROM users WHERE id=?', [payload.sub]);
+        if (!row || row.role !== 'owner') return notFound();
+
+        const tmp = path.join(path.dirname(DB_FILE), 'ha-backup-' + crypto.randomBytes(8).toString('hex') + '.db');
+        const sqlPath = tmp.replace(/\\/g, '/').replace(/'/g, "''");   // server-generated, no user input
+        await dbRun(`VACUUM INTO '${sqlPath}'`);
+        const fname = 'historyaddress-backup-' + new Date().toISOString().slice(0, 10) + '.db';
+        res.download(tmp, fname, () => { fs.unlink(tmp, () => {}); });
+    } catch (e) {
+        console.error('db-export error:', e.message);
+        notFound();
+    }
+});
+
+// ── Page catch-alls ───────────────────────────────────────────────────────────
+app.get('/', (_req, res) => res.sendFile(path.join(__dirname, 'index.html')));
+app.get('/:page.html', (req, res) => {
+    const fp = path.join(__dirname, `${req.params.page}.html`);
+    fs.existsSync(fp) ? res.sendFile(fp) : res.status(404).sendFile(path.join(__dirname, '404.html'));
+});
+
+// Final fallback: any other unmatched route. API paths get JSON; everything else
+// (e.g. /some-old-link with no extension) gets the themed 404 page.
+app.use((req, res) => {
+    if (req.method === 'GET' && !req.path.startsWith('/api/')) {
+        return res.status(404).sendFile(path.join(__dirname, '404.html'));
+    }
+    res.status(404).json({ error: 'Not found' });
+});
+
+// ─── Memory watchdog ──────────────────────────────────────────────────────────
+const GC_WARN  = LOW_SPEC ? 150 : 500;
+const GC_CRIT  = LOW_SPEC ? 250 : 800;
+setInterval(() => {
+    const rss = Math.round(process.memoryUsage().rss / 1024 / 1024);
+    if (rss > GC_WARN && typeof global.gc === 'function') {
+        global.gc();
+        if (rss > GC_CRIT) { console.warn(`⚠️  Critical RSS ${rss} MB — flushing cache`); cache.clear(); }
+    }
+}, LOW_SPEC ? 30_000 : 60_000);
+
+// ─── Start ────────────────────────────────────────────────────────────────────
+const server = app.listen(PORT, '0.0.0.0', () => {
+    console.log(`✅ Listening on :${PORT} — ${DOMAIN}\n`);
+});
+server.keepAliveTimeout = 30_000;
+server.headersTimeout   = 31_000;
+
+// ─── Graceful shutdown ────────────────────────────────────────────────────────
+function shutdown(sig) {
+    console.log(`\n${sig} received — shutting down…`);
+    server.close(() => db.close(() => { console.log('👋 Closed.'); process.exit(0); }));
+    setTimeout(() => process.exit(1), 10_000);
+}
+process.on('SIGINT',  () => shutdown('SIGINT'));
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('uncaughtException',   err => { console.error('Uncaught:', err);   process.exit(1); });
+process.on('unhandledRejection',  err => { console.error('Unhandled:', err);  process.exit(1); });

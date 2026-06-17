@@ -1,0 +1,784 @@
+<!doctype html>
+<html lang="bg" data-theme="dark">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <link rel="icon" type="image/png" href="/assets/img/favicon-96x96.png" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="/assets/img/favicon.svg" />
+    <link rel="shortcut icon" href="/assets/img/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/img/apple-touch-icon.png" />
+    <link rel="manifest" href="/assets/img/site.webmanifest" />
+
+    <title>Моят профил — Адресът на историята</title>
+    <meta name="description" content="Вашият профил, любими и посетени места.">
+    <meta name="robots" content="noindex, nofollow">
+
+    <script>
+        (function() {
+            try {
+                var stored = localStorage.getItem('theme-preference');
+                if (stored === 'system') stored = 'dark';
+                var theme = (stored === 'dark' || stored === 'light') ? stored : 'dark';
+                document.documentElement.setAttribute('data-theme', theme);
+            } catch(e) {}
+        })();
+    </script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Mulish:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="assets/css/styles.css">
+    <script defer src="assets/js/theme.js"></script>
+    <script defer src="assets/js/transitions.js"></script>
+
+    <style>
+        :root { --font-display: 'Cormorant Garamond', Georgia, serif; --font-body: 'Mulish', sans-serif; }
+        .pf-page, .pf-page * { font-family: var(--font-body); }
+
+        .pf-main { max-width: 1140px; margin: 0 auto; padding: clamp(1.5rem, 4vw, 3rem) 1.25rem 5rem; }
+
+        /* ── Hero ── */
+        .pf-hero {
+            display: flex; align-items: center; gap: 1.4rem; flex-wrap: wrap;
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: 20px; padding: clamp(1.4rem, 3vw, 2.2rem);
+            box-shadow: var(--shadow); position: relative; overflow: hidden;
+        }
+        .pf-hero::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--accent-gradient); }
+        .pf-avatar {
+            width: 72px; height: 72px; flex-shrink: 0; border-radius: 50%;
+            background: var(--accent-gradient); color: #1a1410;
+            display: flex; align-items: center; justify-content: center;
+            font-family: var(--font-display); font-size: 2rem; font-weight: 700;
+            box-shadow: 0 6px 18px rgba(205,133,63,0.3);
+        }
+        .pf-id { flex: 1; min-width: 0; }
+        .pf-eyebrow { font-size: 0.7rem; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent-strong); margin: 0 0 0.3rem; }
+        .pf-email { font-family: var(--font-display); font-size: clamp(1.4rem, 3vw, 1.9rem); font-weight: 700; color: var(--fg); margin: 0; line-height: 1.15; word-break: break-word; }
+        .pf-meta { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-top: 0.6rem; }
+        .pf-badge { font-size: 0.74rem; font-weight: 600; padding: 0.28rem 0.7rem; border-radius: 999px; background: rgba(205,133,63,0.14); color: var(--accent-strong); border: 1px solid rgba(205,133,63,0.3); }
+        .pf-badge.muted { background: transparent; color: var(--muted); border-color: var(--border); }
+
+        .pf-logout {
+            display: inline-flex; align-items: center; gap: 0.5rem;
+            padding: 0.7rem 1.2rem; border-radius: 10px; cursor: pointer;
+            background: transparent; border: 1px solid var(--border); color: var(--fg);
+            font-family: var(--font-body); font-size: 0.85rem; font-weight: 600;
+            transition: border-color 0.2s, color 0.2s, background 0.2s;
+        }
+        .pf-logout:hover { border-color: #c96b6b; color: #e2a3a3; background: rgba(201,107,107,0.08); }
+
+        .pf-email-sub { font-size: 0.9rem; color: var(--muted); margin: 0.25rem 0 0; word-break: break-word; }
+
+        /* ── Stats ── */
+        .pf-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin: 1.5rem 0 0; }
+        .pf-stat { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 1.1rem 1.3rem; box-shadow: var(--shadow-soft); }
+        .pf-stat-num { font-family: var(--font-display); font-size: 2rem; font-weight: 700; color: var(--fg); line-height: 1; }
+        .pf-stat-label { font-size: 0.8rem; color: var(--muted); margin-top: 0.3rem; }
+
+        /* ── Donation promo card ── */
+        .pf-donate {
+            margin-top: 1.5rem; position: relative; overflow: hidden;
+            border-radius: 18px; border: 1px solid rgba(205,133,63,0.4);
+            background: radial-gradient(circle at 100% 0%, rgba(218,165,32,0.16), transparent 55%), var(--card);
+            box-shadow: var(--shadow-soft);
+            padding: clamp(1.4rem, 3vw, 2rem) clamp(1.3rem, 3vw, 2.2rem);
+            display: flex; align-items: center; gap: clamp(1rem, 3vw, 2rem); flex-wrap: wrap;
+        }
+        .pf-donate::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--accent-gradient); }
+        .pf-donate-icon {
+            flex-shrink: 0; width: 60px; height: 60px; border-radius: 16px;
+            background: var(--accent-gradient); color: #fff;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 6px 18px rgba(205,133,63,0.35);
+        }
+        .pf-donate-body { flex: 1; min-width: 220px; }
+        .pf-donate-title { font-family: var(--font-display); font-size: clamp(1.3rem, 3vw, 1.65rem); font-weight: 700; color: var(--fg); margin: 0 0 0.4rem; }
+        .pf-donate-text { font-size: 0.95rem; color: var(--muted); line-height: 1.55; margin: 0; }
+        .pf-donate-cta {
+            flex-shrink: 0; display: inline-flex; align-items: center; gap: 0.6rem;
+            padding: 0.95rem 2rem; border-radius: 30px;
+            background: var(--accent-gradient); color: #fff !important;
+            font-family: var(--font-body); font-weight: 700; font-size: 1.02rem;
+            text-decoration: none; border: 1px solid rgba(205,133,63,0.5);
+            box-shadow: 0 6px 18px rgba(205,133,63,0.4);
+            transition: transform 0.3s ease, box-shadow 0.3s ease, filter 0.3s ease; white-space: nowrap;
+        }
+        .pf-donate-cta:hover { transform: translateY(-2px); box-shadow: 0 10px 26px rgba(205,133,63,0.55); filter: brightness(1.06); }
+        @media (max-width: 640px) {
+            .pf-donate { flex-direction: column; text-align: center; }
+            .pf-donate-cta { width: 100%; justify-content: center; }
+        }
+
+        /* ── Sections ── */
+        .pf-section { margin-top: 2.75rem; }
+        .pf-section-head { display: flex; align-items: baseline; gap: 0.6rem; margin-bottom: 1.25rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border); }
+        .pf-section-title { font-family: var(--font-display); font-size: clamp(1.4rem, 3vw, 1.8rem); font-weight: 700; color: var(--fg); margin: 0; }
+        .pf-section-count { font-size: 0.85rem; color: var(--muted); }
+        .pf-suggest-link { margin-left: auto; color: var(--accent-strong); font-weight: 700; font-size: 0.85rem; text-decoration: none; white-space: nowrap; }
+        .pf-suggest-link:hover { text-decoration: underline; }
+
+        /* ── Account settings ── */
+        .pf-setting { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 1.3rem 1.4rem; margin-bottom: 1rem; box-shadow: var(--shadow-soft); }
+        .pf-setting-label { display: block; font-size: 0.95rem; font-weight: 700; color: var(--fg); margin-bottom: 0.3rem; }
+        .pf-setting-hint { font-size: 0.83rem; color: var(--muted); line-height: 1.5; margin: 0 0 0.9rem; }
+        .pf-input {
+            width: 100%; box-sizing: border-box; padding: 0.75rem 0.95rem;
+            background: rgba(0,0,0,0.18); border: 1px solid var(--border); border-radius: 10px;
+            color: var(--fg); font-family: var(--font-body); font-size: 0.95rem;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .pf-input:focus { outline: none; border-color: var(--accent-strong); box-shadow: 0 0 0 3px rgba(205,133,63,0.18); }
+        .pf-name-row { display: flex; gap: 0.6rem; align-items: stretch; }
+        .pf-name-row .pf-input { flex: 1; }
+
+        .pf-pw-form { display: flex; flex-direction: column; gap: 0.6rem; max-width: 360px; }
+        .pf-pw-form .pf-btn { align-self: flex-start; margin-top: 0.2rem; }
+        .pf-pw-msg { margin: 0; font-size: 0.82rem; line-height: 1.4; }
+        .pf-pw-msg[hidden] { display: none; }
+        .pf-pw-msg.ok  { color: #8bc78e; }
+        .pf-pw-msg.err { color: #e98c8c; }
+
+        .pf-btn {
+            display: inline-flex; align-items: center; justify-content: center; gap: 0.45rem;
+            padding: 0.72rem 1.3rem; border-radius: 10px; cursor: pointer;
+            font-family: var(--font-body); font-size: 0.9rem; font-weight: 700;
+            border: 1px solid transparent; white-space: nowrap;
+            transition: transform 0.2s, box-shadow 0.2s, background 0.2s, color 0.2s, border-color 0.2s;
+        }
+        .pf-btn:disabled { opacity: 0.55; cursor: default; }
+        /* !important on hover guards against the global button:hover rule in
+           styles.css (~line 1194) which otherwise repaints every button gold. */
+        .pf-btn-gold { background: var(--accent-gradient); color: #1a1410; box-shadow: 0 4px 14px rgba(205,133,63,0.3); }
+        .pf-btn-gold:not(:disabled):hover { background: var(--accent-gradient) !important; border-color: transparent !important; box-shadow: 0 7px 18px rgba(205,133,63,0.45); }
+        .pf-btn-ghost { background: transparent; border-color: var(--border); color: var(--fg); }
+        .pf-btn-ghost:not(:disabled):hover { background: rgba(205,133,63,0.1) !important; border-color: var(--accent-strong) !important; color: var(--accent-strong); }
+        .pf-btn-danger { background: transparent; border-color: rgba(201,80,80,0.6); color: #e2a3a3; }
+        .pf-btn-danger:not(:disabled):hover { background: rgba(201,80,80,0.16) !important; border-color: #c95050 !important; color: #f0b8b8; }
+
+        .pf-danger { border: 1px solid rgba(201,80,80,0.45); border-radius: 14px; padding: 1.3rem 1.4rem; margin-top: 1.75rem; background: rgba(201,80,80,0.05); }
+        .pf-danger-title { font-family: var(--font-display); font-size: 1.25rem; font-weight: 700; color: #e2a3a3; margin: 0 0 0.4rem; }
+
+        /* ── Delete modal ── */
+        .pf-modal { position: fixed; inset: 0; z-index: 10000; display: flex; align-items: center; justify-content: center; padding: 1.25rem; background: rgba(0,0,0,0.6); backdrop-filter: blur(3px); }
+        .pf-modal[hidden] { display: none; }
+        .pf-modal-card { width: 100%; max-width: 420px; background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 1.75rem; box-shadow: 0 24px 60px rgba(0,0,0,0.5); }
+        .pf-modal-title { font-family: var(--font-display); font-size: 1.5rem; font-weight: 700; color: var(--fg); margin: 0 0 0.5rem; }
+        .pf-modal-text { font-size: 0.92rem; color: var(--muted); line-height: 1.55; margin: 0 0 1.1rem; }
+        .pf-modal-error { font-size: 0.85rem; color: #e98c8c; margin: 0.7rem 0 0; }
+        .pf-modal-error[hidden] { display: none; }
+        .pf-modal-actions { display: flex; gap: 0.7rem; justify-content: flex-end; margin-top: 1.3rem; }
+
+        /* Submission status badge (replaces the category chip on submission cards) */
+        .sub-status { position: absolute; top: 0.7rem; left: 0.7rem; z-index: 2; font-size: 0.66rem; font-weight: 700; padding: 0.25rem 0.65rem; border-radius: 999px; letter-spacing: 0.02em; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+        .sub-status.pending  { background: #d99a3a; color: #1a1410; }
+        .sub-status.approved { background: #5d9d61; color: #fff; }
+        .sub-status.rejected { background: #c0564f; color: #fff; }
+        .sub-card.is-rejected { opacity: 0.72; }
+
+        .place-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 1.25rem; }
+
+        .place-card {
+            position: relative; display: block; text-decoration: none; color: inherit;
+            background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+            overflow: hidden; box-shadow: var(--shadow-soft);
+            transition: transform 0.3s cubic-bezier(0.25,0.46,0.45,0.94), box-shadow 0.3s, border-color 0.2s;
+            animation: cardIn 0.45s ease both;
+        }
+        .place-card:hover { transform: translateY(-4px); box-shadow: var(--shadow); border-color: rgba(205,133,63,0.5); }
+        @keyframes cardIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+
+        .place-img { height: 150px; width: 100%; object-fit: cover; display: block; background: var(--border); }
+        .place-ph { height: 150px; display: flex; align-items: center; justify-content: center; font-size: 2.2rem; opacity: 0.35; background: linear-gradient(135deg, rgba(205,133,63,0.08), transparent); }
+        .place-body { padding: 0.9rem 1.05rem 1.1rem; }
+        .place-name { font-family: var(--font-display); font-size: 1.18rem; font-weight: 700; color: var(--fg); margin: 0 0 0.3rem; line-height: 1.2; }
+        .place-addr { font-size: 0.8rem; color: var(--muted); display: flex; gap: 0.35rem; align-items: flex-start; line-height: 1.4; }
+
+        .place-cat { position: absolute; top: 0.7rem; left: 0.7rem; font-size: 0.65rem; font-weight: 700; padding: 0.25rem 0.6rem; border-radius: 999px; color: #fff; letter-spacing: 0.02em; z-index: 2; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+        /* !important guards against the global button rule in styles.css (~line 1047)
+           which forces position:relative and injects a glow ::before on buttons. */
+        .place-remove {
+            position: absolute !important; top: 0.6rem; right: 0.6rem; width: 30px; height: 30px; z-index: 3;
+            border-radius: 50%; border: none; background: rgba(0,0,0,0.55); color: #fff; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; font-size: 1.1rem; line-height: 1;
+            opacity: 0; transform: scale(0.9); transition: opacity 0.2s, transform 0.2s, background 0.2s; overflow: visible;
+        }
+        .place-remove::before { display: none !important; }
+        .place-card:hover .place-remove, .place-remove:focus-visible { opacity: 1; transform: scale(1) !important; box-shadow: none !important; }
+        .place-remove:hover { background: rgba(201,80,80,0.92); }
+
+        /* ── Empty / loading ── */
+        .pf-empty { text-align: center; padding: 2.5rem 1rem; color: var(--muted); background: var(--card); border: 1px dashed var(--border); border-radius: 14px; }
+        .pf-empty-icon { font-size: 2.2rem; opacity: 0.4; display: block; margin-bottom: 0.6rem; }
+        .pf-empty a { color: var(--accent-strong); font-weight: 600; text-decoration: none; }
+        .pf-empty a:hover { text-decoration: underline; }
+
+        .skeleton { border-radius: 14px; overflow: hidden; background: var(--card); border: 1px solid var(--border); }
+        .skeleton-img { height: 150px; background: linear-gradient(90deg, var(--border) 25%, rgba(255,255,255,0.04) 50%, var(--border) 75%); background-size: 200% 100%; animation: shimmer 1.5s ease infinite; }
+        .skeleton-body { padding: 0.9rem 1.05rem 1.1rem; }
+        .skeleton-line { height: 0.85rem; border-radius: 4px; margin-bottom: 0.55rem; background: linear-gradient(90deg, var(--border) 25%, rgba(255,255,255,0.04) 50%, var(--border) 75%); background-size: 200% 100%; animation: shimmer 1.5s ease infinite; }
+        .skeleton-line.w60 { width: 60%; }
+        @keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+
+        .pf-loading-state { display: flex; align-items: center; justify-content: center; gap: 0.75rem; padding: 5rem 1rem; color: var(--muted); }
+        .pf-spinner { width: 18px; height: 18px; border: 2px solid var(--border); border-top-color: var(--accent-strong); border-radius: 50%; animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        @media (max-width: 560px) {
+            .pf-hero { flex-direction: column; align-items: flex-start; text-align: left; }
+            .pf-logout { width: 100%; justify-content: center; }
+            .place-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 0.9rem; }
+            /* Let the "+ Предложи локация" link drop to its own line instead of
+               overflowing the screen edge next to the section title. */
+            .pf-section-head { flex-wrap: wrap; }
+            .pf-suggest-link { margin-left: 0; flex-basis: 100%; }
+            .pf-stats { gap: 0.6rem; }
+            .pf-stat { padding: 0.9rem 0.55rem; }
+            .pf-stat-num { font-size: 1.6rem; }
+            .pf-stat-label { font-size: 0.72rem; }
+            .pf-name-row { flex-direction: column; }
+            .pf-name-row .pf-btn { width: 100%; }
+        }
+    </style>
+    <script defer src="assets/js/account-nav.js?v=5"></script>
+</head>
+
+<body class="pf-page">
+
+<header class="site-header">
+    <a class="logo-link" href="index.html">
+        <img src="assets/img/HistAdrLogo.png" alt="Адресът на историята" class="header-logo">
+        <span class="logo-text">Адресът на историята</span>
+    </a>
+    <nav class="nav">
+        <a href="index.html">Начало</a>
+        <a href="map.html">Карта</a>
+        <a href="addresses.html">Адреси</a>
+        <a href="calendar.html">Календар</a>
+        <a href="news.html">Новини</a>
+        <a href="about.html">За Нас</a>
+    </nav>
+    <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode"></button>
+</header>
+
+<main class="pf-main">
+    <div id="loadingState" class="pf-loading-state">
+        <div class="pf-spinner"></div>
+        <span>Зареждане на профила…</span>
+    </div>
+
+    <div id="profileContent" style="display:none">
+        <!-- Hero -->
+        <section class="pf-hero">
+            <div class="pf-avatar" id="pfAvatar">•</div>
+            <div class="pf-id">
+                <p class="pf-eyebrow">Моят профил</p>
+                <h1 class="pf-email" id="pfEmail"></h1>
+                <p class="pf-email-sub" id="pfEmailSub" hidden></p>
+                <div class="pf-meta">
+                    <span class="pf-badge" id="pfRole"></span>
+                    <span class="pf-badge muted" id="pfSince"></span>
+                </div>
+            </div>
+            <button class="pf-logout" id="logoutBtn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                Изход
+            </button>
+        </section>
+
+        <!-- Stats -->
+        <div class="pf-stats">
+            <div class="pf-stat"><div class="pf-stat-num" id="statFav">0</div><div class="pf-stat-label">Любими места</div></div>
+            <div class="pf-stat"><div class="pf-stat-num" id="statVisited">0</div><div class="pf-stat-label">Посетени места</div></div>
+            <div class="pf-stat"><div class="pf-stat-num" id="statContrib">0</div><div class="pf-stat-label">Приети приноси</div></div>
+        </div>
+
+        <!-- Donation promo card -->
+        <section class="pf-donate">
+            <div class="pf-donate-icon">
+                <svg width="30" height="30" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+            </div>
+            <div class="pf-donate-body">
+                <h2 class="pf-donate-title">Харесва ли Ви проектът?</h2>
+                <p class="pf-donate-text">Помогнете ни да дигитализираме и опазим българската история. Всяко дарение ни помага да пътуваме и заснемаме нови паметници!</p>
+            </div>
+            <a class="pf-donate-cta" href="https://buymeacoffee.com/historyaddress.bg" target="_blank" rel="noopener noreferrer">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                Дарете сега
+            </a>
+        </section>
+
+        <!-- Favorites -->
+        <section class="pf-section">
+            <div class="pf-section-head">
+                <h2 class="pf-section-title">❤️ Любими места</h2>
+                <span class="pf-section-count" id="favCount"></span>
+            </div>
+            <div class="place-grid" id="favGrid"></div>
+        </section>
+
+        <!-- Visited -->
+        <section class="pf-section">
+            <div class="pf-section-head">
+                <h2 class="pf-section-title">📍 Посетени места</h2>
+                <span class="pf-section-count" id="visitedCount"></span>
+            </div>
+            <div class="place-grid" id="visitedGrid"></div>
+        </section>
+
+        <!-- My submissions -->
+        <section class="pf-section">
+            <div class="pf-section-head">
+                <h2 class="pf-section-title">📌 Моите предложения</h2>
+                <span class="pf-section-count" id="subsCount"></span>
+                <a class="pf-suggest-link" href="suggest.html">+ Предложи локация</a>
+            </div>
+            <div class="place-grid" id="subsGrid"></div>
+        </section>
+
+        <!-- Account settings -->
+        <section class="pf-section">
+            <div class="pf-section-head">
+                <h2 class="pf-section-title">⚙️ Настройки на профила</h2>
+            </div>
+
+            <div class="pf-setting">
+                <label class="pf-setting-label" for="pfNameInput">Показвано име</label>
+                <p class="pf-setting-hint">Името, което се вижда в профила Ви и като „Предложено от“ при Ваши приноси. Оставете празно, за да се показва имейлът.</p>
+                <div class="pf-name-row">
+                    <input id="pfNameInput" class="pf-input" type="text" maxlength="60" placeholder="напр. Георги Петков" autocomplete="name">
+                    <button id="pfNameSave" class="pf-btn pf-btn-gold" type="button">Запази</button>
+                </div>
+            </div>
+
+            <div class="pf-setting">
+                <label class="pf-setting-label">Промяна на паролата</label>
+                <p class="pf-setting-hint">Въведете текущата си парола и новата, която искате да зададете (поне 8 символа, с букви и цифри).</p>
+                <form id="pwForm" class="pf-pw-form" novalidate autocomplete="off">
+                    <input id="pwCurrent" class="pf-input" type="password" placeholder="Текуща парола" autocomplete="current-password">
+                    <input id="pwNew" class="pf-input" type="password" placeholder="Нова парола" autocomplete="new-password">
+                    <input id="pwConfirm" class="pf-input" type="password" placeholder="Повторете новата парола" autocomplete="new-password">
+                    <p id="pwMsg" class="pf-pw-msg" hidden></p>
+                    <button id="pwSave" class="pf-btn pf-btn-gold" type="submit">Промени паролата</button>
+                </form>
+            </div>
+
+            <div class="pf-setting">
+                <label class="pf-setting-label">Вашите данни</label>
+                <p class="pf-setting-hint">Изтеглете копие на всички данни, които съхраняваме за Вас — профил, любими, посетени и предложения (GDPR).</p>
+                <button id="pfExport" class="pf-btn pf-btn-ghost" type="button">⬇ Изтегли моите данни</button>
+            </div>
+
+            <div class="pf-danger">
+                <h3 class="pf-danger-title">Опасна зона</h3>
+                <p class="pf-setting-hint">Изтриването на профила е необратимо. Любимите, посетените места и чакащите предложения ще бъдат премахнати завинаги.</p>
+                <button id="pfDelete" class="pf-btn pf-btn-danger" type="button">Изтрий профила ми</button>
+            </div>
+        </section>
+    </div>
+</main>
+
+<!-- Delete-account confirmation modal -->
+<div id="delModal" class="pf-modal" hidden>
+    <div class="pf-modal-card" role="dialog" aria-modal="true" aria-labelledby="delModalTitle">
+        <h3 id="delModalTitle" class="pf-modal-title">Изтриване на профила</h3>
+        <p class="pf-modal-text">Това действие е необратимо. Въведете паролата си, за да потвърдите изтриването.</p>
+        <input id="delPassword" class="pf-input" type="password" placeholder="Вашата парола" autocomplete="current-password">
+        <p id="delError" class="pf-modal-error" hidden></p>
+        <div class="pf-modal-actions">
+            <button id="delCancel" class="pf-btn pf-btn-ghost" type="button">Отказ</button>
+            <button id="delConfirm" class="pf-btn pf-btn-danger" type="button">Изтрий завинаги</button>
+        </div>
+    </div>
+</div>
+
+<footer class="site-footer">
+    <div class="footer-inner">
+        <div class="footer-social">
+            <a href="https://instagram.com/historyaddress.bg" target="_blank" rel="noopener noreferrer" class="social-link">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
+                Instagram
+            </a>
+            <a href="mailto:historyaddressbg@gmail.com" class="social-link">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                Email
+            </a>
+        </div>
+        <a href="https://buymeacoffee.com/historyaddress.bg" target="_blank" rel="noopener noreferrer" class="footer-donate" aria-label="Подкрепете ни — дарение">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+          Подкрепете ни
+        </a>
+
+        <p class="footer-links">
+            <a href="privacy.html">Поверителност</a><span>•</span>
+            <a href="terms.html">Условия</a><span>•</span>
+            <a href="copyright.html">Авторски права</a>
+        </p>
+        <p class="footer-copy">© <span id="year"></span> Адресът на историята</p>
+    </div>
+</footer>
+
+<script>
+(function() {
+    document.getElementById('year').textContent = new Date().getFullYear();
+
+    var CAT = {
+        home:     { label: 'Дом',       color: '#cd853f' },
+        monument: { label: 'Паметник',  color: '#5fa3a0' },
+        events:   { label: 'Събитие',   color: '#c87f5a' }
+    };
+    var ROLE_LABEL = { user: 'Потребител', owner: 'Собственик', admin: 'Администратор', moderator: 'Модератор' };
+    var ACCOUNT = {};   // holds the loaded email so handlers can update the hero
+    function toast(m) { (window.haToast || function(x){ alert(x); })(m); }
+
+    // Build a place card with the DOM API (textContent) → safe against XSS.
+    function buildCard(item, status) {
+        var card = document.createElement('a');
+        card.className = 'place-card';
+        card.href = 'address.html?slug=' + encodeURIComponent(item.slug || item.id);
+
+        var cat = CAT[item.category] || CAT.home;
+
+        var chip = document.createElement('span');
+        chip.className = 'place-cat';
+        chip.style.background = cat.color;
+        chip.textContent = cat.label;
+
+        var remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'place-remove';
+        remove.setAttribute('aria-label', 'Премахни от списъка');
+        remove.textContent = '×';
+        remove.addEventListener('click', function(e) {
+            e.preventDefault(); e.stopPropagation();
+            removeActivity(item.id, status, card);
+        });
+
+        var media;
+        if (item.image) {
+            media = document.createElement('img');
+            media.className = 'place-img';
+            media.loading = 'lazy';
+            media.decoding = 'async';
+            media.alt = item.name || '';
+            media.src = item.image;
+            media.onerror = function() {
+                var ph = document.createElement('div');
+                ph.className = 'place-ph'; ph.textContent = '🏛️';
+                if (media.parentNode) media.parentNode.replaceChild(ph, media);
+            };
+        } else {
+            media = document.createElement('div');
+            media.className = 'place-ph';
+            media.textContent = '🏛️';
+        }
+
+        var body = document.createElement('div');
+        body.className = 'place-body';
+        var name = document.createElement('div');
+        name.className = 'place-name';
+        name.textContent = item.name || '—';
+        body.appendChild(name);
+        if (item.address) {
+            var addr = document.createElement('div');
+            addr.className = 'place-addr';
+            var pin = document.createElement('span'); pin.textContent = '📍';
+            var txt = document.createElement('span'); txt.textContent = item.address;
+            addr.appendChild(pin); addr.appendChild(txt);
+            body.appendChild(addr);
+        }
+
+        card.appendChild(chip);
+        card.appendChild(remove);
+        card.appendChild(media);
+        card.appendChild(body);
+        return card;
+    }
+
+    function renderGrid(gridEl, items, status, emptyHtml) {
+        gridEl.innerHTML = '';
+        if (!items.length) {
+            var empty = document.createElement('div');
+            empty.className = 'pf-empty';
+            empty.innerHTML = emptyHtml;
+            gridEl.appendChild(empty);
+            return;
+        }
+        items.forEach(function(it) { gridEl.appendChild(buildCard(it, status)); });
+    }
+
+    var SUB_STATUS = {
+        pending:  { label: 'Изчаква',     cls: 'pending'  },
+        approved: { label: 'Одобрено',    cls: 'approved' },
+        rejected: { label: 'Отхвърлено',  cls: 'rejected' }
+    };
+    function buildSubCard(s) {
+        var st = SUB_STATUS[s.status] || SUB_STATUS.pending;
+        var isLink = s.status === 'approved' && s.slug;
+        var card = document.createElement(isLink ? 'a' : 'div');
+        card.className = 'place-card sub-card' + (s.status === 'rejected' ? ' is-rejected' : '');
+        if (isLink) card.href = 'address.html?slug=' + encodeURIComponent(s.slug);
+
+        var badge = document.createElement('span');
+        badge.className = 'sub-status ' + st.cls;
+        badge.textContent = st.label;
+
+        var media;
+        if (s.image) {
+            media = document.createElement('img');
+            media.className = 'place-img'; media.loading = 'lazy'; media.decoding = 'async';
+            media.alt = s.title || ''; media.src = s.image;
+            media.onerror = function() { var ph = document.createElement('div'); ph.className = 'place-ph'; ph.textContent = '🏛️'; if (media.parentNode) media.parentNode.replaceChild(ph, media); };
+        } else {
+            media = document.createElement('div'); media.className = 'place-ph'; media.textContent = '🏛️';
+        }
+
+        var body = document.createElement('div'); body.className = 'place-body';
+        var name = document.createElement('div'); name.className = 'place-name'; name.textContent = s.title || '—';
+        body.appendChild(name);
+        var meta = document.createElement('div'); meta.className = 'place-addr';
+        var ic = document.createElement('span'); ic.textContent = '🕓';
+        var txt = document.createElement('span'); txt.textContent = formatDate(s.created_at) || '';
+        meta.appendChild(ic); meta.appendChild(txt); body.appendChild(meta);
+
+        card.appendChild(badge); card.appendChild(media); card.appendChild(body);
+        return card;
+    }
+    function renderSubmissions(items) {
+        var grid = document.getElementById('subsGrid');
+        grid.innerHTML = '';
+        var n = items.length;
+        document.getElementById('subsCount').textContent = n ? n + ' ' + (n === 1 ? 'предложение' : 'предложения') : '';
+        if (!n) {
+            var empty = document.createElement('div');
+            empty.className = 'pf-empty';
+            empty.innerHTML = '<span class="pf-empty-icon">📌</span>Все още нямате предложения. <a href="suggest.html">Предложете локация</a>';
+            grid.appendChild(empty);
+            return;
+        }
+        items.forEach(function(s) { grid.appendChild(buildSubCard(s)); });
+    }
+
+    function updateCounts() {
+        var f = document.querySelectorAll('#favGrid .place-card').length;
+        var v = document.querySelectorAll('#visitedGrid .place-card').length;
+        document.getElementById('statFav').textContent = f;
+        document.getElementById('statVisited').textContent = v;
+        document.getElementById('favCount').textContent = f ? f + ' ' + (f === 1 ? 'място' : 'места') : '';
+        document.getElementById('visitedCount').textContent = v ? v + ' ' + (v === 1 ? 'място' : 'места') : '';
+    }
+
+    function removeActivity(addressId, status, cardEl) {
+        fetch('/api/user/activity', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ address_id: addressId, status: status })
+        })
+        .then(function(res) {
+            if (!res.ok) throw new Error();
+            return res.json();
+        })
+        .then(function(r) {
+            // Endpoint toggles; active:false means it was removed.
+            cardEl.style.transition = 'opacity 0.25s, transform 0.25s';
+            cardEl.style.opacity = '0';
+            cardEl.style.transform = 'scale(0.95)';
+            setTimeout(function() {
+                var grid = cardEl.parentNode;
+                cardEl.remove();
+                if (grid && !grid.querySelector('.place-card')) {
+                    var which = status === 'favorite'
+                        ? '<span class="pf-empty-icon">❤️</span>Все още нямате любими места. <a href="addresses.html">Разгледайте адресите</a>'
+                        : '<span class="pf-empty-icon">📍</span>Все още не сте отбелязали посетени места. <a href="map.html">Отворете картата</a>';
+                    var empty = document.createElement('div');
+                    empty.className = 'pf-empty'; empty.innerHTML = which;
+                    grid.appendChild(empty);
+                }
+                updateCounts();
+            }, 250);
+        })
+        .catch(function() { alert('Грешка при премахване. Моля опитайте отново.'); });
+    }
+
+    function initials(email) {
+        return (email || '?').trim().charAt(0).toUpperCase() || '?';
+    }
+    function formatDate(iso) {
+        if (!iso) return '';
+        try { return new Date(iso).toLocaleDateString('bg-BG', { year: 'numeric', month: 'long' }); }
+        catch (e) { return ''; }
+    }
+
+    // ── Load profile ──
+    fetch('/api/user/profile', { credentials: 'include' })
+        .then(function(res) {
+            if (res.status === 401) { location.replace('login.html'); throw 'redirect'; }
+            if (!res.ok) throw new Error('load failed');
+            return res.json();
+        })
+        .then(function(data) {
+            ACCOUNT.email = data.email;
+            var name  = (data.display_name && data.display_name.trim()) ? data.display_name.trim() : '';
+            var shown = name || data.email;
+            document.getElementById('pfAvatar').textContent = initials(shown);
+            document.getElementById('pfEmail').textContent = shown;
+            if (name) {
+                var sub = document.getElementById('pfEmailSub');
+                sub.textContent = data.email; sub.hidden = false;
+            }
+            document.getElementById('pfNameInput').value = name;
+            document.getElementById('statContrib').textContent = data.approved_count || 0;
+            document.getElementById('pfRole').textContent = ROLE_LABEL[data.role] || data.role;
+            var since = formatDate(data.created_at);
+            document.getElementById('pfSince').textContent = since ? 'Член от ' + since : '';
+
+            renderGrid(
+                document.getElementById('favGrid'), data.favorites || [], 'favorite',
+                '<span class="pf-empty-icon">❤️</span>Все още нямате любими места. <a href="addresses.html">Разгледайте адресите</a>'
+            );
+            renderGrid(
+                document.getElementById('visitedGrid'), data.visited || [], 'visited',
+                '<span class="pf-empty-icon">📍</span>Все още не сте отбелязали посетени места. <a href="map.html">Отворете картата</a>'
+            );
+            renderSubmissions(data.submissions || []);
+            updateCounts();
+
+            document.getElementById('loadingState').style.display = 'none';
+            document.getElementById('profileContent').style.display = 'block';
+        })
+        .catch(function(err) {
+            if (err === 'redirect') return;
+            document.getElementById('loadingState').innerHTML =
+                '<span style="color:var(--muted)">Грешка при зареждане на профила. <a href="login.html" style="color:var(--accent-strong)">Опитайте отново</a></span>';
+        });
+
+    // ── Display name ──
+    var nameInput = document.getElementById('pfNameInput');
+    var nameSave  = document.getElementById('pfNameSave');
+    nameSave.addEventListener('click', function() {
+        nameSave.disabled = true;
+        fetch('/api/user/profile', {
+            method: 'PUT', credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ display_name: nameInput.value.trim() })
+        })
+        .then(function(r) { if (!r.ok) throw new Error(); return r.json(); })
+        .then(function(d) {
+            var name  = (d.display_name || '').trim();
+            var shown = name || ACCOUNT.email;
+            document.getElementById('pfAvatar').textContent = initials(shown);
+            document.getElementById('pfEmail').textContent = shown;
+            var sub = document.getElementById('pfEmailSub');
+            if (name) { sub.textContent = ACCOUNT.email; sub.hidden = false; }
+            else { sub.hidden = true; }
+            nameInput.value = name;
+            toast('Името е запазено.');
+        })
+        .catch(function() { toast('Грешка при запазване. Опитайте отново.'); })
+        .then(function() { nameSave.disabled = false; });
+    });
+
+    // ── Change password ──
+    var pwForm    = document.getElementById('pwForm');
+    var pwCurrent = document.getElementById('pwCurrent');
+    var pwNew     = document.getElementById('pwNew');
+    var pwConfirm = document.getElementById('pwConfirm');
+    var pwSave    = document.getElementById('pwSave');
+    var pwMsg     = document.getElementById('pwMsg');
+    function pwShow(msg, ok) { pwMsg.textContent = msg; pwMsg.className = 'pf-pw-msg ' + (ok ? 'ok' : 'err'); pwMsg.hidden = false; }
+    function pwIssueBg(p) {
+        if (p.length < 8) return 'Новата парола трябва да е поне 8 символа.';
+        if (!/[A-Za-zА-Яа-я]/.test(p) || !/[0-9]/.test(p)) return 'Новата парола трябва да съдържа букви и цифри.';
+        return null;
+    }
+    pwForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        pwMsg.hidden = true;
+        var cur = pwCurrent.value, nw = pwNew.value, cf = pwConfirm.value;
+        if (!cur) { pwShow('Въведете текущата си парола.', false); return; }
+        var issue = pwIssueBg(nw);
+        if (issue) { pwShow(issue, false); return; }
+        if (nw !== cf) { pwShow('Новите пароли не съвпадат.', false); return; }
+        if (nw === cur) { pwShow('Новата парола трябва да е различна от текущата.', false); return; }
+
+        pwSave.disabled = true;
+        fetch('/api/auth/change-password', {
+            method: 'POST', credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ current_password: cur, new_password: nw })
+        })
+        .then(function(res) { return res.json().catch(function() { return {}; }).then(function(d) { return { ok: res.ok, status: res.status, d: d }; }); })
+        .then(function(r) {
+            pwSave.disabled = false;
+            if (r.ok) { pwForm.reset(); pwShow('Паролата е променена успешно.', true); return; }
+            if (r.status === 429) { pwShow('Твърде много опити. Опитайте по-късно.', false); return; }
+            pwShow((r.d && r.d.error) || 'Грешка при промяната.', false);
+        })
+        .catch(function() { pwSave.disabled = false; pwShow('Възникна грешка при свързване.', false); });
+    });
+
+    // ── Export my data (GDPR) ──
+    document.getElementById('pfExport').addEventListener('click', function() {
+        var btn = this; btn.disabled = true;
+        fetch('/api/user/export', { credentials: 'include' })
+            .then(function(r) { if (!r.ok) throw new Error(); return r.blob(); })
+            .then(function(blob) {
+                var url = URL.createObjectURL(blob);
+                var a = document.createElement('a');
+                a.href = url; a.download = 'moite-danni.json';
+                document.body.appendChild(a); a.click(); a.remove();
+                setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
+            })
+            .catch(function() { toast('Грешка при изтегляне на данните.'); })
+            .then(function() { btn.disabled = false; });
+    });
+
+    // ── Delete account ──
+    var delModal    = document.getElementById('delModal');
+    var delPassword = document.getElementById('delPassword');
+    var delError    = document.getElementById('delError');
+    var delConfirm  = document.getElementById('delConfirm');
+    function closeDel() { delModal.hidden = true; }
+    function showDelError(m) { delError.textContent = m; delError.hidden = false; }
+
+    document.getElementById('pfDelete').addEventListener('click', function() {
+        delPassword.value = ''; delError.hidden = true; delConfirm.disabled = false;
+        delModal.hidden = false;
+        setTimeout(function() { delPassword.focus(); }, 50);
+    });
+    document.getElementById('delCancel').addEventListener('click', closeDel);
+    delModal.addEventListener('click', function(e) { if (e.target === delModal) closeDel(); });
+    document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && !delModal.hidden) closeDel(); });
+    delPassword.addEventListener('keydown', function(e) { if (e.key === 'Enter') delConfirm.click(); });
+
+    delConfirm.addEventListener('click', function() {
+        var pw = delPassword.value;
+        if (!pw) { showDelError('Въведете паролата си.'); return; }
+        delConfirm.disabled = true; delError.hidden = true;
+        fetch('/api/user/delete', {
+            method: 'POST', credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password: pw })
+        })
+        .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, d: d }; }); })
+        .then(function(res) {
+            if (!res.ok) { showDelError((res.d && res.d.error) || 'Грешка при изтриване.'); delConfirm.disabled = false; return; }
+            location.replace('index.html');
+        })
+        .catch(function() { showDelError('Грешка при изтриване. Опитайте отново.'); delConfirm.disabled = false; });
+    });
+
+    // ── Logout ──
+    document.getElementById('logoutBtn').addEventListener('click', function() {
+        var b = this; b.disabled = true; b.style.opacity = '0.6';
+        fetch('/api/auth/logout', { method: 'POST', credentials: 'include' })
+            .catch(function() {})
+            .then(function() { location.replace('index.html'); });
+    });
+})();
+</script>
+</body>
+</html>

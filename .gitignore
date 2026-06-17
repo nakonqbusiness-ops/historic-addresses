@@ -1,0 +1,28 @@
+# ─── Secrets — NEVER commit ───
+.env
+.env.*
+*.pem
+*.key
+
+# ─── Database (lives on the Railway Volume, not in git) ───
+database.db
+database.db-shm
+database.db-wal
+*.sqlite
+*.sqlite3
+data/
+
+# ─── Local uploads (served from the Volume in production) ───
+uploads/
+
+# ─── Dependencies / build ───
+node_modules/
+npm-debug.log*
+yarn-error.log*
+
+# ─── OS / editor cruft ───
+.DS_Store
+Thumbs.db
+*.log
+.vscode/
+.idea/

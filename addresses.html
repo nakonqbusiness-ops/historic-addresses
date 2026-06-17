@@ -1,0 +1,1134 @@
+<!doctype html>
+<html lang="bg" data-theme="dark">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <link rel="icon" type="image/png" href="/assets/img/favicon-96x96.png" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="/assets/img/favicon.svg" />
+    <link rel="shortcut icon" href="/assets/img/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/img/apple-touch-icon.png" />
+    <link rel="manifest" href="/assets/img/site.webmanifest" />
+    <meta name="msapplication-TileImage" content="/assets/img/Historyaddress.bg2.png">
+
+    <title>Адресът на историята — Адреси</title>
+    <meta name="description" content="Browse all historic addresses.">
+    <link rel="canonical" href="https://historyaddress.bg/addresses.html">
+    <meta name="robots" content="index, follow">
+
+    <script>
+        (function() {
+            try {
+                var stored = localStorage.getItem('theme-preference');
+                if (stored === 'system') stored = 'dark';
+                var theme = (stored === 'dark' || stored === 'light') ? stored : 'dark';
+                document.documentElement.setAttribute('data-theme', theme);
+            } catch(e) {}
+        })();
+    </script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Mulish:wght@300;400;600&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="assets/css/styles.css">
+    <script defer src="assets/js/theme.js"></script>
+    <script defer src="assets/js/transitions.js"></script>
+    <script defer src="assets/js/calendar-popup.js?v=3.0"></script>
+
+    <style>
+        /* ── Typography tokens ───────────────────────────────── */
+        :root {
+            --font-display: 'Cormorant Garamond', Georgia, serif;
+            --font-body: 'Mulish', sans-serif;
+        }
+
+        .addr-page, .addr-page * { font-family: var(--font-body); }
+
+        /* ── Page layout ─────────────────────────────────────── */
+        .addr-page {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 2.5rem 2rem 5rem;
+        }
+
+        /* ── Page header ─────────────────────────────────────── */
+        .addr-header {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 2rem;
+            margin-bottom: 2.5rem;
+            padding-bottom: 2rem;
+            border-bottom: 1px solid var(--border);
+            flex-wrap: wrap;
+        }
+
+        .addr-heading-group { flex: 1; min-width: 0; }
+
+        .addr-eyebrow {
+            font-family: var(--font-body);
+            font-size: 0.72rem;
+            font-weight: 600;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: var(--accent-strong);
+            margin: 0 0 0.5rem;
+        }
+
+        .addr-title {
+            font-family: var(--font-display);
+            font-size: clamp(2.2rem, 4vw, 3.2rem);
+            font-weight: 700;
+            color: var(--fg);
+            margin: 0;
+            line-height: 1.1;
+            letter-spacing: -0.01em;
+        }
+
+        .addr-title em {
+            font-style: italic;
+            background: linear-gradient(135deg, var(--accent-strong) 0%, #e0c98a 60%, var(--accent-strong) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .addr-count-badge {
+            align-self: flex-end;
+            font-size: 0.8rem;
+            color: var(--muted);
+            white-space: nowrap;
+            padding-bottom: 0.35rem;
+        }
+
+        .addr-count-badge strong {
+            color: var(--accent-strong);
+            font-weight: 700;
+        }
+
+        .addr-header-side { display: flex; flex-direction: column; align-items: flex-end; gap: 0.6rem; }
+        .addr-suggest-btn {
+            display: inline-flex; align-items: center; gap: 0.45rem;
+            padding: 0.5rem 1rem; border-radius: 999px;
+            border: 1px solid var(--accent-strong); color: var(--accent-strong);
+            font-family: var(--font-body); font-size: 0.8rem; font-weight: 700;
+            text-decoration: none; white-space: nowrap;
+            transition: background 0.2s ease, color 0.2s ease;
+        }
+        .addr-suggest-btn:hover { background: var(--accent-strong); color: #fff; }
+        .addr-suggest-btn svg { flex-shrink: 0; }
+
+        /* ── Category segmented control (tabs) ───────────────── */
+        .addr-segmented {
+            display: flex;
+            gap: 0.35rem;
+            padding: 0.3rem;
+            margin-bottom: 1.5rem;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            /* Mobile: keep a single row and let the user swipe horizontally
+               instead of wrapping into a grid. */
+            overflow-x: auto;
+            scrollbar-width: none;          /* Firefox */
+            -ms-overflow-style: none;       /* IE/Edge  */
+            -webkit-overflow-scrolling: touch;
+        }
+        .addr-segmented::-webkit-scrollbar { display: none; } /* Chrome/Safari */
+
+        .addr-seg-btn {
+            flex: 0 0 auto;                 /* never shrink → enables horizontal scroll */
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            white-space: nowrap;
+            padding: 0.62rem 1.15rem;
+            border: none;
+            background: transparent;
+            color: var(--muted);
+            font-family: var(--font-body);
+            font-size: 0.9rem;
+            font-weight: 600;
+            letter-spacing: 0.01em;
+            border-radius: 9px;
+            cursor: pointer;
+            transition: color 0.25s ease, background 0.25s ease, box-shadow 0.25s ease;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .addr-seg-btn:hover { color: var(--fg); }
+        .addr-seg-btn:focus-visible {
+            outline: none;
+            box-shadow: 0 0 0 2px var(--seg-color);
+        }
+
+        /* Per-category accent colours (shared with the map markers) */
+        .addr-seg-btn[data-category="home"]     { --seg-color: #cd853f; }
+        .addr-seg-btn[data-category="monument"] { --seg-color: #5fa3a0; }
+        .addr-seg-btn[data-category="events"]   { --seg-color: #c87f5a; }
+
+        .addr-seg-dot {
+            width: 9px; height: 9px;
+            border-radius: 50%;
+            background: var(--seg-color);
+            flex-shrink: 0;
+            box-shadow: 0 0 0 3px color-mix(in srgb, var(--seg-color) 22%, transparent);
+            transition: box-shadow 0.25s ease, background 0.25s ease;
+        }
+
+        .addr-seg-btn.active {
+            color: #fff;
+            background: var(--seg-color);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+        }
+        .addr-seg-btn.active .addr-seg-dot {
+            background: rgba(255,255,255,0.95);
+            box-shadow: 0 0 0 3px rgba(255,255,255,0.25);
+        }
+
+        /* ── Search & filter bar ─────────────────────────────── */
+        .addr-controls {
+            display: flex;
+            gap: 0.875rem;
+            margin-bottom: 2.5rem;
+            flex-wrap: wrap;
+        }
+
+        .search-wrap {
+            position: relative;
+            flex: 1;
+            min-width: 220px;
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--muted);
+            pointer-events: none;
+            font-size: 0.95rem;
+            line-height: 1;
+        }
+
+        .addr-search {
+            width: 100%;
+            padding: 0.8rem 1rem 0.8rem 2.75rem;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: var(--fg);
+            font-family: var(--font-body);
+            font-size: 0.95rem;
+            transition: border-color 0.25s, box-shadow 0.25s;
+            box-sizing: border-box;
+        }
+
+        .addr-search::placeholder { color: var(--muted); opacity: 0.7; }
+
+        .addr-search:focus {
+            outline: none;
+            border-color: var(--accent-strong);
+            box-shadow: 0 0 0 3px rgba(205,133,63,0.12);
+        }
+
+        .addr-tag-select {
+            padding: 0.8rem 2.5rem 0.8rem 1rem;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: var(--fg);
+            font-family: var(--font-body);
+            font-size: 0.95rem;
+            cursor: pointer;
+            appearance: none;
+            -webkit-appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23999' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 0.9rem center;
+            transition: border-color 0.25s;
+            min-width: 180px;
+        }
+
+        .addr-tag-select:focus {
+            outline: none;
+            border-color: var(--accent-strong);
+        }
+
+        .search-hint-text {
+            display: block;
+            font-size: 0.72rem;
+            color: var(--muted);
+            opacity: 0.6;
+            margin-top: -1.5rem;
+            margin-bottom: 2rem;
+            padding-left: 0.25rem;
+            font-style: italic;
+        }
+
+        /* ── Active filter chip (removable tag) ──────────────── */
+        .addr-active-filters { margin: -1rem 0 2rem; display: flex; flex-wrap: wrap; gap: 0.5rem; }
+        .addr-filter-chip {
+            display: inline-flex; align-items: center; gap: 0.5rem;
+            padding: 0.4rem 0.5rem 0.4rem 0.85rem;
+            background: rgba(205,133,63,0.12);
+            border: 1px solid var(--accent-strong);
+            border-radius: 999px;
+            color: var(--accent-strong);
+            font-family: var(--font-body); font-size: 0.8rem; font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+        .addr-filter-chip::before { display: none !important; }
+        .addr-filter-chip:hover { background: rgba(205,133,63,0.2); transform: none !important; box-shadow: none !important; }
+        .addr-filter-chip strong { font-weight: 700; }
+        .addr-filter-chip-x {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 18px; height: 18px; border-radius: 50%;
+            background: var(--accent-strong); color: #fff; font-size: 0.9rem; line-height: 1;
+        }
+
+        /* ── Quick-favorite heart on cards (logged-in only) ─── */
+        .addr-fav {
+            position: absolute !important;
+            top: 0.7rem; left: 0.7rem; z-index: 3;
+            width: 34px; height: 34px; border-radius: 50%;
+            display: none; align-items: center; justify-content: center;
+            background: rgba(0,0,0,0.5); border: none; cursor: pointer;
+            color: #fff; backdrop-filter: blur(4px); overflow: visible;
+            transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+        }
+        .addr-fav::before { display: none !important; }
+        body.is-auth .addr-fav { display: inline-flex; }
+        .addr-fav svg { width: 17px; height: 17px; }
+        .addr-fav:hover { background: rgba(0,0,0,0.7); color: #f0c98a; transform: none !important; box-shadow: none !important; }
+        .addr-fav.active { background: rgba(205,133,63,0.95); color: #fff; }
+        .addr-fav.active svg { fill: #fff; }
+
+        /* ── Address grid ─────────────────────────────────────── */
+        .addr-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+            min-height: 300px;
+            /* Accent colour follows the active category tab (set from JS).
+               Defaults to the brand gold (the 'home' colour). */
+            --cat-accent: #cd853f;
+        }
+
+        /* ── Address card ─────────────────────────────────────── */
+        .addr-card {
+            display: block;
+            text-decoration: none;
+            color: inherit;
+            border-radius: 14px;
+            overflow: hidden;
+            background: var(--card);
+            border: 1px solid var(--border);
+            box-shadow: 0 2px 12px rgba(0,0,0,0.25);
+            transition: transform 0.32s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+                        box-shadow 0.32s ease,
+                        border-color 0.25s ease;
+            position: relative;
+            animation: cardReveal 0.5s ease both;
+        }
+
+        .addr-card:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 16px 40px rgba(0,0,0,0.45);
+            border-color: color-mix(in srgb, var(--cat-accent) 55%, transparent);
+        }
+
+        /* Staggered entrance */
+        .addr-card:nth-child(1) { animation-delay: 0.05s; }
+        .addr-card:nth-child(2) { animation-delay: 0.10s; }
+        .addr-card:nth-child(3) { animation-delay: 0.15s; }
+        .addr-card:nth-child(4) { animation-delay: 0.20s; }
+        .addr-card:nth-child(5) { animation-delay: 0.25s; }
+        .addr-card:nth-child(6) { animation-delay: 0.30s; }
+
+        @keyframes cardReveal {
+            from { opacity: 0; transform: translateY(18px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Image area */
+        .addr-card-img-wrap {
+            position: relative;
+            width: 100%;
+            height: 220px;
+            overflow: hidden;
+            background: var(--border);
+        }
+
+        .addr-card-img {
+            width: 100%; height: 100%;
+            object-fit: cover;
+            display: block;
+            transition: transform 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+
+        .addr-card:hover .addr-card-img {
+            transform: scale(1.06);
+        }
+
+        /* Gradient overlay */
+        .addr-card-img-wrap::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(
+                to bottom,
+                transparent 30%,
+                rgba(0,0,0,0.15) 60%,
+                rgba(0,0,0,0.55) 100%
+            );
+            pointer-events: none;
+        }
+
+        /* "View" badge that appears on hover */
+        .addr-card-view {
+            position: absolute;
+            top: 1rem; right: 1rem;
+            background: var(--cat-accent);
+            color: #fff;
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            padding: 0.3rem 0.75rem;
+            border-radius: 999px;
+            opacity: 0;
+            transform: translateY(-4px);
+            transition: opacity 0.25s ease, transform 0.25s ease;
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        .addr-card:hover .addr-card-view {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Placeholder when no image */
+        .addr-card-placeholder {
+            width: 100%; height: 100%;
+            display: flex; align-items: center; justify-content: center;
+            background: linear-gradient(135deg, rgba(205,133,63,0.08), rgba(205,133,63,0.02));
+            font-size: 3rem;
+            opacity: 0.4;
+        }
+
+        /* Text area */
+        .addr-card-body {
+            padding: 1.25rem 1.4rem 1.4rem;
+        }
+
+        .addr-card-name {
+            font-family: var(--font-display);
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--fg);
+            line-height: 1.25;
+            margin: 0 0 0.5rem;
+            letter-spacing: 0.01em;
+        }
+
+        .addr-card-address {
+            font-size: 0.82rem;
+            color: var(--muted);
+            line-height: 1.4;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.4rem;
+        }
+
+        .addr-card-address-icon {
+            flex-shrink: 0;
+            margin-top: 0.05em;
+            opacity: 0.6;
+        }
+
+        /* Divider line */
+        .addr-card-divider {
+            height: 1px;
+            background: var(--border);
+            margin: 1rem 0 0.9rem;
+        }
+
+        /* Arrow at the bottom */
+        .addr-card-cta {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--cat-accent);
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+
+        .addr-card-arrow {
+            transition: transform 0.25s ease;
+            font-size: 1rem;
+        }
+
+        .addr-card:hover .addr-card-arrow {
+            transform: translateX(4px);
+        }
+
+        /* ── Empty / loading states ──────────────────────────── */
+        .addr-state {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 4rem 1rem;
+            color: var(--muted);
+        }
+
+        .addr-state-icon {
+            font-size: 2.5rem;
+            opacity: 0.35;
+            display: block;
+            margin-bottom: 1rem;
+        }
+
+        .addr-state-text {
+            font-size: 1rem;
+            line-height: 1.6;
+        }
+
+        /* Loading skeleton */
+        .addr-skeleton {
+            border-radius: 14px;
+            overflow: hidden;
+            background: var(--card);
+            border: 1px solid var(--border);
+            animation: shimmer 1.6s ease infinite;
+        }
+
+        .addr-skeleton-img {
+            height: 220px;
+            background: linear-gradient(90deg, var(--border) 25%, rgba(255,255,255,0.04) 50%, var(--border) 75%);
+            background-size: 200% 100%;
+            animation: skeletonSlide 1.6s ease infinite;
+        }
+
+        .addr-skeleton-body { padding: 1.25rem 1.4rem 1.4rem; }
+
+        .addr-skeleton-line {
+            height: 0.875rem;
+            border-radius: 4px;
+            margin-bottom: 0.6rem;
+            background: linear-gradient(90deg, var(--border) 25%, rgba(255,255,255,0.04) 50%, var(--border) 75%);
+            background-size: 200% 100%;
+            animation: skeletonSlide 1.6s ease infinite;
+        }
+
+        .addr-skeleton-line.w80 { width: 80%; }
+        .addr-skeleton-line.w55 { width: 55%; }
+
+        @keyframes skeletonSlide {
+            from { background-position: 200% 0; }
+            to   { background-position: -200% 0; }
+        }
+
+        /* ── Pagination ───────────────────────────────────────── */
+        .addr-pagination {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-top: 3rem;
+            flex-wrap: wrap;
+        }
+
+        .addr-page-btn {
+            height: 38px;
+            min-width: 38px;
+            padding: 0 0.85rem;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--card);
+            color: var(--fg);
+            font-family: var(--font-body);
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex; align-items: center; justify-content: center;
+            gap: 0.35rem;
+        }
+
+        .addr-page-btn:hover:not(:disabled) {
+            border-color: var(--accent-strong);
+            color: var(--accent-strong);
+            background: rgba(205,133,63,0.08);
+        }
+
+        .addr-page-btn:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+        }
+
+        .addr-page-info {
+            font-size: 0.85rem;
+            color: var(--muted);
+            padding: 0 0.75rem;
+            white-space: nowrap;
+        }
+
+        .addr-page-info strong { color: var(--fg); }
+
+        /* ── Responsive ───────────────────────────────────────── */
+        @media (max-width: 768px) {
+            .addr-page { padding: 1.5rem 1rem 3rem; }
+            .addr-grid { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1.1rem; }
+            .addr-controls { gap: 0.6rem; }
+            .addr-tag-select { min-width: 0; flex: 1; }
+        }
+
+        @media (max-width: 480px) {
+            .addr-grid { grid-template-columns: 1fr; }
+            .addr-header { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+        }
+    </style>
+    <script defer src="assets/js/account-nav.js?v=5"></script>
+    <script defer src="assets/js/scroll-hint.js?v=1"></script>
+</head>
+
+<body>
+
+<script>
+function handleEmailClick(event) {
+    if (window.innerWidth <= 768) return;
+    event.preventDefault();
+    showEmailModal();
+}
+function showEmailModal() {
+    var modal = document.getElementById('emailModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'emailModal';
+        modal.className = 'email-modal';
+        modal.innerHTML = '<div class="email-modal-content"><h3>📧 Свържете се с нас</h3><div class="email-address-display">historyaddressbg@gmail.com</div><div class="email-modal-buttons"><button class="btn-copy" onclick="copyEmail()"><span id="copyText">📋 Копирай Email</span></button><button class="btn-close" onclick="closeEmailModal()">✕ Затвори</button></div><p>Можете да ни пишете за въпроси или подкрепа</p></div>';
+        document.body.appendChild(modal);
+        modal.addEventListener('click', function(e) { if (e.target === modal) closeEmailModal(); });
+    }
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+}
+function closeEmailModal() {
+    var modal = document.getElementById('emailModal');
+    if (modal) { modal.style.display = 'none'; document.body.style.overflow = ''; }
+}
+function copyEmail() {
+    navigator.clipboard.writeText('historyaddressbg@gmail.com').then(function() {
+        var btn = document.querySelector('.btn-copy');
+        var text = document.getElementById('copyText');
+        btn.classList.add('copied');
+        text.textContent = '✓ Копирано!';
+        setTimeout(function() { btn.classList.remove('copied'); text.textContent = '📋 Копирай Email'; }, 2000);
+    }).catch(function() { alert('Email: historyaddressbg@gmail.com'); });
+}
+document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeEmailModal(); });
+</script>
+
+<header class="site-header">
+    <a class="logo-link" href="index.html">
+        <img src="assets/img/HistAdrLogo.png" alt="Адресът на историята" class="header-logo">
+        <span class="logo-text">Адресът на историята</span>
+    </a>
+    <nav class="nav">
+        <a href="index.html">Начало</a>
+        <a href="map.html">Карта</a>
+        <a href="addresses.html" class="active">Адреси</a>
+        <a href="calendar.html">Календар</a>
+        <a href="news.html">Новини</a>
+        <a href="about.html">За Нас</a>
+    </nav>
+    <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode"></button>
+</header>
+
+<main class="addr-page">
+
+    <div class="addr-header">
+        <div class="addr-heading-group">
+            <p class="addr-eyebrow">Дигитален архив</p>
+            <h1 class="addr-title">Списък на адресите</h1>
+        </div>
+        <div class="addr-header-side">
+            <div class="addr-count-badge" id="addrCountBadge"></div>
+            <a class="addr-suggest-btn" href="suggest.html" title="Предложете нова локация">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><line x1="12" y1="7" x2="12" y2="13"/><line x1="9" y1="10" x2="15" y2="10"/></svg>
+                Предложи локация
+            </a>
+        </div>
+    </div>
+
+    <div class="addr-segmented" id="addrTabs" role="tablist" aria-label="Категории">
+        <button type="button" class="addr-seg-btn active" data-category="home" role="tab" aria-selected="true" tabindex="0">
+            <span class="addr-seg-dot"></span>Домове
+        </button>
+        <button type="button" class="addr-seg-btn" data-category="monument" role="tab" aria-selected="false" tabindex="-1">
+            <span class="addr-seg-dot"></span>Паметни места
+        </button>
+        <button type="button" class="addr-seg-btn" data-category="events" role="tab" aria-selected="false" tabindex="-1">
+            <span class="addr-seg-dot"></span>Събития
+        </button>
+    </div>
+
+    <div class="addr-controls">
+        <div class="search-wrap">
+            <span class="search-icon">🔍</span>
+            <input id="q" class="addr-search" type="search"
+                   placeholder="Търсене по име (напр. „Иван Вазов")…"
+                   aria-label="Търсене">
+        </div>
+        <select id="tag" class="addr-tag-select" aria-label="Филтрирай по таг">
+            <option value="">Всички тагове</option>
+        </select>
+    </div>
+    <span class="search-hint-text">* Търсенето работи в рамките на избраната категория</span>
+
+    <div id="activeFilters" class="addr-active-filters" hidden></div>
+
+    <div id="grid" class="addr-grid" aria-live="polite"></div>
+
+    <div class="addr-pagination">
+        <button id="firstPage" class="addr-page-btn" title="Първа страница">
+            ««
+        </button>
+        <button id="prevPage" class="addr-page-btn">
+            ← Предишна
+        </button>
+        <span class="addr-page-info" id="pageInfo">Страница <strong>1</strong> от <strong>1</strong></span>
+        <button id="nextPage" class="addr-page-btn">
+            Следваща →
+        </button>
+        <button id="lastPage" class="addr-page-btn" title="Последна страница">
+            »»
+        </button>
+    </div>
+
+</main>
+
+<footer class="site-footer">
+    <div class="footer-inner">
+        <div class="footer-social">
+            <a href="https://instagram.com/historyaddress.bg" target="_blank" rel="noopener noreferrer" class="social-link">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
+                Instagram
+            </a>
+            <a href="/cdn-cgi/l/email-protection#3951504a4d564b40585d5d4b5c4a4a5b5e795e54585055175a5654" class="social-link" onclick="handleEmailClick(event)">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                Email
+            </a>
+        </div>
+        <a href="https://buymeacoffee.com/historyaddress.bg" target="_blank" rel="noopener noreferrer" class="footer-donate" aria-label="Подкрепете ни — дарение">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+            Подкрепете ни
+        </a>
+
+        <p class="footer-links">
+            <a href="privacy.html">Поверителност</a>
+            <span>•</span>
+            <a href="terms.html">Условия</a>
+            <span>•</span>
+            <a href="copyright.html">Авторски права</a>
+        </p>
+        <p class="footer-copy">© <span id="year"></span> Адресът на историята</p>
+    </div>
+</footer>
+
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+(function() {
+    var params = new URLSearchParams(location.search);
+    var initialTag = params.get('tag') || '';
+    var state = {
+        currentPage: 1,
+        totalPages: 1,
+        totalHomes: 0,
+        currentHomes: [],
+        searchQuery: '',
+        category: 'home'   // active tab: 'home' | 'monument' | 'events'
+    };
+    var isLoading = false;
+    var pendingSearch = null;
+    var apiBase = window.location.protocol === 'file:' ? 'http://localhost:3000' : window.location.origin;
+    var searchTimeout;
+
+    /* User favorites (for the quick-heart on cards) */
+    var favoriteIds = new Set();
+    var isLoggedIn = false, userKnown = false;
+    var HEART_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>';
+
+    // Escape any value before it is dropped into innerHTML — blocks stored/reflected XSS.
+    function esc(s) {
+        return String(s == null ? '' : s)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    function fetchUserFavorites() {
+        return fetch(apiBase + '/api/auth/me', { credentials: 'include' })
+            .then(function(r){ return r.ok ? r.json() : null; })
+            .then(function(me){
+                userKnown = true; isLoggedIn = !!me;
+                if (!me) return;
+                return fetch(apiBase + '/api/user/profile', { credentials: 'include' })
+                    .then(function(r){ return r.ok ? r.json() : null; })
+                    .then(function(pf){ if (pf && pf.favorites) pf.favorites.forEach(function(f){ favoriteIds.add(f.id); }); });
+            })
+            .catch(function(){ userKnown = true; });
+    }
+
+    /* ── Skeleton loaders ───────────────────────────────── */
+    function showSkeletons() {
+        var grid = document.getElementById('grid');
+        grid.innerHTML = '';
+        for (var i = 0; i < 6; i++) {
+            grid.innerHTML += '<div class="addr-skeleton">' +
+                '<div class="addr-skeleton-img"></div>' +
+                '<div class="addr-skeleton-body">' +
+                '<div class="addr-skeleton-line w80"></div>' +
+                '<div class="addr-skeleton-line w55"></div>' +
+                '</div></div>';
+        }
+    }
+
+    /* ── Tags (specific to the active category) ─────────── */
+    function loadTags(category) {
+        var tagSel = document.getElementById('tag');
+        var url = apiBase + '/api/tags';
+        if (category) url += '?category=' + encodeURIComponent(category);
+        return fetch(url)
+            .then(function(res){ return res.json(); })
+            .then(function(tags){
+                // Rebuild from scratch — tags differ per category
+                tagSel.innerHTML = '<option value="">Всички тагове</option>';
+                tags.forEach(function(t){
+                    var o = document.createElement('option');
+                    o.value = t; o.textContent = t;
+                    tagSel.appendChild(o);
+                });
+                // Apply a ?tag= deep-link once, on first load only
+                if (initialTag) {
+                    var match = Array.from(tagSel.options).find(function(o){
+                        return o.value.toLowerCase() === initialTag.toLowerCase();
+                    });
+                    if (match) tagSel.value = match.value;
+                    initialTag = '';
+                }
+                updateTagChip();
+            })
+            .catch(function(err){ console.error('Error loading tags:', err); });
+    }
+
+    /* Removable "active filter" chip — lets the user clear the tag without
+       scrolling back to the dropdown. */
+    function updateTagChip() {
+        var sel = document.getElementById('tag');
+        var box = document.getElementById('activeFilters');
+        if (!sel.value) { box.hidden = true; box.innerHTML = ''; return; }
+        box.hidden = false;
+        box.innerHTML = '';
+        var chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'addr-filter-chip';
+        chip.setAttribute('aria-label', 'Премахни филтър: ' + sel.value);
+        var label = document.createElement('span');
+        label.className = 'addr-filter-chip-label';
+        label.textContent = 'Таг: ';
+        var strong = document.createElement('strong');
+        strong.textContent = sel.value;
+        label.appendChild(strong);
+        var x = document.createElement('span');
+        x.className = 'addr-filter-chip-x';
+        x.textContent = '×';
+        chip.appendChild(label); chip.appendChild(x);
+        chip.addEventListener('click', function(){
+            sel.value = '';
+            state.currentPage = 1;
+            updateTagChip();
+            loadHomes(1);
+        });
+        box.appendChild(chip);
+    }
+
+    /* ── Load homes ─────────────────────────────────────── */
+    function loadHomes(page) {
+        if (isLoading) { pendingSearch = page; return; }
+        isLoading = true;
+        page = page || state.currentPage;
+
+        var url = apiBase + '/api/homes?page=' + page + '&limit=6';
+        url += '&category=' + encodeURIComponent(state.category);
+        if (state.searchQuery && state.searchQuery.trim().length > 0) {
+            url += '&search=' + encodeURIComponent(state.searchQuery) + '&searchMode=name';
+        }
+        var tagFilter = document.getElementById('tag').value;
+        if (tagFilter) url += '&tag=' + encodeURIComponent(tagFilter);
+
+        showSkeletons();
+
+        fetch(url)
+            .then(function(res){
+                if (!res.ok) throw new Error('Server error');
+                return res.json();
+            })
+            .then(function(response){
+                isLoading = false;
+                var homes = response.data || response;
+                var pagination = response.pagination || { page: 1, totalPages: 1, total: homes.length };
+
+                state.currentHomes = homes;
+                state.currentPage = pagination.page;
+                state.totalPages = pagination.totalPages;
+                state.totalHomes = pagination.total;
+
+                renderHomes();
+                updatePagination();
+
+                // Update count badge
+                var badge = document.getElementById('addrCountBadge');
+                if (state.totalHomes > 0) {
+                    badge.innerHTML = 'Намерени <strong>' + state.totalHomes + '</strong> адреса';
+                }
+
+                if (pendingSearch !== null) {
+                    var p = pendingSearch; pendingSearch = null; loadHomes(p);
+                }
+            })
+            .catch(function(err){
+                isLoading = false; pendingSearch = null;
+                console.error('Error loading homes:', err);
+                document.getElementById('grid').innerHTML =
+                    '<div class="addr-state"><span class="addr-state-icon">⚠️</span>' +
+                    '<p class="addr-state-text">Грешка при зареждане. Моля опитайте отново.</p></div>';
+            });
+    }
+
+    /* ── Image error handler ────────────────────────────── */
+    window.addrImgError = function(img) {
+        var wrap = img.closest('.addr-card-img-wrap');
+        if (wrap) wrap.innerHTML = '<div class="addr-card-placeholder">🏛️</div>';
+    };
+
+    /* ── Render ─────────────────────────────────────────── */
+    function renderHomes() {
+        var grid = document.getElementById('grid');
+        grid.innerHTML = '';
+
+        if (state.currentHomes.length === 0) {
+            var msg = state.searchQuery
+                ? 'Няма намерени резултати за „' + esc(state.searchQuery) + '".'
+                : 'Няма намерени адреси.';
+            grid.innerHTML = '<div class="addr-state"><span class="addr-state-icon">🔍</span>' +
+                '<p class="addr-state-text">' + msg + '</p></div>';
+            return;
+        }
+
+        state.currentHomes.forEach(function(p) {
+            var finalSlug = (typeof p.slug === 'string' && p.slug) ? p.slug
+                          : (typeof p.id === 'string' && p.id) ? p.id : '';
+            if (!finalSlug) return;
+
+            var placeholder = 'assets/img/placeholder.svg';
+            var imgSrc = placeholder;
+            var imgAlt = 'Адресът на ' + p.name;
+            if (p.images && p.images[0]) {
+                imgSrc = p.images[0].thumb || p.images[0].path || placeholder;
+                if (p.images[0].alt) imgAlt = p.images[0].alt;
+            }
+
+            var card = document.createElement('a');
+            card.className = 'addr-card';
+            card.href = 'address.html?slug=' + encodeURIComponent(finalSlug);
+
+            var hasImage = imgSrc !== placeholder;
+            var favId = p.id || finalSlug;
+
+            card.innerHTML =
+                '<div class="addr-card-img-wrap">' +
+                    (hasImage
+                        ? '<img class="addr-card-img" src="' + esc(imgSrc) + '" alt="' + esc(imgAlt) + '" loading="lazy" decoding="async" onerror="addrImgError(this)">'
+                        : '<div class="addr-card-placeholder">🏛️</div>') +
+                    '<span class="addr-card-view">Разгледай</span>' +
+                    '<button type="button" class="addr-fav' + (favoriteIds.has(favId) ? ' active' : '') + '" data-fav-id="' + esc(favId) + '" aria-label="Добави в любими">' + HEART_SVG + '</button>' +
+                '</div>' +
+                '<div class="addr-card-body">' +
+                    '<div class="addr-card-name">' + esc(p.name || '—') + '</div>' +
+                    (p.address
+                        ? '<div class="addr-card-address">' +
+                          '<span class="addr-card-address-icon">📍</span>' +
+                          '<span>' + esc(p.address) + '</span>' +
+                          '</div>'
+                        : '') +
+                    '<div class="addr-card-divider"></div>' +
+                    '<div class="addr-card-cta">' +
+                        '<span>Виж повече</span>' +
+                        '<span class="addr-card-arrow">→</span>' +
+                    '</div>' +
+                '</div>';
+
+            card.addEventListener('click', function() {
+                try {
+                    sessionStorage.setItem('addr_state', JSON.stringify({
+                        page: state.currentPage,
+                        search: state.searchQuery,
+                        tag: document.getElementById('tag').value,
+                        category: state.category
+                    }));
+                } catch(e) {}
+            });
+
+            grid.appendChild(card);
+        });
+    }
+
+    /* ── Pagination ─────────────────────────────────────── */
+    function updatePagination() {
+        var infoEl = document.getElementById('pageInfo');
+        infoEl.innerHTML = 'Страница <strong>' + state.currentPage + '</strong> от <strong>' + state.totalPages + '</strong>';
+        document.getElementById('firstPage').disabled = state.currentPage === 1;
+        document.getElementById('prevPage').disabled  = state.currentPage === 1;
+        document.getElementById('nextPage').disabled  = state.currentPage >= state.totalPages;
+        document.getElementById('lastPage').disabled  = state.currentPage >= state.totalPages;
+    }
+
+    function goToPage(page) {
+        if (page < 1) page = 1;
+        if (page > state.totalPages) page = state.totalPages;
+        state.currentPage = page;
+        loadHomes(page);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    document.getElementById('firstPage').addEventListener('click', function(){ goToPage(1); });
+    document.getElementById('prevPage').addEventListener('click',  function(){ goToPage(state.currentPage - 1); });
+    document.getElementById('nextPage').addEventListener('click',  function(){ goToPage(state.currentPage + 1); });
+    document.getElementById('lastPage').addEventListener('click',  function(){ goToPage(state.totalPages); });
+
+    /* ── Search ─────────────────────────────────────────── */
+    document.getElementById('q').addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        var query = this.value.trim();
+        searchTimeout = setTimeout(function() {
+            if (state.searchQuery !== query) {
+                state.searchQuery = query;
+                state.currentPage = 1;
+                loadHomes(1);
+            }
+        }, 400);
+    });
+
+    document.getElementById('q').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            clearTimeout(searchTimeout);
+            state.searchQuery = this.value.trim();
+            state.currentPage = 1;
+            loadHomes(1);
+        }
+    });
+
+    document.getElementById('tag').addEventListener('change', function() {
+        state.currentPage = 1;
+        updateTagChip();
+        loadHomes(1);
+    });
+
+    /* ── Quick-favorite hearts on cards (delegated) ─────── */
+    document.getElementById('grid').addEventListener('click', function(e) {
+        var btn = e.target.closest('.addr-fav');
+        if (!btn) return;
+        e.preventDefault(); e.stopPropagation();
+        if (!isLoggedIn) {
+            if (userKnown) (window.haPromptLogin || function(){ location.href = 'login.html'; })();
+            return;
+        }
+        var id = btn.getAttribute('data-fav-id');
+        btn.disabled = true;
+        fetch(apiBase + '/api/user/activity', {
+            method: 'POST', credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ address_id: id, status: 'favorite' })
+        })
+        .then(function(r){ if (r.status === 401) { isLoggedIn = false; (window.haPromptLogin||function(){})(); throw 'auth'; } if (!r.ok) throw new Error(); return r.json(); })
+        .then(function(res){
+            btn.classList.toggle('active', res.active);
+            if (res.active) { favoriteIds.add(id); if (window.haToast) window.haToast('Добавено в любими', { duration: 1800 }); }
+            else { favoriteIds.delete(id); if (window.haToast) window.haToast('Премахнато от любими', { duration: 1800 }); }
+        })
+        .catch(function(err){ if (err !== 'auth' && window.haToast) window.haToast('Възникна грешка. Опитайте отново.'); })
+        .finally(function(){ btn.disabled = false; });
+    });
+
+    /* ── Category tabs (segmented control) ──────────────── */
+    var tabsWrap = document.getElementById('addrTabs');
+    var CAT_COLORS = { home: '#cd853f', monument: '#5fa3a0', events: '#c87f5a' };
+
+    function syncTabs(cat) {
+        document.getElementById('grid').style.setProperty('--cat-accent', CAT_COLORS[cat] || CAT_COLORS.home);
+        Array.prototype.forEach.call(tabsWrap.querySelectorAll('.addr-seg-btn'), function(btn) {
+            var on = btn.getAttribute('data-category') === cat;
+            btn.classList.toggle('active', on);
+            btn.setAttribute('aria-selected', on ? 'true' : 'false');
+            btn.tabIndex = on ? 0 : -1;
+        });
+    }
+    function setActiveCategory(cat) {
+        if (state.category === cat) return;
+        state.category = cat;
+        state.currentPage = 1;
+        syncTabs(cat);
+        // Each category has its own tags → reload them and drop any active tag.
+        document.getElementById('tag').value = '';
+        loadTags(cat).then(function(){ loadHomes(1); });
+    }
+    tabsWrap.addEventListener('click', function(e) {
+        var btn = e.target.closest('.addr-seg-btn');
+        if (!btn) return;
+        setActiveCategory(btn.getAttribute('data-category'));
+    });
+    // Keyboard support: ←/→ to move, Home/End to jump
+    tabsWrap.addEventListener('keydown', function(e) {
+        if (['ArrowLeft','ArrowRight','Home','End'].indexOf(e.key) === -1) return;
+        e.preventDefault();
+        var btns = Array.prototype.slice.call(tabsWrap.querySelectorAll('.addr-seg-btn'));
+        var i = btns.findIndex(function(b){ return b.classList.contains('active'); });
+        if (e.key === 'ArrowLeft')  i = (i - 1 + btns.length) % btns.length;
+        else if (e.key === 'ArrowRight') i = (i + 1) % btns.length;
+        else if (e.key === 'Home')  i = 0;
+        else i = btns.length - 1;
+        setActiveCategory(btns[i].getAttribute('data-category'));
+        btns[i].focus();
+    });
+
+    document.getElementById('year').textContent = new Date().getFullYear();
+    // Restore state from session if coming back from an address page
+    var saved = null;
+    try { saved = JSON.parse(sessionStorage.getItem('addr_state')); } catch(e) {}
+    if (saved) {
+        state.currentPage = saved.page || 1;
+        state.searchQuery = saved.search || '';
+        if (saved.search) document.getElementById('q').value = saved.search;
+        if (saved.category && saved.category !== 'home') {
+            state.category = saved.category;
+            syncTabs(state.category);
+        }
+        sessionStorage.removeItem('addr_state');
+    }
+    // Load the active category's tags, restore any saved tag, then load homes.
+    // Favorites are fetched in parallel so the card hearts reflect state.
+    fetchUserFavorites();
+    loadTags(state.category).then(function() {
+        if (saved && saved.tag) {
+            document.getElementById('tag').value = saved.tag;
+            updateTagChip();
+        }
+        loadHomes(state.currentPage);
+    });
+})();
+</script>
+</body>
+</html>
