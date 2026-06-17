@@ -141,6 +141,11 @@
         .pf-pw-msg.ok  { color: #8bc78e; }
         .pf-pw-msg.err { color: #e98c8c; }
 
+        .pf-nl-row { display: flex; align-items: center; gap: 0.6rem; cursor: pointer; font-size: 0.92rem; color: var(--fg); }
+        .pf-nl-row input { width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--accent-strong); cursor: pointer; }
+        .pf-nl-status { font-size: 0.8rem; color: var(--muted); margin-left: 0.2rem; }
+        .pf-nl-status.ok { color: #8bc78e; }
+
         .pf-btn {
             display: inline-flex; align-items: center; justify-content: center; gap: 0.45rem;
             padding: 0.72rem 1.3rem; border-radius: 10px; cursor: pointer;
@@ -363,6 +368,16 @@
                     <p id="pwMsg" class="pf-pw-msg" hidden></p>
                     <button id="pwSave" class="pf-btn pf-btn-gold" type="submit">Промени паролата</button>
                 </form>
+            </div>
+
+            <div class="pf-setting">
+                <label class="pf-setting-label">Бюлетин</label>
+                <p class="pf-setting-hint">Получавайте новини и обновления по имейл, когато публикуваме нещо ново.</p>
+                <label class="pf-nl-row">
+                    <input type="checkbox" id="pfNewsletter">
+                    <span>Искам да получавам новини по имейл</span>
+                    <span class="pf-nl-status" id="pfNlStatus"></span>
+                </label>
             </div>
 
             <div class="pf-setting">
@@ -630,6 +645,7 @@
                 sub.textContent = data.email; sub.hidden = false;
             }
             document.getElementById('pfNameInput').value = name;
+            document.getElementById('pfNewsletter').checked = !!data.newsletter;
             document.getElementById('statContrib').textContent = data.approved_count || 0;
             document.getElementById('pfRole').textContent = ROLE_LABEL[data.role] || data.role;
             var since = formatDate(data.created_at);
@@ -679,6 +695,30 @@
         })
         .catch(function() { toast('Грешка при запазване. Опитайте отново.'); })
         .then(function() { nameSave.disabled = false; });
+    });
+
+    // ── Newsletter toggle ──
+    var nlInput  = document.getElementById('pfNewsletter');
+    var nlStatus = document.getElementById('pfNlStatus');
+    nlInput.addEventListener('change', function() {
+        var on = nlInput.checked;
+        nlInput.disabled = true; nlStatus.textContent = 'Запазване…'; nlStatus.className = 'pf-nl-status';
+        fetch('/api/user/profile', {
+            method: 'PUT', credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ newsletter: on })
+        })
+        .then(function(r) { if (!r.ok) throw new Error(); return r.json(); })
+        .then(function(d) {
+            nlInput.checked = !!d.newsletter;
+            nlStatus.textContent = d.newsletter ? '✓ Абонирани сте' : '✓ Отписани';
+            nlStatus.className = 'pf-nl-status ok';
+        })
+        .catch(function() {
+            nlInput.checked = !on;   // revert
+            nlStatus.textContent = 'Грешка. Опитайте отново.'; nlStatus.className = 'pf-nl-status';
+        })
+        .then(function() { nlInput.disabled = false; });
     });
 
     // ── Change password ──

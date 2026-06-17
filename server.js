@@ -1125,7 +1125,7 @@ app.get('/api/auth/me', requireUser, async (req, res) => {
 // Profile: the user's data + their favorite and visited addresses.
 app.get('/api/user/profile', requireUser, async (req, res) => {
     try {
-        const user = await dbGet('SELECT id,email,role,permissions,display_name,created_at FROM users WHERE id=?', [req.user.sub]);
+        const user = await dbGet('SELECT id,email,role,permissions,display_name,newsletter,created_at FROM users WHERE id=?', [req.user.sub]);
         if (!user) return res.status(404).json({ error: 'User not found' });
 
         const rows = await dbAll(
@@ -1177,6 +1177,7 @@ app.get('/api/user/profile', requireUser, async (req, res) => {
             id:            user.id,
             email:         user.email,
             display_name:  user.display_name || null,
+            newsletter:    user.newsletter === 1,
             role:          user.role,
             permissions:   (() => { try { return JSON.parse(user.permissions || '[]'); } catch { return []; } })(),
             created_at:    user.created_at,
@@ -1194,9 +1195,18 @@ app.get('/api/user/profile', requireUser, async (req, res) => {
 // Update the user's editable profile fields (currently just display name).
 app.put('/api/user/profile', requireUser, async (req, res) => {
     try {
-        const name = sanitizeText((req.body && req.body.display_name) || '', 60);
-        await dbRun('UPDATE users SET display_name=? WHERE id=?', [name || null, req.user.sub]);
-        res.json({ display_name: name || null });
+        const b = req.body || {};
+        // Update only the fields that were actually provided.
+        if (b.display_name !== undefined) {
+            const name = sanitizeText(b.display_name, 60);
+            await dbRun('UPDATE users SET display_name=? WHERE id=?', [name || null, req.user.sub]);
+        }
+        if (b.newsletter !== undefined) {
+            const nl = (b.newsletter === true || b.newsletter === 1) ? 1 : 0;
+            await dbRun('UPDATE users SET newsletter=? WHERE id=?', [nl, req.user.sub]);
+        }
+        const row = await dbGet('SELECT display_name, newsletter FROM users WHERE id=?', [req.user.sub]);
+        res.json({ display_name: row.display_name || null, newsletter: row.newsletter === 1 });
     } catch (e) {
         console.error('profile update error:', e.message);
         res.status(500).json({ error: 'Server error' });
