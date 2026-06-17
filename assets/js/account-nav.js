@@ -21,7 +21,7 @@
 
         var a = document.createElement('a');
         a.className = 'nav-account';
-        a.href = 'login.html';
+        a.href = '/login.html';   // absolute so it works from /admin/ pages too
         a.innerHTML = USER_ICON + '<span>Вход</span>';
         nav.appendChild(a);
 
@@ -30,7 +30,7 @@
             .then(function (me) {
                 if (!me) return;
                 document.body.classList.add('is-auth');
-                a.href = 'profile.html';
+                a.href = '/profile.html';   // absolute so it works from /admin/ pages too
                 var role = roleLabel(me.role);
                 a.innerHTML = USER_ICON + '<span>Профил</span>' +
                     (role ? '<span class="nav-account-role">' + role + '</span>' : '');

@@ -366,7 +366,9 @@ body.page-exiting {
 .nav-mod:hover { color: var(--accent-strong); opacity: 1; }
 .nav-mod::after { display: none !important; }
 .nav-mod svg { flex-shrink: 0; }
-.nav-account svg { flex-shrink: 0; }
+/* Optically centre the person icon against the uppercase label (which sits high
+   in its line box), and align it to the text baseline rather than the flex centre. */
+.nav-account svg { flex-shrink: 0; position: relative; top: -0.5px; }
 .nav-account .nav-account-role {
     font-size: 0.6rem;
     padding-left: 0.4rem;
