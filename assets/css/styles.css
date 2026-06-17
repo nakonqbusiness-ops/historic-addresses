@@ -768,14 +768,14 @@ body.page-exiting {
 }
 
 /* ── Horizontal scroll hint arrow (see assets/js/scroll-hint.js) ──
-   A <span> (not <button>) so it sidesteps the global button glow rule. It sticks to
-   the right edge of its scrolling flex parent and only shows when .sh-on is present. */
+   A small gold chevron overlaid on the RIGHT EDGE of a horizontally-scrolling tab
+   strip (map & addresses category tabs), telling the user there's more to the right.
+   It's an absolutely-positioned overlay (not inside the scroll clip, so it never gets
+   cut off) and is shown ONLY on touch devices — never on desktop. JS sets its left/top
+   and toggles .show. */
 .sh-arrow {
-    position: sticky;
-    right: 2px;
-    align-self: center;
-    flex: 0 0 auto;
-    margin-left: -26px;          /* overlay the last item; barely affects scroll width */
+    position: absolute;
+    transform: translate(-50%, -50%);
     width: 26px;
     height: 26px;
     display: none;
@@ -785,15 +785,19 @@ body.page-exiting {
     cursor: pointer;
     color: #1a1410;
     background: var(--accent-strong, #cd853f);
-    box-shadow: 0 2px 9px rgba(0, 0, 0, 0.45);
-    z-index: 6;
+    box-shadow: 0 2px 9px rgba(0, 0, 0, 0.5);
+    z-index: 20;
     -webkit-tap-highlight-color: transparent;
-    animation: shNudge 1.6s ease-in-out infinite;
 }
-.sh-on > .sh-arrow { display: inline-flex; }
-.sh-arrow:hover { background: var(--accent-soft, #daa520); }
-@keyframes shNudge { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(2px); } }
-@media (prefers-reduced-motion: reduce) { .sh-arrow { animation: none; } }
+/* Touch/mobile only — desktop (which has hover) never shows it, even at narrow widths. */
+@media (hover: none) and (pointer: coarse) {
+    .sh-arrow.show { display: inline-flex; animation: shNudge 1.5s ease-in-out infinite; }
+}
+@keyframes shNudge {
+    0%, 100% { transform: translate(-50%, -50%); }
+    50%      { transform: translate(calc(-50% + 3px), -50%); }
+}
+@media (prefers-reduced-motion: reduce) { .sh-arrow.show { animation: none; } }
 
 /* ── Support / Donation button (footer, all pages) ── */
 .footer-donate {
