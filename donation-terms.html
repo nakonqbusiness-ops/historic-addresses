@@ -68,12 +68,35 @@
 			white-space: nowrap;
 			width: 38%;
 		}
+		.org-table td { word-break: break-word; overflow-wrap: anywhere; }
+		.legal-content { overflow-wrap: anywhere; }
 		.last-updated {
 			color: var(--text-muted);
 			font-size: 0.9rem;
 			margin-top: 2rem;
 			padding-top: 1rem;
 			border-top: 1px solid var(--border-color);
+		}
+
+		/* Mobile: the key/value table would otherwise overflow sideways (the long,
+		   nowrap labels force it wider than the screen). Stack each row — label on
+		   top, value below — so everything fits and wraps cleanly. */
+		@media (max-width: 600px) {
+			.org-table, .org-table tbody, .org-table tr, .org-table th, .org-table td {
+				display: block;
+				width: 100%;
+			}
+			.org-table tr { padding: 0.5rem 0; border-bottom: 1px solid var(--border); }
+			.org-table th {
+				white-space: normal;
+				width: auto;
+				padding: 0 0 0.15rem;
+				border-bottom: none;
+				font-size: 0.78rem;
+				text-transform: uppercase;
+				letter-spacing: 0.03em;
+			}
+			.org-table td { padding: 0; border-bottom: none; }
 		}
 	</style>
 	<script defer src="assets/js/calendar-popup.js?v=3.0"></script>
