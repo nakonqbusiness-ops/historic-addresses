@@ -199,9 +199,29 @@
 (function cookieNotice() {
     try { if (localStorage.getItem('cookie-consent') === '1') return; } catch (e) {}
 
+    // On mobile the calendar popup (#calPopup, bottom:15px z:9999) and this banner
+    // both pin to the bottom. While the banner is up we (a) raise it above the
+    // calendar so its button is always tappable, and (b) push the calendar popup up
+    // by the banner's measured height so they never overlap.
+    var st = document.createElement('style');
+    st.textContent =
+        '.ha-cookie{z-index:10001!important;}' +
+        '@media (max-width:768px){body.ha-cookie-shown #calPopup{bottom:calc(0.6rem + var(--ha-cookie-h,120px) + 14px)!important;}}';
+    document.head.appendChild(st);
+
+    var bar = null;
+    function syncHeight() {
+        if (!bar) return;
+        document.documentElement.style.setProperty('--ha-cookie-h', bar.offsetHeight + 'px');
+    }
+    function clearBanner() {
+        document.body.classList.remove('ha-cookie-shown');
+        window.removeEventListener('resize', syncHeight);
+    }
+
     function build() {
         if (document.querySelector('.ha-cookie')) return;
-        var bar = document.createElement('div');
+        bar = document.createElement('div');
         bar.className = 'ha-cookie';
         bar.setAttribute('role', 'dialog');
         bar.setAttribute('aria-label', 'Бисквитки');
@@ -217,6 +237,7 @@
         btn.textContent = 'Разбрах';
         btn.addEventListener('click', function () {
             try { localStorage.setItem('cookie-consent', '1'); } catch (e) {}
+            clearBanner();
             bar.classList.add('ha-cookie-hide');
             setTimeout(function () { if (bar.parentNode) bar.remove(); }, 350);
         });
@@ -224,6 +245,9 @@
         bar.appendChild(txt);
         bar.appendChild(btn);
         document.body.appendChild(bar);
+        document.body.classList.add('ha-cookie-shown');
+        syncHeight();
+        window.addEventListener('resize', syncHeight);
     }
 
     if (document.readyState !== 'loading') build();
