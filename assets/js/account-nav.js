@@ -206,8 +206,11 @@
     var st = document.createElement('style');
     st.textContent =
         '.ha-cookie{z-index:10001!important;}' +
+        // Smoother, slightly longer exit for the banner.
+        '.ha-cookie-hide{opacity:0!important;transform:translateY(18px) scale(0.985)!important;' +
+            'transition:opacity .5s cubic-bezier(0.4,0,0.2,1),transform .5s cubic-bezier(0.4,0,0.2,1)!important;}' +
         '@media (max-width:768px){' +
-            '#calPopup{transition:bottom .5s cubic-bezier(0.16,1,0.3,1);}' +
+            '#calPopup{transition:bottom .55s cubic-bezier(0.16,1,0.3,1);}' +
             'body.ha-cookie-shown #calPopup{bottom:calc(0.6rem + var(--ha-cookie-h,120px) + 14px)!important;}' +
         '}';
     document.head.appendChild(st);
@@ -216,10 +219,6 @@
     function syncHeight() {
         if (!bar) return;
         document.documentElement.style.setProperty('--ha-cookie-h', bar.offsetHeight + 'px');
-    }
-    function clearBanner() {
-        document.body.classList.remove('ha-cookie-shown');
-        window.removeEventListener('resize', syncHeight);
     }
 
     function build() {
@@ -240,9 +239,12 @@
         btn.textContent = 'Разбрах';
         btn.addEventListener('click', function () {
             try { localStorage.setItem('cookie-consent', '1'); } catch (e) {}
-            clearBanner();
-            bar.classList.add('ha-cookie-hide');
-            setTimeout(function () { if (bar.parentNode) bar.remove(); }, 350);
+            window.removeEventListener('resize', syncHeight);
+            bar.classList.add('ha-cookie-hide');            // banner eases out (~0.5s)
+            setTimeout(function () {
+                if (bar.parentNode) bar.remove();
+                document.body.classList.remove('ha-cookie-shown');   // THEN the calendar glides down
+            }, 520);
         });
 
         bar.appendChild(txt);
