@@ -206,7 +206,10 @@
     var st = document.createElement('style');
     st.textContent =
         '.ha-cookie{z-index:10001!important;}' +
-        '@media (max-width:768px){body.ha-cookie-shown #calPopup{bottom:calc(0.6rem + var(--ha-cookie-h,120px) + 14px)!important;}}';
+        '@media (max-width:768px){' +
+            '#calPopup{transition:bottom .5s cubic-bezier(0.16,1,0.3,1);}' +
+            'body.ha-cookie-shown #calPopup{bottom:calc(0.6rem + var(--ha-cookie-h,120px) + 14px)!important;}' +
+        '}';
     document.head.appendChild(st);
 
     var bar = null;
