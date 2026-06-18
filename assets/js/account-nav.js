@@ -240,11 +240,10 @@
         btn.addEventListener('click', function () {
             try { localStorage.setItem('cookie-consent', '1'); } catch (e) {}
             window.removeEventListener('resize', syncHeight);
-            bar.classList.add('ha-cookie-hide');            // banner eases out (~0.5s)
-            setTimeout(function () {
-                if (bar.parentNode) bar.remove();
-                document.body.classList.remove('ha-cookie-shown');   // THEN the calendar glides down
-            }, 520);
+            // Both start together: banner eases out while the calendar glides down — no gap.
+            bar.classList.add('ha-cookie-hide');
+            document.body.classList.remove('ha-cookie-shown');
+            setTimeout(function () { if (bar.parentNode) bar.remove(); }, 560);
         });
 
         bar.appendChild(txt);
