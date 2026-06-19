@@ -26,7 +26,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Mulish:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
-    <link rel="stylesheet" href="/assets/css/styles.css?v=2">
+    <link rel="stylesheet" href="/assets/css/styles.css?v=3">
     <script defer src="/assets/js/theme.js"></script>
     <script defer src="/assets/js/account-nav.js?v=12"></script>
 
@@ -117,11 +117,16 @@
         .ed-photo { position: relative; aspect-ratio: 1 / 1; border-radius: 9px; overflow: hidden; background: var(--border); }
         .ed-photo img { width: 100%; height: 100%; object-fit: cover; display: block; cursor: zoom-in; }
         .ed-photo .ed-badge { position: absolute; bottom: 0.3rem; left: 0.3rem; font-size: 0.58rem; font-weight: 700; padding: 0.1rem 0.4rem; border-radius: 999px; background: rgba(93,157,97,0.92); color: #fff; letter-spacing: 0.02em; }
+        /* !important guards against the global button rule in styles.css which forces
+           position:relative + a glow ::before on every <button>, breaking the overlay. */
         .ed-photo .ed-x, .ed-photo .ed-dl {
-            position: absolute; top: 0.3rem; width: 24px; height: 24px; border-radius: 50%; border: none;
-            background: rgba(0,0,0,0.6); color: #fff; cursor: pointer; font-size: 0.85rem; line-height: 1;
+            position: absolute !important; top: 0.3rem; width: 26px; height: 26px; border-radius: 50%; border: none;
+            background: rgba(0,0,0,0.62); color: #fff; cursor: pointer; font-size: 1rem; line-height: 1;
             display: flex; align-items: center; justify-content: center; text-decoration: none;
+            overflow: visible; box-shadow: none !important; z-index: 3;
         }
+        .ed-photo .ed-x::before, .ed-photo .ed-dl::before { display: none !important; }
+        .ed-photo .ed-x:hover, .ed-photo .ed-dl:hover { transform: none !important; }
         .ed-photo .ed-x { right: 0.3rem; }
         .ed-photo .ed-x:hover { background: rgba(201,80,80,0.92); }
         .ed-photo .ed-dl { left: 0.3rem; }
@@ -288,6 +293,12 @@
                 <div class="mod-fld full">
                     <label for="edCredit">Предложено от (показва се на страницата)</label>
                     <input id="edCredit" class="mod-inp" type="text" maxlength="120" placeholder="напр. Име на потребителя или „анонимен">
+                </div>
+
+                <div class="mod-fld full">
+                    <label for="edWmCreator">Воден знак — име на автора</label>
+                    <input id="edWmCreator" class="mod-inp" type="text" maxlength="80" placeholder="празно = без воден знак">
+                    <p class="mod-hint" id="edWmHint" style="font-size:0.76rem;color:var(--muted);margin:0.35rem 0 0;"></p>
                 </div>
 
                 <div class="mod-fld full">
@@ -487,6 +498,12 @@
         document.getElementById('edLat').value = (s.lat != null ? s.lat : '');
         document.getElementById('edLng').value = (s.lng != null ? s.lng : '');
         document.getElementById('edCredit').value = '';
+        // Watermark name: default to the suggester's claim. If they didn't claim the
+        // photos, leave it empty (= no watermark) and tell the moderator.
+        document.getElementById('edWmCreator').value = (s.owns_image && s.author_name) ? s.author_name : '';
+        document.getElementById('edWmHint').textContent = (s.owns_image && s.author_name)
+            ? 'Потребителят посочи, че снимките са негови. Ще се изпише „© <име> via Адресът на историята".'
+            : 'Потребителят не отбеляза снимките като свои — оставете празно за без воден знак.';
         document.getElementById('edTags').value = '';
         document.getElementById('edSources').value = '';
         document.getElementById('edBirth').value = '';
@@ -530,6 +547,7 @@
         fd.append('lat', document.getElementById('edLat').value.trim());
         fd.append('lng', document.getElementById('edLng').value.trim());
         fd.append('credit', document.getElementById('edCredit').value.trim());
+        fd.append('wm_creator', document.getElementById('edWmCreator').value.trim());
         fd.append('tags', document.getElementById('edTags').value.trim());
         fd.append('sources', document.getElementById('edSources').value.trim());
         var dm = dateMode.value;

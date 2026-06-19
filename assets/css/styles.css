@@ -882,13 +882,13 @@ body.page-exiting {
     }
 
     .footer-donate {
-        width: 100%;
-        max-width: 320px;
+        width: auto;
+        max-width: 260px;
         justify-content: center;
-        padding: 0.95rem 1.7rem;
-        font-size: 1.05rem;
+        padding: 0.6rem 1.3rem;
+        font-size: 0.9rem;
     }
-    .footer-donate svg { width: 21px; height: 21px; }
+    .footer-donate svg { width: 17px; height: 17px; }
 
     .footer-links {
         font-size: 0.8rem;

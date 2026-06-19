@@ -8,14 +8,14 @@
     let currentRole = 'editor'; // default safe
     let adminToken  = sessionStorage.getItem(SESSION_TOKEN) || '';
 
-    // Attach the admin token to every mutating same-origin API request so we
-    // don't have to touch each fetch() call site individually.
+    // Attach the admin token to every same-origin API request (including GETs) so we
+    // don't have to touch each fetch() call site — and so the panel keeps working even
+    // while maintenance mode is on (admin-token requests bypass the maintenance gate).
     const _fetch = window.fetch.bind(window);
     window.fetch = function(input, init) {
         init = init || {};
-        const url    = (typeof input === 'string') ? input : (input && input.url) || '';
-        const method = (init.method || (typeof input !== 'string' && input && input.method) || 'GET').toUpperCase();
-        if (adminToken && url.indexOf('/api/') !== -1 && method !== 'GET') {
+        const url = (typeof input === 'string') ? input : (input && input.url) || '';
+        if (adminToken && url.indexOf('/api/') !== -1) {
             init.headers = Object.assign({}, init.headers, { 'X-Admin-Token': adminToken });
         }
         return _fetch(input, init);
@@ -108,11 +108,12 @@ function showAdminPanel(role, name) {
     // ── R2 Upload Helper ──────────────────────────────────────────
     // watermark=true  → applies © photographer watermark (home gallery, news)
     // watermark=false → uploads clean (portrait, logo, team photo)
-async function uploadToR2(file, homeSlug) {
+async function uploadToR2(file, homeSlug, watermark, photographer) {
     const formData = new FormData();
     formData.append('image', file);
     formData.append('homeSlug', homeSlug || 'img');
-    formData.append('watermark', 'false');
+    formData.append('watermark', watermark ? 'true' : 'false');
+    if (photographer) formData.append('photographer', photographer);
 
     const response = await fetch('/api/upload', {
         method: 'POST',
@@ -130,6 +131,10 @@ async function uploadToR2(file, homeSlug) {
 
     function getPhotographer() {
         return (document.getElementById('photographerName') || {}).value || '';
+    }
+    function getWatermark() {
+        var el = document.getElementById('applyWatermark');
+        return el ? el.checked : true;   // default on
     }
 
     function setUploadStatus(msg) {
@@ -423,7 +428,7 @@ async function uploadToR2(file, homeSlug) {
         const photographer = getPhotographer();
         try {
             setUploadStatus('Uploading...');
-            const data = await uploadToR2(file, homeSlug);
+            const data = await uploadToR2(file, homeSlug, getWatermark(), photographer);   // gallery → watermark per toggle
             imageSources.push(data.url);
             if (data.thumb) imageThumbs[data.url] = data.thumb;
             syncImageField();
@@ -458,6 +463,38 @@ async function uploadToR2(file, homeSlug) {
     document.getElementById('f_imgs').addEventListener('input', function() {
         imageSources = this.value.split(/\r?\n/).map(function(s) { return s.trim(); }).filter(Boolean);
         renderImageList();
+    });
+
+    // ── Google Drive folder import → adds processed R2 images to the gallery ──
+    function driveStatus(msg, cls) {
+        var el = document.getElementById('driveStatus');
+        if (el) { el.textContent = msg || ''; el.className = 'drive-status' + (cls ? ' ' + cls : ''); }
+    }
+    document.getElementById('driveSyncBtn').addEventListener('click', function() {
+        var btn = this;
+        var url = (document.getElementById('driveUrl').value || '').trim();
+        if (!url) { driveStatus('Поставете линк към Google Drive папка.', 'err'); return; }
+        btn.disabled = true;
+        driveStatus('Импортиране… това може да отнеме минута за по-големи папки.');
+        fetch('/api/admin/drive-sync', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ folderUrl: url, watermark: getWatermark(), photographer: getPhotographer() })
+        })
+        .then(function(res) { return res.json().catch(function() { return {}; }).then(function(d) { return { ok: res.ok, d: d }; }); })
+        .then(function(r) {
+            btn.disabled = false;
+            if (!r.ok) { driveStatus(r.d.error || 'Грешка при импорт.', 'err'); return; }
+            (r.d.urls || []).forEach(function(it) {
+                if (it && it.url) { imageSources.push(it.url); if (it.thumb) imageThumbs[it.url] = it.thumb; }
+            });
+            syncImageField(); renderImageList();
+            var msg = '✓ Добавени ' + (r.d.count || 0) + ' от ' + (r.d.total || 0) + ' снимки.';
+            if (r.d.capped) msg += ' (Папката е голяма — импортирани са първите ' + (r.d.count || 0) + '. Стартирайте отново за още.)';
+            if (r.d.errors && r.d.errors.length) msg += ' Пропуснати: ' + r.d.errors.length + '.';
+            driveStatus(msg, 'ok');
+        })
+        .catch(function() { btn.disabled = false; driveStatus('Грешка при свързване.', 'err'); });
     });
 
     document.getElementById('portraitDrop').addEventListener('dragover', function(e) { e.preventDefault(); });
@@ -731,7 +768,7 @@ async function uploadToR2(file, homeSlug) {
         if (!file) return;
         if (!/^image\//.test(file.type)) { alert('Please select an image'); return; }
         try {
-            const url = (await uploadToR2(file, 'news')).url;
+            const url = (await uploadToR2(file, 'news', true)).url;   // news cover → site watermark
             document.getElementById('n_cover').value = url;
             renderNewsCoverPreview();
         } catch (err) {

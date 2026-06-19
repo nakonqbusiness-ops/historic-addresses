@@ -21,7 +21,7 @@
             } catch(e) {}
         })();
     </script>
-    <link rel="stylesheet" href="assets/css/styles.css?v=2">
+    <link rel="stylesheet" href="assets/css/styles.css?v=3">
     <script defer src="assets/js/theme.js"></script>
     <script defer src="assets/js/transitions.js"></script>
     <style>
@@ -76,6 +76,25 @@
         .photographer-row input { flex: 1; min-width: 160px; }
         .photographer-row button { white-space: nowrap; }
         #uploadStatus { margin-top: 4px; font-size: 0.85rem; color: var(--muted); min-height: 1.2em; }
+
+        /* Watermark toggle */
+        .wm-toggle { display: flex !important; align-items: flex-start; gap: 0.6rem; cursor: pointer;
+            background: rgba(205,133,63,0.06); border: 1px solid var(--border-color, rgba(139,115,85,0.3));
+            border-radius: 10px; padding: 0.7rem 0.9rem; }
+        .wm-toggle input { width: 18px; height: 18px; margin-top: 1px; flex-shrink: 0; accent-color: #cd853f; cursor: pointer; }
+        .wm-toggle .wm-note { display: block; color: var(--muted); font-size: 0.8rem; font-weight: 400; margin-top: 2px; }
+
+        /* Google Drive import box */
+        .drive-box { border: 1px solid var(--border-color, rgba(139,115,85,0.3)); border-radius: 10px;
+            padding: 0.85rem 0.9rem; background: rgba(255,255,255,0.02); }
+        .drive-head { font-size: 0.9rem; font-weight: 700; color: var(--text, #e8dcc8); margin-bottom: 0.55rem; }
+        .drive-row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+        .drive-row .field { flex: 1; min-width: 220px; }
+        .drive-btn { white-space: nowrap; background: linear-gradient(135deg,#cd853f,#daa520) !important; color: #1a1410 !important; font-weight: 700; border: none !important; }
+        .drive-btn:disabled { opacity: 0.6; cursor: default; }
+        .drive-status { margin-top: 0.5rem; font-size: 0.82rem; color: var(--muted); min-height: 1em; white-space: pre-wrap; }
+        .drive-status.ok { color: #8bc78e; }
+        .drive-status.err { color: #e98c8c; }
     </style>
 </head>
 <body>
@@ -223,6 +242,22 @@
                                 <div id="uploadStatus"></div>
                             </label>
 
+                            <!-- ── WATERMARK TOGGLE ── -->
+                            <label class="full wm-toggle">
+                                <input type="checkbox" id="applyWatermark" checked>
+                                <span><strong>Постави воден знак</strong> <span class="wm-note">© фотограф via Адресът на историята — изключете за чисти снимки (лого, портрет)</span></span>
+                            </label>
+
+                            <!-- ── GOOGLE DRIVE FOLDER IMPORT ── -->
+                            <div class="full drive-box">
+                                <div class="drive-head"><span>☁️ Импорт от Google Drive папка</span></div>
+                                <div class="drive-row">
+                                    <input id="driveUrl" class="field" placeholder="https://drive.google.com/drive/folders/…">
+                                    <button type="button" id="driveSyncBtn" class="theme-toggle drive-btn">Импортирай</button>
+                                </div>
+                                <div id="driveStatus" class="drive-status"></div>
+                            </div>
+
                             <label class="full"><span class="label">Image URLs (one per line) or drop/select files below</span><textarea id="f_imgs" class="field textarea"></textarea></label>
                             <div class="full drop" id="imgDrop">
                                 Drop images or
@@ -356,6 +391,6 @@
         </footer>
     </div>
 
-    <script src="admin-script.js?v=2"></script>
+    <script src="admin-script.js?v=4"></script>
 </body>
 </html>

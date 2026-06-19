@@ -27,7 +27,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400;1,600&family=Mulish:wght@300;400;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/styles.css?v=2">
+<link rel="stylesheet" href="assets/css/styles.css?v=3">
 <script defer src="assets/js/theme.js"></script>
 <script defer src="assets/js/transitions.js"></script>
 <script defer src="assets/js/calendar-popup.js"></script>
@@ -398,7 +398,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')closeEmailMo
     } else {
       /* hero */
       var hero=el('div','gh-hero');
-      var hi=el('img'); hi.src=gal[0].path; hi.alt=gal[0].alt||'Сграда — '+p.name; hi.loading='eager';
+      var hi=el('img'); hi.src=gal[0].path; hi.alt=gal[0].alt||'Сграда — '+p.name; hi.loading='eager'; hi.fetchPriority='high'; hi.decoding='async';
       hi.onerror=function(){hero.innerHTML='<div class="gh-placeholder" style="flex:1">🏛️</div>';};
       hero.appendChild(hi);
       hero.addEventListener('click',function(){openLb(0);});
@@ -420,8 +420,8 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')closeEmailMo
           var isLast=i===shown.length-1&&rem>0;
           var th=el('div',isLast?'gh-thumb gh-thumb-more':'gh-thumb');
           if(isLast)th.setAttribute('data-more','+'+(rem+1));
-          var ti=el('img'); ti.src=img.path; ti.alt=img.alt||'Снимка '+(i+2); ti.loading='lazy';
-          ti.onerror=function(){this.style.display='none';};
+          var ti=el('img'); ti.src=img.thumb||img.path; ti.alt=img.alt||'Снимка '+(i+2); ti.loading='lazy'; ti.decoding='async';
+          ti.onerror=function(){ if(!this.dataset.fb && /_thumb\.jpe?g$/i.test(this.src)){ this.dataset.fb='1'; this.src=this.src.replace(/_thumb\.jpe?g$/i,'.jpg'); return; } this.style.display='none'; };
           th.appendChild(ti);
           (function(gi){th.addEventListener('click',function(){openLb(gi);});})(i+1);
           tc.appendChild(th);

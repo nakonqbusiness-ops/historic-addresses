@@ -13,6 +13,7 @@ const jwt          = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
 const compression  = require('compression');
 const { Resend }   = require('resend');
+const { google }   = require('googleapis');
 const { S3Client, PutObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
 
 // ─── Config ──────────────────────────────────────────────────────────────────
@@ -144,31 +145,130 @@ async function uploadPhotoToR2(buf, keyBase) {
     return `${R2_PUBLIC_URL}/${fullKey}`;
 }
 
-async function buildWatermark(buf, photographer) {
+// ─── Google Drive service (read-only, service-account auth) ──────────────────────
+// Auth uses a service account whose JSON key is supplied via the GOOGLE_SERVICE_
+// ACCOUNT_JSON env var. The target folder must be shared with the service account's
+// email (no public link sharing required). Created lazily on first use.
+let _driveClient = null;
+function getDriveClient() {
+    if (_driveClient) return _driveClient;
+    const raw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+    if (!raw) throw new Error('GOOGLE_SERVICE_ACCOUNT_JSON_NOT_SET');
+    let creds;
+    try { creds = JSON.parse(raw); } catch { throw new Error('GOOGLE_SERVICE_ACCOUNT_JSON_INVALID'); }
+    const auth = new google.auth.GoogleAuth({
+        credentials: creds,
+        scopes: ['https://www.googleapis.com/auth/drive.readonly'],
+    });
+    _driveClient = google.drive({ version: 'v3', auth });
+    return _driveClient;
+}
+// Extract the folder ID from any common Drive URL shape (or a pasted bare ID).
+function parseDriveFolderId(url) {
+    const s = String(url || '').trim();
+    let m = s.match(/\/folders\/([a-zA-Z0-9_-]{10,})/);     // …/folders/<id>
+    if (m) return m[1];
+    m = s.match(/[?&]id=([a-zA-Z0-9_-]{10,})/);             // …?id=<id>
+    if (m) return m[1];
+    if (/^[a-zA-Z0-9_-]{15,}$/.test(s)) return s;           // bare id pasted
+    return null;
+}
+// List every image in a folder (paginated; works with Shared Drives too).
+async function listDriveImages(folderId) {
+    const drive = getDriveClient();
+    const files = [];
+    let pageToken;
+    do {
+        const resp = await drive.files.list({
+            q: `'${folderId}' in parents and mimeType contains 'image/' and trashed = false`,
+            fields: 'nextPageToken, files(id, name, mimeType)',
+            pageSize: 200,
+            pageToken,
+            orderBy: 'name_natural',
+            supportsAllDrives: true,
+            includeItemsFromAllDrives: true,
+        });
+        files.push(...(resp.data.files || []));
+        pageToken = resp.data.nextPageToken;
+    } while (pageToken && files.length < 1000);
+    return files;
+}
+// Stream one file's bytes into memory as a Buffer.
+async function downloadDriveFile(fileId) {
+    const drive = getDriveClient();
+    const resp = await drive.files.get(
+        { fileId, alt: 'media', supportsAllDrives: true },
+        { responseType: 'arraybuffer' }
+    );
+    return Buffer.from(resp.data);
+}
+
+// Smart, dynamic watermark. Font size scales with image width (~2.7%), white text
+// with a crisp dark outline AND a soft blurred drop-shadow so it stays legible on
+// ANY background (sky, white walls, dark scenes). Placed bottom-left with a 2% inset,
+// orientation-aware, and auto-shrunk so it never runs off the edge.
+//   creator present → "© <name> via Адресът на историята"
+//   creator absent  → "© Адресът на историята"
+const xmlEsc = s => String(s).replace(/[<>&"']/g, c => ({ '<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;' }[c]));
+
+async function buildWatermark(buf, creator) {
     if (!looksLikeImage(buf)) throw new Error('NOT_IMAGE');
-    const img  = sharp(buf, SHARP_OPTS);
+
+    // Honour EXIF orientation up front so width/height are the *displayed* dims.
+    const baseBuf = await sharp(buf, SHARP_OPTS).rotate().toBuffer();
+    const img  = sharp(baseBuf);
     const meta = await img.metadata();
-    const w    = meta.width  || 800;
-    const h    = meta.height || 600;
+    const w = meta.width || 1200;
+    const h = meta.height || 900;
 
-    const fs_px   = Math.max(14, Math.min(Math.round(Math.min(w, h) * (h > w ? 0.032 : 0.028)), 48));
-    const pad     = Math.round(fs_px * 0.8);
-    const xmlEsc  = s => String(s).replace(/[<>&"']/g, c => ({ '<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;' }[c]));
-    const name    = xmlEsc((photographer && photographer.trim()) || 'Адресът на историята');
-    const text    = `© ${name} via Адресът на историята`;
-    const bgW     = Math.round(text.length * fs_px * 0.52 + pad * 2);
-    const bgH     = Math.round(fs_px * 1.4 + pad);
+    const name = (creator && String(creator).trim()) || '';
+    const text = name ? `© ${name} via Адресът на историята` : '© Адресът на историята';
 
-    const svg = `<svg width="${bgW}" height="${bgH}" xmlns="http://www.w3.org/2000/svg">
-      <rect x="0" y="0" width="${bgW}" height="${bgH}" fill="rgba(0,0,0,0.38)" rx="4"/>
-      <text x="${pad}" y="${Math.round(bgH * 0.72)}"
-        font-family="Arial, Helvetica, sans-serif"
-        font-size="${fs_px}" font-weight="600"
-        fill="white" opacity="0.92">${text}</text>
-    </svg>`;
+    // Font size scales with width (kept as set). Watermark sits very tight to the
+    // bottom-left corner — a minimal ~1.2% inset from the bottom and left edges.
+    const marginX = Math.max(2, Math.round(w * 0.012));
+    const marginY = Math.max(2, Math.round(h * 0.012));
+    let fontSize  = Math.max(16, Math.round(w * 0.027));
+    const AVG_CHAR = 0.54;                                  // Arial avg glyph width / font-size
+    const maxTextW = w - marginX * 2;
+    let textW = text.length * fontSize * AVG_CHAR;
+    if (textW > maxTextW) { fontSize = Math.max(11, Math.floor(fontSize * maxTextW / textW)); textW = text.length * fontSize * AVG_CHAR; }
+
+    const stroke  = Math.max(1.4, fontSize * 0.07);        // crisp dark outline
+    const blurPx  = Math.max(1, fontSize * 0.10);          // soft shadow blur radius
+    const inset   = Math.ceil(stroke + blurPx + 2);        // canvas padding for stroke/shadow
+    const canvasW = Math.ceil(textW + inset * 2);
+    const canvasH = Math.ceil(fontSize * 1.5 + inset * 2);
+    const baseY   = Math.round(inset + fontSize);          // text baseline
+    const esc     = xmlEsc(text);
+
+    // Soft drop-shadow: render the text in black, rasterise, blur with sharp (reliable,
+    // unlike SVG filters under librsvg), then composite slightly offset behind the text.
+    const shadowSvg =
+        `<svg width="${canvasW}" height="${canvasH}" xmlns="http://www.w3.org/2000/svg">` +
+        `<text x="${inset}" y="${baseY}" font-family="Arial, Helvetica, sans-serif" ` +
+        `font-size="${fontSize}" font-weight="700" fill="black">${esc}</text></svg>`;
+    const shadowBuf = await sharp(Buffer.from(shadowSvg)).blur(blurPx).png().toBuffer();
+
+    // Foreground: white fill + thin dark stroke painted behind the fill (paint-order).
+    const textSvg =
+        `<svg width="${canvasW}" height="${canvasH}" xmlns="http://www.w3.org/2000/svg">` +
+        `<text x="${inset}" y="${baseY}" font-family="Arial, Helvetica, sans-serif" ` +
+        `font-size="${fontSize}" font-weight="700" paint-order="stroke" ` +
+        `stroke="rgba(0,0,0,0.85)" stroke-width="${stroke.toFixed(2)}" stroke-linejoin="round" ` +
+        `fill="#d7d5d5">${esc}</text></svg>`;
+
+    // Position the TEXT (not the padded canvas) tight to the corner: its visual
+    // bottom sits ~marginY above the image bottom, its left ~marginX from the edge.
+    const left  = Math.max(0, marginX - inset);
+    const top   = Math.max(0, Math.round(h - marginY - inset - fontSize * 1.18));
+    const shOff = Math.max(1, Math.round(fontSize * 0.04));
 
     return img
-        .composite([{ input: Buffer.from(svg), top: Math.max(0, h - bgH - pad), left: Math.max(0, pad) }])
+        .composite([
+            { input: shadowBuf,            left: left + shOff, top: top + shOff },
+            { input: Buffer.from(textSvg), left: left,         top: top },
+        ])
         .jpeg({ quality: 88 })
         .toBuffer();
 }
@@ -326,6 +426,14 @@ function resetEmailHtml(link) {
        <p style="margin:8px 0 0;font-size:13px;line-height:1.6;color:#8b7355;">Ако бутонът не работи, копирайте този адрес в браузъра си:<br><a href="${link}" style="color:#cd853f;word-break:break-all;">${link}</a></p>
        <p style="margin:16px 0 0;font-size:13px;line-height:1.6;color:#8b7355;">Ако не сте поискали това, просто игнорирайте имейла — паролата Ви няма да бъде променена.</p>`;
     return emailLayout(body, 'Връзка за нулиране на паролата (валидна 1 час)');
+}
+function approvalEmailHtml(placeTitle, link) {
+    const body =
+      `<h1 style="margin:0 0 14px;font-family:Georgia,serif;font-size:25px;font-weight:700;color:#3a2f1f;">Одобрено! 🎉</h1>
+       <p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:#5a4a33;">Чудесна новина! Вашето предложение <strong style="color:#cd853f;">„${escHtml(placeTitle)}"</strong> беше прегледано от нашия екип и вече е публикувано в „Адресът на историята". Благодарим Ви, че помагате да опазим българската история!</p>
+       ${emailButton(link, 'Вижте го на сайта')}
+       <p style="margin:14px 0 0;font-size:13px;line-height:1.6;color:#8b7355;">Можете да предложите още локации по всяко време от профила си.</p>`;
+    return emailLayout(body, 'Вашето предложение е одобрено и публикувано!');
 }
 
 // Module-level HTML escaper for values dropped into email templates.
@@ -550,12 +658,23 @@ function isOwnerCookie(req) {
         return !!t && jwt.verify(t, JWT_SECRET).role === 'owner';
     } catch { return false; }
 }
-const MAINT_ALLOW = new Set(['/maintenance.html', '/login.html', '/favicon.ico', '/api/health']);
+// The system-maintenance panel signs in with the admin HMAC token (separate from the
+// user cookie). Any request carrying a valid one bypasses maintenance so the owner can
+// keep managing content while the public sees the maintenance page.
+function isAdminToken(req) { try { return !!verifyToken(readToken(req)); } catch { return false; } }
+
+// Files / endpoints the maintenance gate always lets through: the maintenance page,
+// the login page + auth APIs, the health check, AND the admin panel itself (its page,
+// its script, and the admin login endpoint) so it can be opened during maintenance.
+const MAINT_ALLOW = new Set([
+    '/maintenance.html', '/login.html', '/favicon.ico', '/api/health',
+    '/sys-maintenance-panel-v2.html', '/admin-script.js', '/api/login', '/api/me',
+]);
 app.use((req, res, next) => {
     if (process.env.MAINTENANCE_MODE !== 'true') return next();
     if (req.path.startsWith('/assets/') || MAINT_ALLOW.has(req.path)) return next();
-    if (isOwnerCookie(req)) return next();                 // owner sees the live site
-    if (req.path.startsWith('/api/auth/')) return next();  // allow the login flow
+    if (isOwnerCookie(req) || isAdminToken(req)) return next();   // owner / admin keep full access
+    if (req.path.startsWith('/api/auth/')) return next();         // allow the user login flow
     if (req.path.startsWith('/api/')) {
         return res.status(503).json({ error: 'Сайтът е в техническа поддръжка. Опитайте по-късно.' });
     }
@@ -763,6 +882,10 @@ function initDB() {
         )`);
         db.run('CREATE INDEX IF NOT EXISTS idx_pending_status ON pending_addresses(status, created_at)');
         db.run('CREATE INDEX IF NOT EXISTS idx_pending_user   ON pending_addresses(user_id, created_at)');
+        // Watermark attribution: did the suggester claim the photos as their own, and
+        // under what name should the "© … via Адресът на историята" watermark read.
+        db.run('ALTER TABLE pending_addresses ADD COLUMN owns_image INTEGER DEFAULT 0', () => {});
+        db.run('ALTER TABLE pending_addresses ADD COLUMN author_name TEXT', () => {});
 
         // Migrations: add columns that older DBs may be missing
         migrateHomes();
@@ -897,6 +1020,15 @@ function insertHome(h) {
     );
 }
 
+// Many older homes store images without a `thumb` field, even though the matching
+// <name>_thumb.jpg exists in R2 (created by the thumbnail backfill). Derive it from the
+// path so list cards load the small thumbnail instead of the full-size image.
+function ensureThumb(img) {
+    if (!img || typeof img !== 'object' || img.thumb) return img;
+    const p = img.path || '';
+    if (/^https?:\/\/.+\.jpe?g$/i.test(p)) return Object.assign({}, img, { thumb: p.replace(/\.jpe?g$/i, '_thumb.jpg') });
+    return img;
+}
 function rowToHome(row, listMode = false) {
     const parse = (s, def = []) => { try { return JSON.parse(s || 'null') ?? def; } catch { return def; } };
     if (listMode) {
@@ -907,7 +1039,7 @@ function rowToHome(row, listMode = false) {
             name:        row.name,
             address:     row.address || '',
             coordinates: row.lat && row.lng ? { lat: row.lat, lng: row.lng } : null,
-            images:      imgs.length ? [imgs[0]] : [],
+            images:      imgs.length ? [ensureThumb(imgs[0])] : [],
             tags:        parse(row.tags),
             category:    row.category || 'home',
             published:   true,
@@ -921,7 +1053,7 @@ function rowToHome(row, listMode = false) {
         biography:   row.biography,
         address:     row.address,
         coordinates: row.lat && row.lng ? { lat: row.lat, lng: row.lng } : null,
-        images:      parse(row.images),
+        images:      parse(row.images).map(ensureThumb),
         photo_date:  row.photo_date,
         sources:     parse(row.sources),
         tags:        parse(row.tags),
@@ -1142,7 +1274,7 @@ app.get('/api/user/profile', requireUser, async (req, res) => {
             return {
                 id: r.id, slug: r.slug, name: r.name, address: r.address || '',
                 category: r.category || 'home',
-                image: imgs[0] ? (imgs[0].thumb || imgs[0].path) : null,
+                image: imgs[0] ? (ensureThumb(imgs[0]).thumb || imgs[0].path) : null,
                 saved_at: r.saved_at,
             };
         };
@@ -1161,7 +1293,7 @@ app.get('/api/user/profile', requireUser, async (req, res) => {
         const submissions = subs.map(s => {
             let image = null;
             if (s.status === 'approved' && s.live_images) {
-                try { const li = JSON.parse(s.live_images); if (li[0]) image = li[0].thumb || li[0].path; } catch {}
+                try { const li = JSON.parse(s.live_images); if (li[0]) image = ensureThumb(li[0]).thumb || li[0].path; } catch {}
             } else if (s.status === 'pending') {
                 var firstPending = parsePendingImages(s.image_path)[0];
                 if (firstPending) image = pendingThumbUrl(firstPending);
@@ -1382,6 +1514,11 @@ app.post('/api/suggest', requireUser, rateLimitSuggest, acceptPhotos('images'), 
         const lat = (b.lat !== undefined && b.lat !== '' && isFinite(+b.lat)) ? +b.lat : null;
         const lng = (b.lng !== undefined && b.lng !== '' && isFinite(+b.lng)) ? +b.lng : null;
 
+        // Photo ownership claim → drives the watermark on approval. The name only
+        // matters when the suggester ticked "this photo is mine".
+        const ownsImage  = (b.owns_image === 'true' || b.owns_image === true || b.owns_image === '1') ? 1 : 0;
+        const authorName = ownsImage ? sanitizeText(b.author_name, 80) : '';
+
         // Anti-spam: cap how many pending submissions one user can have at once.
         const cnt = await dbGet("SELECT COUNT(*) AS n FROM pending_addresses WHERE user_id=? AND status='pending'", [req.user.sub]);
         if (cnt && cnt.n >= 20) return res.status(429).json({ error: 'Достигнахте лимита на чакащи предложения. Изчакайте модерация.' });
@@ -1404,9 +1541,9 @@ app.post('/api/suggest', requireUser, rateLimitSuggest, acceptPhotos('images'), 
         const id  = crypto.randomUUID();
         const now = new Date().toISOString();
         await dbRun(
-            `INSERT INTO pending_addresses (id,user_id,title,description,city,address,lat,lng,category,image_path,status,created_at)
-             VALUES (?,?,?,?,?,?,?,?,?,?,'pending',?)`,
-            [id, req.user.sub, title, description || null, city || null, address || null, lat, lng, category, image_path, now]
+            `INSERT INTO pending_addresses (id,user_id,title,description,city,address,lat,lng,category,image_path,status,created_at,owns_image,author_name)
+             VALUES (?,?,?,?,?,?,?,?,?,?,'pending',?,?,?)`,
+            [id, req.user.sub, title, description || null, city || null, address || null, lat, lng, category, image_path, now, ownsImage, authorName || null]
         );
         res.status(201).json({ id, status: 'pending', photos: urls.length });
     } catch (e) {
@@ -1454,7 +1591,7 @@ app.get('/api/admin/pending', requireModerator, async (req, res) => {
     try {
         const rows = await dbAll(
             `SELECT p.id,p.title,p.description,p.city,p.address,p.lat,p.lng,p.category,p.image_path,
-                    p.status,p.created_at,p.result_slug, u.email AS user_email
+                    p.status,p.created_at,p.result_slug,p.owns_image,p.author_name, u.email AS user_email
              FROM pending_addresses p JOIN users u ON u.id = p.user_id
              WHERE p.status = ? ORDER BY p.created_at ASC LIMIT 500`,
             [status]
@@ -1470,6 +1607,7 @@ app.get('/api/admin/pending', requireModerator, async (req, res) => {
                 lat: r.lat, lng: r.lng, category: r.category || 'home',
                 status: r.status, created_at: r.created_at,
                 user_email: r.user_email, slug: r.result_slug || null,
+                owns_image: !!r.owns_image, author_name: r.author_name || '',
                 images: images,
                 image: images[0] ? images[0].url : null,         // first photo (for the card)
                 image_thumb: images[0] ? images[0].thumb : null,
@@ -1535,21 +1673,30 @@ app.post('/api/admin/moderate/:id', requireModerator, acceptPhotos('images'), as
             catch { keep = []; }
         }
 
-        // Build the live image list: kept pending photos (re-watermarked) + new files.
+        // Watermark only when the suggester claimed the photos as their own — then
+        // it reads "© <author> via Адресът на историята". Unclaimed photos get NO
+        // watermark (we may not own them). A moderator can override the name via the
+        // 'wm_creator' field; an explicit empty value forces no watermark.
+        let wmCreator = (row.owns_image && row.author_name) ? row.author_name : '';
+        if (b.wm_creator !== undefined) wmCreator = sanitizeText(b.wm_creator, 80);
+        const finishImage = async (rawBuf) => {
+            const out = wmCreator ? await buildWatermark(rawBuf, wmCreator) : rawBuf;
+            return uploadPhotoToR2(out, `img_sug_${slug}_${Date.now()}_${randomSuffix()}`);
+        };
+
+        // Build the live image list: kept pending photos + new files.
         const images = [];
         for (const url of keep) {
             try {
                 const pr = await fetch(url);
                 if (!pr.ok) continue;
-                const wm = await buildWatermark(Buffer.from(await pr.arrayBuffer()), '');
-                const liveUrl = await uploadPhotoToR2(wm, `img_sug_${slug}_${Date.now()}_${randomSuffix()}`);
+                const liveUrl = await finishImage(Buffer.from(await pr.arrayBuffer()));
                 images.push({ path: liveUrl, thumb: pendingThumbUrl(liveUrl), caption: '', alt: title });
             } catch (e) { console.warn('promote kept photo failed:', e.message); }
         }
         for (const f of (req.files || [])) {
             try {
-                const wm = await buildWatermark(f.buffer, '');
-                const liveUrl = await uploadPhotoToR2(wm, `img_sug_${slug}_${Date.now()}_${randomSuffix()}`);
+                const liveUrl = await finishImage(f.buffer);
                 images.push({ path: liveUrl, thumb: pendingThumbUrl(liveUrl), caption: '', alt: title });
             } catch (e) { console.warn('add photo failed:', e.message); }
         }
@@ -1571,6 +1718,15 @@ app.post('/api/admin/moderate/:id', requireModerator, acceptPhotos('images'), as
         for (const u of pendingUrls) { await deleteR2(u); await deleteR2(pendingThumbUrl(u)); }
         cache.clear();
         res.json({ id: row.id, status: 'approved', slug, photos: images.length });
+
+        // Notify the suggester that their submission is now live (fire-and-forget).
+        dbGet('SELECT email FROM users WHERE id=?', [row.user_id])
+            .then(u => u && u.email && sendEmail({
+                to: u.email,
+                subject: 'Вашето предложение е одобрено! 🎉',
+                html: approvalEmailHtml(title, `${DOMAIN}/address.html?slug=${encodeURIComponent(slug)}`),
+            }))
+            .catch(() => {});
     } catch (e) {
         console.error('moderate error:', e.message);
         res.status(500).json({ error: 'Грешка при обработка. Опитайте отново.' });
@@ -1653,9 +1809,15 @@ app.post('/api/upload', requireAuth, upload.single('image'), async (req, res) =>
         const applyWmark   = req.body.watermark === 'true';
         const filename     = `img_${homeSlug}_${Date.now()}_${randomSuffix()}.jpg`;
 
-        const buf = applyWmark
-            ? await buildWatermark(req.file.buffer, photographer)
-            : await sharp(req.file.buffer).jpeg({ quality: 88 }).toBuffer();
+        if (!looksLikeImage(req.file.buffer)) return res.status(400).json({ error: 'Файлът не е валидно изображение.' });
+        // Normalise to a web-friendly max width FIRST (caps huge originals so the live
+        // page isn't loading multi-MB 5000px files), honour EXIF rotation, THEN watermark
+        // so the mark is sized for the final image.
+        const base = await sharp(req.file.buffer, SHARP_OPTS).rotate()
+            .resize({ width: 2000, withoutEnlargement: true })
+            .jpeg({ quality: 85 })
+            .toBuffer();
+        const buf = applyWmark ? await buildWatermark(base, photographer) : base;
 
         // Lightweight thumbnail for grids / list cards / map panel.
         // ~600px wide @ q70 is typically 10× smaller than the full image.
@@ -1685,6 +1847,54 @@ app.post('/api/upload', requireAuth, upload.single('image'), async (req, res) =>
     } catch (e) {
         console.error('Upload error:', e);
         res.status(500).json({ error: e.message || 'Upload failed' });
+    }
+});
+
+// ── Google Drive folder sync ───────────────────────────────────────────────────
+// Imports every image from a shared Drive folder into R2 (optionally watermarked).
+// Files are streamed into memory and processed in small concurrent batches to bound
+// memory and avoid timeouts. Returns the resulting R2 URLs for the panel to attach.
+app.post('/api/admin/drive-sync', requireAuth, async (req, res) => {
+    const folderId = parseDriveFolderId(req.body && req.body.folderUrl);
+    if (!folderId) return res.status(400).json({ error: 'Невалиден линк към Google Drive папка.' });
+    if (!process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
+        return res.status(503).json({ error: 'Google Drive не е конфигуриран (липсва GOOGLE_SERVICE_ACCOUNT_JSON).' });
+    }
+    const applyWmark   = req.body.watermark === true || req.body.watermark === 'true';
+    const photographer = String(req.body.photographer || '').trim();
+    const MAX   = 60;   // per-request cap so a huge folder can't time out the request
+    const BATCH = 4;    // concurrent downloads/uploads
+    try {
+        let files;
+        try {
+            files = await listDriveImages(folderId);
+        } catch (e) {
+            const msg = /permission|not found|notFound|403|404/i.test(e.message)
+                ? 'Папката не е намерена или не е споделена със service account-а.'
+                : 'Грешка при достъп до Google Drive: ' + e.message;
+            return res.status(400).json({ error: msg });
+        }
+        if (!files.length) return res.json({ count: 0, total: 0, urls: [], errors: ['Няма изображения в папката.'] });
+
+        const toProcess = files.slice(0, MAX);
+        const urls = [], errors = [];
+        for (let i = 0; i < toProcess.length; i += BATCH) {
+            const batch = toProcess.slice(i, i + BATCH);
+            await Promise.all(batch.map(async f => {
+                try {
+                    const buf      = await downloadDriveFile(f.id);
+                    if (!looksLikeImage(buf)) throw new Error('не е изображение');
+                    const finalBuf = applyWmark ? await buildWatermark(buf, photographer) : buf;
+                    const url      = await uploadPhotoToR2(finalBuf, `img_drive_${Date.now()}_${randomSuffix()}`);
+                    urls.push({ url, thumb: pendingThumbUrl(url) });
+                } catch (e) { errors.push(`${f.name}: ${e.message}`); }
+            }));
+        }
+        console.log(`☁️  Drive sync: ${urls.length}/${files.length} imported | wm:${applyWmark} | ${photographer || '—'}`);
+        res.json({ count: urls.length, total: files.length, capped: files.length > MAX, urls, errors });
+    } catch (e) {
+        console.error('drive-sync error:', e.message);
+        res.status(500).json({ error: 'Грешка при импорт от Google Drive.' });
     }
 });
 

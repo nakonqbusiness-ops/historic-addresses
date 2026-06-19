@@ -29,7 +29,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Mulish:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
-    <link rel="stylesheet" href="assets/css/styles.css?v=2">
+    <link rel="stylesheet" href="assets/css/styles.css?v=3">
     <script defer src="assets/js/theme.js"></script>
     <script defer src="assets/js/transitions.js"></script>
     <script defer src="assets/js/account-nav.js?v=12"></script>
@@ -58,6 +58,8 @@
         .sg-field label { display: block; font-size: 0.82rem; font-weight: 700; color: var(--fg); margin-bottom: 0.45rem; }
         .sg-field .req { color: var(--accent-strong); }
         .sg-hint { font-size: 0.74rem; color: var(--muted); margin-top: 0.35rem; opacity: 0.85; }
+        .sg-own { display: flex; align-items: flex-start; gap: 0.6rem; margin-top: 1rem; cursor: pointer; font-size: 0.85rem; color: var(--fg); line-height: 1.45; }
+        .sg-own input { width: 17px; height: 17px; margin-top: 1px; flex-shrink: 0; accent-color: var(--accent-strong); cursor: pointer; }
 
         .sg-input, .sg-select, .sg-textarea {
             width: 100%; box-sizing: border-box;
@@ -260,6 +262,16 @@
                     </div>
                     <div class="sg-previews" id="sgPreviews"></div>
                     <p class="sg-hint">До 6 снимки, по 10 MB всяка. 💡 <strong>Ако на сградата има паметна плоча (табела), моля снимайте и нея</strong> — помага за проверката.</p>
+
+                    <label class="sg-own">
+                        <input type="checkbox" id="sgOwn">
+                        <span>Снимките са мои и искам да бъдат подписани с моето име (воден знак).</span>
+                    </label>
+                    <div class="sg-field" id="sgOwnNameWrap" hidden style="margin-top:0.75rem;">
+                        <label for="sgOwnName">Име за водния знак</label>
+                        <input id="sgOwnName" class="sg-input" type="text" maxlength="80" placeholder="напр. Иван Петров">
+                        <p class="sg-hint">Ще се изпише като „© Вашето име via Адресът на историята". Ако не отбележите това, снимките няма да носят воден знак.</p>
+                    </div>
                 </div>
 
                 <button type="submit" class="sg-submit" id="sgSubmit">
@@ -351,6 +363,14 @@
     });
     fileInput.addEventListener('change', function(e){ addFiles(e.target.files); fileInput.value = ''; });
 
+    // Reveal the watermark-name field only when the user claims the photos.
+    var ownChk = document.getElementById('sgOwn');
+    var ownWrap = document.getElementById('sgOwnNameWrap');
+    ownChk.addEventListener('change', function(){
+        ownWrap.hidden = !ownChk.checked;
+        if (ownChk.checked) document.getElementById('sgOwnName').focus();
+    });
+
     function addFiles(fileList) {
         Array.prototype.slice.call(fileList || []).forEach(function(f){
             if (selectedFiles.length >= MAX_FILES) { toast('Максимум ' + MAX_FILES + ' снимки.'); return; }
@@ -405,6 +425,9 @@
         if (lat) fd.append('lat', lat);
         if (lng) fd.append('lng', lng);
         selectedFiles.forEach(function(f){ fd.append('images', f); });
+        var owns = document.getElementById('sgOwn').checked;
+        fd.append('owns_image', owns ? 'true' : 'false');
+        if (owns) fd.append('author_name', document.getElementById('sgOwnName').value.trim());
 
         setLoading(true);
         fetch('/api/suggest', { method: 'POST', credentials: 'include', body: fd })

@@ -29,7 +29,7 @@
         })();
     </script>
 
-    <link rel="stylesheet" href="assets/css/styles.css?v=2">
+    <link rel="stylesheet" href="assets/css/styles.css?v=3">
 
     <script defer src="assets/js/theme.js"></script>
     <script src="assets/js/transitions.js"></script>
@@ -51,15 +51,11 @@
         .logo-link:hover { color: var(--accent-soft); }
 
         .header-logo {
-            height: 48px; 
+            height: 48px;
             width: auto; object-fit: contain;
         }
-
-        .logo-text {
-            font-family: "Baskerville", "Garamond", Georgia, serif;
-            font-size: 1.3rem; 
-            color: var(--fg); font-weight: 600;
-        }
+        /* (header title styling intentionally inherits the shared .logo-link rule in
+           styles.css so the "Адресът на историята" header matches every other page) */
 
         .nav a { 
             color: var(--fg); opacity: 0.85;

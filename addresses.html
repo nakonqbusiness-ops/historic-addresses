@@ -31,7 +31,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Mulish:wght@300;400;600&display=swap" rel="stylesheet">
 
-    <link rel="stylesheet" href="assets/css/styles.css?v=2">
+    <link rel="stylesheet" href="assets/css/styles.css?v=3">
     <script defer src="assets/js/theme.js"></script>
     <script defer src="assets/js/transitions.js"></script>
     <script defer src="assets/js/calendar-popup.js?v=3.0"></script>
@@ -913,6 +913,12 @@ document.addEventListener('keydown', function(e) { if (e.key === 'Escape') close
 
     /* ── Image error handler ────────────────────────────── */
     window.addrImgError = function(img) {
+        // If a thumbnail 404s, try the full image once before showing the placeholder.
+        if (!img.dataset.fellBack && /_thumb\.jpe?g$/i.test(img.src)) {
+            img.dataset.fellBack = '1';
+            img.src = img.src.replace(/_thumb\.jpe?g$/i, '.jpg');
+            return;
+        }
         var wrap = img.closest('.addr-card-img-wrap');
         if (wrap) wrap.innerHTML = '<div class="addr-card-placeholder">🏛️</div>';
     };
