@@ -12,6 +12,7 @@ const bcrypt       = require('bcrypt');
 const jwt          = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
 const compression  = require('compression');
+const opentype     = require('opentype.js');
 const { Resend }   = require('resend');
 const { google }   = require('googleapis');
 const { S3Client, PutObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
@@ -209,7 +210,18 @@ async function downloadDriveFile(fileId) {
 // orientation-aware, and auto-shrunk so it never runs off the edge.
 //   creator present → "© <name> via Адресът на историята"
 //   creator absent  → "© Адресът на историята"
-const xmlEsc = s => String(s).replace(/[<>&"']/g, c => ({ '<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;' }[c]));
+// Watermark font, loaded ONCE and converted to vector paths at render time. We render
+// the text as SVG <path> outlines (not <text>) so it never depends on a system font —
+// otherwise Cyrillic shows as "tofu" boxes on minimal Linux containers (Railway).
+const WM_FONT = (() => {
+    try {
+        const fb = fs.readFileSync(path.join(__dirname, 'assets', 'fonts', 'NotoSans-Bold.ttf'));
+        return opentype.parse(fb.buffer.slice(fb.byteOffset, fb.byteOffset + fb.byteLength));
+    } catch (e) {
+        console.error('⚠️  watermark font failed to load — watermarks disabled:', e.message);
+        return null;
+    }
+})();
 
 async function buildWatermark(buf, creator) {
     if (!looksLikeImage(buf)) throw new Error('NOT_IMAGE');
@@ -221,6 +233,10 @@ async function buildWatermark(buf, creator) {
     const w = meta.width || 1200;
     const h = meta.height || 900;
 
+    // If the font couldn't load, return the (resized) image un-watermarked rather than
+    // crash or draw tofu boxes.
+    if (!WM_FONT) return img.jpeg({ quality: 88 }).toBuffer();
+
     const name = (creator && String(creator).trim()) || '';
     const text = name ? `© ${name} via Адресът на историята` : '© Адресът на историята';
 
@@ -229,10 +245,10 @@ async function buildWatermark(buf, creator) {
     const marginX = Math.max(2, Math.round(w * 0.012));
     const marginY = Math.max(2, Math.round(h * 0.012));
     let fontSize  = Math.max(16, Math.round(w * 0.027));
-    const AVG_CHAR = 0.54;                                  // Arial avg glyph width / font-size
     const maxTextW = w - marginX * 2;
-    let textW = text.length * fontSize * AVG_CHAR;
-    if (textW > maxTextW) { fontSize = Math.max(11, Math.floor(fontSize * maxTextW / textW)); textW = text.length * fontSize * AVG_CHAR; }
+    // Exact width from real font metrics → shrink to fit if the text is long.
+    let textW = WM_FONT.getAdvanceWidth(text, fontSize);
+    if (textW > maxTextW) { fontSize = Math.max(11, Math.floor(fontSize * maxTextW / textW)); textW = WM_FONT.getAdvanceWidth(text, fontSize); }
 
     const stroke  = Math.max(1.4, fontSize * 0.07);        // crisp dark outline
     const blurPx  = Math.max(1, fontSize * 0.10);          // soft shadow blur radius
@@ -240,26 +256,22 @@ async function buildWatermark(buf, creator) {
     const canvasW = Math.ceil(textW + inset * 2);
     const canvasH = Math.ceil(fontSize * 1.5 + inset * 2);
     const baseY   = Math.round(inset + fontSize);          // text baseline
-    const esc     = xmlEsc(text);
+    const pathData = WM_FONT.getPath(text, inset, baseY, fontSize).toPathData(2);
 
-    // Soft drop-shadow: render the text in black, rasterise, blur with sharp (reliable,
-    // unlike SVG filters under librsvg), then composite slightly offset behind the text.
+    // Soft drop-shadow: the same outline in black, blurred with sharp, behind the text.
     const shadowSvg =
         `<svg width="${canvasW}" height="${canvasH}" xmlns="http://www.w3.org/2000/svg">` +
-        `<text x="${inset}" y="${baseY}" font-family="Arial, Helvetica, sans-serif" ` +
-        `font-size="${fontSize}" font-weight="700" fill="black">${esc}</text></svg>`;
+        `<path d="${pathData}" fill="black"/></svg>`;
     const shadowBuf = await sharp(Buffer.from(shadowSvg)).blur(blurPx).png().toBuffer();
 
-    // Foreground: white fill + thin dark stroke painted behind the fill (paint-order).
+    // Foreground: grey fill + thin dark stroke painted behind the fill (paint-order).
     const textSvg =
         `<svg width="${canvasW}" height="${canvasH}" xmlns="http://www.w3.org/2000/svg">` +
-        `<text x="${inset}" y="${baseY}" font-family="Arial, Helvetica, sans-serif" ` +
-        `font-size="${fontSize}" font-weight="700" paint-order="stroke" ` +
-        `stroke="rgba(0,0,0,0.85)" stroke-width="${stroke.toFixed(2)}" stroke-linejoin="round" ` +
-        `fill="#d7d5d5">${esc}</text></svg>`;
+        `<path d="${pathData}" paint-order="stroke" stroke="rgba(0,0,0,0.85)" ` +
+        `stroke-width="${stroke.toFixed(2)}" stroke-linejoin="round" fill="#d7d5d5"/></svg>`;
 
-    // Position the TEXT (not the padded canvas) tight to the corner: its visual
-    // bottom sits ~marginY above the image bottom, its left ~marginX from the edge.
+    // Position the TEXT tight to the corner: its visual bottom sits ~marginY above the
+    // image bottom, its left ~marginX from the edge.
     const left  = Math.max(0, marginX - inset);
     const top   = Math.max(0, Math.round(h - marginY - inset - fontSize * 1.18));
     const shOff = Math.max(1, Math.round(fontSize * 0.04));
