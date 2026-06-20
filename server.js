@@ -244,7 +244,7 @@ async function buildWatermark(buf, creator) {
     // bottom-left corner — a minimal ~1.2% inset from the bottom and left edges.
     const marginX = Math.max(2, Math.round(w * 0.012));
     const marginY = Math.max(2, Math.round(h * 0.012));
-    let fontSize  = Math.max(16, Math.round(w * 0.027));
+    let fontSize  = Math.max(16, Math.round(w * 0.0285));
     const maxTextW = w - marginX * 2;
     // Exact width from real font metrics → shrink to fit if the text is long.
     let textW = WM_FONT.getAdvanceWidth(text, fontSize);
