@@ -11,7 +11,7 @@
     <link rel="manifest" href="/assets/img/site.webmanifest" />
     <meta name="msapplication-TileImage" content="/assets/img/Historyaddress.bg2.png">
 
-    <title>Адресът на историята — Адреси</title>
+    <title>Адресът на историята - Адреси</title>
     <meta name="description" content="Browse all historic addresses.">
     <link rel="canonical" href="https://historyaddress.bg/addresses.html">
     <meta name="robots" content="index, follow">
@@ -31,10 +31,10 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Mulish:wght@300;400;600&display=swap" rel="stylesheet">
 
-    <link rel="stylesheet" href="assets/css/styles.css?v=3">
+    <link rel="stylesheet" href="assets/css/styles.css?v=5">
     <script defer src="assets/js/theme.js"></script>
     <script defer src="assets/js/transitions.js"></script>
-    <script defer src="assets/js/calendar-popup.js?v=3.0"></script>
+    <script defer src="assets/js/calendar-popup.js?v=3.2"></script>
 
     <style>
         /* ── Typography tokens ───────────────────────────────── */
@@ -595,7 +595,7 @@
             .addr-header { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
         }
     </style>
-    <script defer src="assets/js/account-nav.js?v=12"></script>
+    <script defer src="assets/js/account-nav.js?v=14"></script>
     <script defer src="assets/js/scroll-hint.js?v=2"></script>
 </head>
 
@@ -727,7 +727,7 @@ document.addEventListener('keydown', function(e) { if (e.key === 'Escape') close
                 Email
             </a>
         </div>
-        <a href="https://buymeacoffee.com/historyaddress.bg" target="_blank" rel="noopener noreferrer" class="footer-donate" aria-label="Подкрепете ни — дарение">
+        <a href="https://buymeacoffee.com/historyaddress.bg" target="_blank" rel="noopener noreferrer" class="footer-donate" aria-label="Подкрепете ни - дарение">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
             Подкрепете ни
         </a>
@@ -765,7 +765,7 @@ document.addEventListener('keydown', function(e) { if (e.key === 'Escape') close
     var isLoggedIn = false, userKnown = false;
     var HEART_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>';
 
-    // Escape any value before it is dropped into innerHTML — blocks stored/reflected XSS.
+    // Escape any value before it is dropped into innerHTML - blocks stored/reflected XSS.
     function esc(s) {
         return String(s == null ? '' : s)
             .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -807,7 +807,7 @@ document.addEventListener('keydown', function(e) { if (e.key === 'Escape') close
         return fetch(url)
             .then(function(res){ return res.json(); })
             .then(function(tags){
-                // Rebuild from scratch — tags differ per category
+                // Rebuild from scratch - tags differ per category
                 tagSel.innerHTML = '<option value="">Всички тагове</option>';
                 tags.forEach(function(t){
                     var o = document.createElement('option');
@@ -827,7 +827,7 @@ document.addEventListener('keydown', function(e) { if (e.key === 'Escape') close
             .catch(function(err){ console.error('Error loading tags:', err); });
     }
 
-    /* Removable "active filter" chip — lets the user clear the tag without
+    /* Removable "active filter" chip - lets the user clear the tag without
        scrolling back to the dropdown. */
     function updateTagChip() {
         var sel = document.getElementById('tag');
@@ -966,7 +966,7 @@ document.addEventListener('keydown', function(e) { if (e.key === 'Escape') close
                     '<button type="button" class="addr-fav' + (favoriteIds.has(favId) ? ' active' : '') + '" data-fav-id="' + esc(favId) + '" aria-label="Добави в любими">' + HEART_SVG + '</button>' +
                 '</div>' +
                 '<div class="addr-card-body">' +
-                    '<div class="addr-card-name">' + esc(p.name || '—') + '</div>' +
+                    '<div class="addr-card-name">' + esc(p.name || '-') + '</div>' +
                     (p.address
                         ? '<div class="addr-card-address">' +
                           '<span class="addr-card-address-icon">📍</span>' +

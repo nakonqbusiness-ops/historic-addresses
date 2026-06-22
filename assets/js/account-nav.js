@@ -15,10 +15,19 @@
              : '';
     }
 
-    function injectAccountLink() {
-        var nav = document.querySelector('header.site-header .nav');
-        if (!nav || nav.querySelector('.nav-account')) return;
+    function escapeHtml(s) {
+        return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+        });
+    }
 
+    function injectAccountLink() {
+        var header = document.querySelector('header.site-header');
+        var nav = header && header.querySelector('.nav');
+        if (!nav || nav.querySelector('.nav-account') || header.querySelector('.nav-user')) return;
+
+        // GUEST default: a clean "Вход" pill in the nav. The standalone theme toggle
+        // stays visible in the header so guests can still switch modes.
         var a = document.createElement('a');
         a.className = 'nav-account';
         a.href = '/login.html';   // absolute so it works from /admin/ pages too
@@ -29,25 +38,75 @@
             .then(function (r) { return r.ok ? r.json() : null; })
             .then(function (me) {
                 if (!me) return;
+                // LOGGED IN: drop the guest pill and show a compact avatar dropdown that
+                // also absorbs the theme toggle (frees up the navbar row).
                 document.body.classList.add('is-auth');
-                a.href = '/profile.html';   // absolute so it works from /admin/ pages too
-                var role = roleLabel(me.role);
-                a.innerHTML = USER_ICON + '<span>Профил</span>' +
-                    (role ? '<span class="nav-account-role">' + role + '</span>' : '');
-                a.classList.add('is-auth');
-
-                // Moderators & owners get a quick link to the moderation dashboard.
-                if (me.role === 'owner' || me.role === 'moderator') {
-                    if (!nav.querySelector('.nav-mod')) {
-                        var mod = document.createElement('a');
-                        mod.className = 'nav-mod';
-                        mod.href = '/admin/moderation.html';
-                        mod.innerHTML = SHIELD_ICON + '<span>Модерация</span>';
-                        nav.insertBefore(mod, a);  // place just before the account pill
-                    }
-                }
+                if (a.parentNode) a.parentNode.removeChild(a);
+                buildUserMenu(header, me);
             })
             .catch(function () {});
+    }
+
+    function buildUserMenu(header, me) {
+        var name    = (me.display_name && me.display_name.trim()) || me.email || 'Профил';
+        var initial = (name.trim().charAt(0) || '?').toUpperCase();
+        var role    = roleLabel(me.role) || 'Потребител';
+        var isMod   = me.role === 'owner' || me.role === 'moderator';
+
+        var wrap = document.createElement('div');
+        wrap.className = 'nav-user';
+
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'nav-user-btn';
+        btn.setAttribute('aria-haspopup', 'true');
+        btn.setAttribute('aria-expanded', 'false');
+        btn.setAttribute('aria-label', 'Профил меню');
+        btn.innerHTML =
+            '<span class="nav-user-avatar">' + escapeHtml(initial) + '</span>' +
+            '<svg class="nav-user-chevron" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>';
+
+        var menu = document.createElement('div');
+        menu.className = 'nav-user-menu';
+        menu.setAttribute('hidden', '');
+        menu.innerHTML =
+            '<div class="nav-user-head">' +
+                '<div class="nav-user-name"></div>' +
+                (role ? '<div class="nav-user-role">Роля: ' + escapeHtml(role) + '</div>' : '') +
+            '</div>' +
+            '<div class="nav-user-div"></div>' +
+            '<a class="nav-user-item" href="/profile.html#activity"><span class="nui-ico">⭐</span>Моите одобрения</a>' +
+            '<a class="nav-user-item" href="/profile.html#achievements"><span class="nui-ico">🏅</span>Постижения и приноси</a>' +
+            (isMod ? '<a class="nav-user-item" href="/admin/moderation.html"><span class="nui-ico">🛡️</span>Модерация</a>' : '') +
+            '<a class="nav-user-item" href="/profile.html#settings"><span class="nui-ico">⚙️</span>Настройки</a>' +
+            '<div class="nav-user-div"></div>' +
+            '<div class="nav-user-theme"><span><span class="nui-ico">🌓</span>Светъл / Тъмен режим</span><span class="nav-user-theme-slot"></span></div>' +
+            '<div class="nav-user-div"></div>' +
+            '<button class="nav-user-item nav-user-logout" type="button"><span class="nui-ico">🚪</span>Изход</button>';
+        // textContent (not innerHTML) for the name → safe against XSS from display_name/email.
+        menu.querySelector('.nav-user-name').textContent = name;
+
+        wrap.appendChild(btn);
+        wrap.appendChild(menu);
+        header.appendChild(wrap);
+
+        // Relocate the already-wired theme toggle into the menu's theme row.
+        var toggle = document.getElementById('theme-toggle');
+        if (toggle) menu.querySelector('.nav-user-theme-slot').appendChild(toggle);
+
+        function close() { menu.setAttribute('hidden', ''); btn.setAttribute('aria-expanded', 'false'); wrap.classList.remove('open'); }
+        function open()  { menu.removeAttribute('hidden'); btn.setAttribute('aria-expanded', 'true');  wrap.classList.add('open'); }
+        btn.addEventListener('click', function (e) { e.stopPropagation(); if (menu.hasAttribute('hidden')) open(); else close(); });
+        document.addEventListener('click', function (e) { if (!wrap.contains(e.target)) close(); });
+        document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
+        // A click on the theme row toggles the mode, not the menu.
+        menu.querySelector('.nav-user-theme').addEventListener('click', function (e) { e.stopPropagation(); });
+
+        menu.querySelector('.nav-user-logout').addEventListener('click', function () {
+            fetch('/api/auth/logout', { method: 'POST', credentials: 'include' })
+                .catch(function () {})
+                .then(function () { location.href = '/index.html'; });
+        });
     }
 
     /* ── Global toast ────────────────────────────────────────────── */
@@ -91,7 +150,7 @@
 
 /* ── Donations: open Buy Me a Coffee in a focused, centered window ────────────
    Any donate trigger (footer button, profile card CTA, the about-page contact
-   card) opens the BMC donation page in a centered popup window — instantly, with
+   card) opens the BMC donation page in a centered popup window - instantly, with
    no third-party script on the page. On phones the OS opens it as a new tab.
    If the browser blocks the popup, we fall back to a normal new tab so donations
    never break. */
@@ -152,7 +211,7 @@
             '<div class="dc-card" role="dialog" aria-modal="true" aria-labelledby="dcTitle">' +
                 '<div class="dc-icon"><svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor" aria-hidden="true"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></div>' +
                 '<h3 id="dcTitle">Подкрепете ни</h3>' +
-                '<p>Дарението е напълно доброволно и безвъзмездно — срещу него не получавате допълнителни услуги, роли или функции. Продължавайки, потвърждавате, че сте се запознали и приемате нашите Общи условия за дарения.</p>' +
+                '<p>Дарението е напълно доброволно и безвъзмездно - срещу него не получавате допълнителни услуги, роли или функции. Продължавайки, потвърждавате, че сте се запознали и приемате нашите Общи условия за дарения.</p>' +
                 '<a class="dc-terms" href="' + TERMS_URL + '" target="_blank" rel="noopener noreferrer">Прочети Общите условия за дарения →</a>' +
                 '<div class="dc-actions">' +
                     '<button type="button" class="dc-cancel">Отказ</button>' +
@@ -186,7 +245,7 @@
         if (!t) return;
         e.preventDefault();
         e.stopPropagation();
-        if (modal && !modal.hasAttribute('hidden')) return;   // already open — ignore
+        if (modal && !modal.hasAttribute('hidden')) return;   // already open - ignore
         show();
     }, true);   // capture phase: run before other link handlers
 })();
@@ -230,7 +289,7 @@
 
         var txt = document.createElement('p');
         txt.className = 'ha-cookie-text';
-        txt.innerHTML = 'Използваме само необходими бисквитки за вход и предпочитания — ' +
+        txt.innerHTML = 'Използваме само необходими бисквитки за вход и предпочитания - ' +
                         'без проследяване и реклами. <a href="/privacy.html">Научете повече</a>.';
 
         var btn = document.createElement('button');
@@ -240,7 +299,7 @@
         btn.addEventListener('click', function () {
             try { localStorage.setItem('cookie-consent', '1'); } catch (e) {}
             window.removeEventListener('resize', syncHeight);
-            // Both start together: banner eases out while the calendar glides down — no gap.
+            // Both start together: banner eases out while the calendar glides down - no gap.
             bar.classList.add('ha-cookie-hide');
             document.body.classList.remove('ha-cookie-shown');
             setTimeout(function () { if (bar.parentNode) bar.remove(); }, 560);

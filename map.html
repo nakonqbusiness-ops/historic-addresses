@@ -9,7 +9,7 @@
 <link rel="apple-touch-icon" sizes="180x180" href="/assets/img/apple-touch-icon.png">
 <link rel="manifest" href="/assets/img/site.webmanifest">
 <meta name="msapplication-TileImage" content="/assets/img/Historyaddress.bg2.png">
-<title>Адресът на историята — Карта</title>
+<title>Адресът на историята - Карта</title>
 <meta name="description" content="Интерактивна карта на историческите адреси в България.">
 <link rel="canonical" href="https://historyaddress.bg/map.html">
 <meta name="robots" content="index, follow">
@@ -25,7 +25,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Mulish:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/styles.css?v=3">
+<link rel="stylesheet" href="assets/css/styles.css?v=5">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
@@ -355,7 +355,7 @@ body.is-auth .panel-fav { display:flex; }
 .leaflet-control-attribution { background:rgba(10,9,8,0.75) !important; color:#4a4238 !important; font-size:0.6rem !important; }
 .leaflet-control-attribution a { color:#6a6258 !important; }
 </style>
-    <script defer src="assets/js/account-nav.js?v=12"></script>
+    <script defer src="assets/js/account-nav.js?v=14"></script>
     <script defer src="assets/js/scroll-hint.js?v=2"></script>
 </head>
 <body>
@@ -465,7 +465,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')closeEmailMo
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>Email
             </a>
         </div>
-        <a href="https://buymeacoffee.com/historyaddress.bg" target="_blank" rel="noopener noreferrer" class="footer-donate" aria-label="Подкрепете ни — дарение">
+        <a href="https://buymeacoffee.com/historyaddress.bg" target="_blank" rel="noopener noreferrer" class="footer-donate" aria-label="Подкрепете ни - дарение">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
             Подкрепете ни
         </a>
@@ -487,7 +487,7 @@ window.addEventListener('DOMContentLoaded', function () {
     var targetSlug = urlParams.get('slug');
     var pinOnly    = urlParams.get('view') === 'pin';
     var FOCUS_ZOOM = 19;
-    /* Max entries kept in the detail cache — evicts oldest when exceeded.
+    /* Max entries kept in the detail cache - evicts oldest when exceeded.
        Prevents unbounded RAM growth on sites with many addresses.        */
     var CACHE_MAX  = 60;
 
@@ -561,7 +561,7 @@ window.addEventListener('DOMContentLoaded', function () {
         .finally(function(){ panelFav.disabled = false; });
     });
 
-    /* Element that had focus before the panel opened — restored on close */
+    /* Element that had focus before the panel opened - restored on close */
     var panelPrevFocus = null;
 
     var allHomes = [], activeMarkerEl = null, isPanelOpen = false, searchTimer, resizeTimer;
@@ -599,7 +599,7 @@ window.addEventListener('DOMContentLoaded', function () {
     }
 
     var isMobile = window.innerWidth <= 768;
-    /* FIX: debounce the resize handler — was firing on every pixel of resize */
+    /* FIX: debounce the resize handler - was firing on every pixel of resize */
     window.addEventListener('resize', function(){
         clearTimeout(resizeTimer);
         resizeTimer = setTimeout(function(){ isMobile = window.innerWidth <= 768; }, 150);
@@ -628,7 +628,7 @@ window.addEventListener('DOMContentLoaded', function () {
 
     /* ── Helpers ── */
 
-    /* FIX: centralised HTML escaper — prevents XSS from API data injected via innerHTML */
+    /* FIX: centralised HTML escaper - prevents XSS from API data injected via innerHTML */
     function esc(str) {
         if (!str) return '';
         return String(str)
@@ -883,7 +883,7 @@ window.addEventListener('DOMContentLoaded', function () {
 
     /* ── Render markers in batches to avoid blocking the main thread ── */
     function renderMarkers(homes, onDone) {
-        /* FIX: call clearActiveMarker() — not just null — so any live beacon
+        /* FIX: call clearActiveMarker() - not just null - so any live beacon
            DOM wrapper is properly dismantled before Leaflet removes the element */
         clearActiveMarker();
         clusters.clearLayers();

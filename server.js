@@ -54,7 +54,7 @@ const cache = {
     set(key, val, ttlSecs = 60) {
         // Evict oldest 25 % when full
         if (this._store.size >= this._max) {
-            const cut = Math.ceil(this._max * 0.25);
+            let cut = Math.ceil(this._max * 0.25);
             for (const k of this._store.keys()) {
                 if (--cut < 0) break;  // eslint-disable-line no-plusplus
                 this._store.delete(k);
@@ -108,11 +108,11 @@ function acceptPhotos(field) {
         if (err.code === 'LIMIT_FILE_SIZE')  return res.status(400).json({ error: 'Снимката е твърде голяма (макс. 10 MB).' });
         if (err.code === 'LIMIT_FILE_COUNT')  return res.status(400).json({ error: 'Твърде много снимки (макс. ' + MAX_PHOTOS + ').' });
         if (err.code === 'LIMIT_UNEXPECTED_FILE') return res.status(400).json({ error: 'Твърде много снимки (макс. ' + MAX_PHOTOS + ').' });
-        return res.status(400).json({ error: 'Невалиден файл — качете изображение (JPG/PNG).' });
+        return res.status(400).json({ error: 'Невалиден файл - качете изображение (JPG/PNG).' });
     });
 }
 
-// Validate the actual file bytes (magic numbers) — never trust the client's
+// Validate the actual file bytes (magic numbers) - never trust the client's
 // Content-Type. Rejects .html/.js/.svg/PDF/etc. dressed up as image/jpeg.
 function looksLikeImage(buf) {
     if (!buf || buf.length < 12) return false;
@@ -211,14 +211,14 @@ async function downloadDriveFile(fileId) {
 //   creator present → "© <name> via Адресът на историята"
 //   creator absent  → "© Адресът на историята"
 // Watermark font, loaded ONCE and converted to vector paths at render time. We render
-// the text as SVG <path> outlines (not <text>) so it never depends on a system font —
+// the text as SVG <path> outlines (not <text>) so it never depends on a system font -
 // otherwise Cyrillic shows as "tofu" boxes on minimal Linux containers (Railway).
 const WM_FONT = (() => {
     try {
         const fb = fs.readFileSync(path.join(__dirname, 'assets', 'fonts', 'NotoSans-Bold.ttf'));
         return opentype.parse(fb.buffer.slice(fb.byteOffset, fb.byteOffset + fb.byteLength));
     } catch (e) {
-        console.error('⚠️  watermark font failed to load — watermarks disabled:', e.message);
+        console.error('⚠️  watermark font failed to load - watermarks disabled:', e.message);
         return null;
     }
 })();
@@ -241,7 +241,7 @@ async function buildWatermark(buf, creator) {
     const text = name ? `© ${name} via Адресът на историята` : '© Адресът на историята';
 
     // Font size scales with width (kept as set). Watermark sits very tight to the
-    // bottom-left corner — a minimal ~1.2% inset from the bottom and left edges.
+    // bottom-left corner - a minimal ~1.2% inset from the bottom and left edges.
     const marginX = Math.max(2, Math.round(w * 0.012));
     const marginY = Math.max(2, Math.round(h * 0.012));
     let fontSize  = Math.max(16, Math.round(w * 0.0285));
@@ -291,7 +291,7 @@ function randomSuffix(n = 6) { return Math.random().toString(36).substring(2, 2 
 // Password → role map (SHA-256 hex of the password). The raw password is sent
 // once to /api/login over HTTPS; the server verifies it here and returns a signed
 // token. Every mutating API route then requires that token in an X-Admin-Token
-// header — so the panel is no longer just hidden on the client, it is enforced.
+// header - so the panel is no longer just hidden on the client, it is enforced.
 const ADMIN_ACCOUNTS = {
     '135a21d2896b3b414a72f31aa2ada261c499b0740bc747b731dcfbd4315619ec': { role: 'owner',  name: 'Георги'  },
     'f31f00416e795e7c9f539624a907f8dd0e7a363d58a2a406e8f73f1702ab6826': { role: 'editor', name: 'Божидар' },
@@ -299,7 +299,7 @@ const ADMIN_ACCOUNTS = {
 
 const ADMIN_SECRET = process.env.ADMIN_SECRET || crypto.randomBytes(32).toString('hex');
 if (!process.env.ADMIN_SECRET) {
-    console.warn('⚠️  ADMIN_SECRET not set — using a random per-boot secret. Set it in env so admin logins survive restarts.');
+    console.warn('⚠️  ADMIN_SECRET not set - using a random per-boot secret. Set it in env so admin logins survive restarts.');
 }
 
 const sha256hex   = s => crypto.createHash('sha256').update(String(s)).digest('hex');
@@ -330,7 +330,7 @@ function requireAuth(req, res, next) {
 }
 function requireOwner(req, res, next) {
     requireAuth(req, res, () => {
-        if (req.admin.role !== 'owner') return res.status(403).json({ error: 'Forbidden — owner only' });
+        if (req.admin.role !== 'owner') return res.status(403).json({ error: 'Forbidden - owner only' });
         next();
     });
 }
@@ -340,7 +340,7 @@ function requireOwner(req, res, next) {
 // delivered in an HttpOnly cookie (never exposed to JavaScript / localStorage).
 const JWT_SECRET    = process.env.JWT_SECRET || crypto.randomBytes(32).toString('hex');
 if (!process.env.JWT_SECRET) {
-    console.warn('⚠️  JWT_SECRET not set — using a random per-boot secret. Set it in env so user logins survive restarts.');
+    console.warn('⚠️  JWT_SECRET not set - using a random per-boot secret. Set it in env so user logins survive restarts.');
 }
 const JWT_EXPIRES   = '7d';
 const AUTH_COOKIE   = 'auth_token';
@@ -377,7 +377,7 @@ const resend    = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API
 const EMAIL_FROM = process.env.EMAIL_FROM || 'Адресът на историята <onboarding@resend.dev>';
 
 async function sendEmail({ to, subject, html }) {
-    if (!resend) { console.warn('✉️  RESEND_API_KEY not set — skipping email to', to); return false; }
+    if (!resend) { console.warn('✉️  RESEND_API_KEY not set - skipping email to', to); return false; }
     try {
         const { error } = await resend.emails.send({ from: EMAIL_FROM, to, subject, html });
         if (error) { console.error('Resend error:', error.message || JSON.stringify(error)); return false; }
@@ -419,7 +419,7 @@ function emailButton(href, label) {
 function welcomeEmailHtml() {
     const body =
       `<h1 style="margin:0 0 14px;font-family:Georgia,serif;font-size:26px;font-weight:700;color:#3a2f1f;">Добре дошли! 🏛️</h1>
-       <p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:#5a4a33;">Радваме се, че се присъединихте към <strong style="color:#cd853f;">Адресът на историята</strong> — мястото, където оживява историята на сгради, личности и събития от България.</p>
+       <p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:#5a4a33;">Радваме се, че се присъединихте към <strong style="color:#cd853f;">Адресът на историята</strong> - мястото, където оживява историята на сгради, личности и събития от България.</p>
        <p style="margin:0 0 8px;font-size:15px;line-height:1.7;color:#5a4a33;">Ето какво можете да правите вече:</p>
        <ul style="margin:0 0 6px;padding-left:20px;font-size:15px;line-height:1.85;color:#5a4a33;">
          <li>❤️ Запазвайте любими места</li>
@@ -436,7 +436,7 @@ function resetEmailHtml(link) {
        <p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:#5a4a33;">Получихме заявка за нулиране на паролата за Вашия профил. Натиснете бутона по-долу, за да зададете нова парола. Връзката е валидна <strong>1 час</strong>.</p>
        ${emailButton(link, 'Нулирай паролата')}
        <p style="margin:8px 0 0;font-size:13px;line-height:1.6;color:#8b7355;">Ако бутонът не работи, копирайте този адрес в браузъра си:<br><a href="${link}" style="color:#cd853f;word-break:break-all;">${link}</a></p>
-       <p style="margin:16px 0 0;font-size:13px;line-height:1.6;color:#8b7355;">Ако не сте поискали това, просто игнорирайте имейла — паролата Ви няма да бъде променена.</p>`;
+       <p style="margin:16px 0 0;font-size:13px;line-height:1.6;color:#8b7355;">Ако не сте поискали това, просто игнорирайте имейла - паролата Ви няма да бъде променена.</p>`;
     return emailLayout(body, 'Връзка за нулиране на паролата (валидна 1 час)');
 }
 function approvalEmailHtml(placeTitle, link) {
@@ -479,7 +479,7 @@ function newsletterEmailHtml(article, unsub) {
 // Email all opt-in subscribers about a freshly published article. Sequential with a
 // tiny gap to stay friendly to Resend's rate limits; each gets a personal unsub link.
 async function sendNewsletter(article) {
-    if (!resend) { console.warn('✉️  newsletter skipped — RESEND_API_KEY not set'); return; }
+    if (!resend) { console.warn('✉️  newsletter skipped - RESEND_API_KEY not set'); return; }
     let subs = [];
     try { subs = await dbAll('SELECT id,email FROM users WHERE newsletter=1'); } catch (e) { return; }
     if (!subs.length) return;
@@ -487,7 +487,7 @@ async function sendNewsletter(article) {
     for (const u of subs) {
         await sendEmail({
             to: u.email,
-            subject: 'Нова новина — ' + article.title,
+            subject: 'Нова новина - ' + article.title,
             html: newsletterEmailHtml(article, unsubLink(u.id)),
         });
         await new Promise(r => setTimeout(r, 120));   // ~8/sec, well under limits
@@ -543,7 +543,7 @@ function requireModerator(req, res, next) {
                 req.user.role = row.role;
                 return next();
             }
-            return res.status(403).json({ error: 'Forbidden — moderators only' });
+            return res.status(403).json({ error: 'Forbidden - moderators only' });
         } catch (e) { res.status(500).json({ error: 'Server error' }); }
     });
 }
@@ -554,7 +554,7 @@ function requireOwnerUser(req, res, next) {
         try {
             const row = await dbGet('SELECT role FROM users WHERE id=?', [req.user.sub]);
             if (!row) return res.status(401).json({ error: 'Not authenticated' });
-            if (row.role !== 'owner') return res.status(403).json({ error: 'Forbidden — owner only' });
+            if (row.role !== 'owner') return res.status(403).json({ error: 'Forbidden - owner only' });
             req.user.role = row.role;
             next();
         } catch (e) { res.status(500).json({ error: 'Server error' }); }
@@ -586,7 +586,7 @@ async function uniqueHomeSlug(base) {
 
 // Strip HTML/scripts from free-text fields before they are stored. These fields
 // are always plain text, so removing tags (and control chars) neutralises stored
-// XSS at the source — defence in depth alongside frontend escaping.
+// XSS at the source - defence in depth alongside frontend escaping.
 function sanitizeText(s, max = 5000) {
     if (s == null) return '';
     return String(s)
@@ -638,7 +638,7 @@ const rateLimitActivity = makeRateLimiter({
 
 const app = express();
 app.disable('x-powered-by');
-// Behind Railway's HTTPS proxy — needed for Secure cookies + req.secure to work.
+// Behind Railway's HTTPS proxy - needed for Secure cookies + req.secure to work.
 app.set('trust proxy', 1);
 app.use(compression());                       // gzip HTML/CSS/JS/JSON responses
 // CORS: the site and its API share one origin, so cross-origin access is not
@@ -788,7 +788,7 @@ function initDB() {
         db.run('CREATE INDEX IF NOT EXISTS idx_homes_published ON homes(published)');
         db.run('CREATE INDEX IF NOT EXISTS idx_homes_slug      ON homes(slug)');
         db.run('CREATE INDEX IF NOT EXISTS idx_homes_name      ON homes(name)');
-        // NOTE: idx_homes_category is created in migrateHomes() — only after the
+        // NOTE: idx_homes_category is created in migrateHomes() - only after the
         // `category` column is guaranteed to exist (older DBs add it via ALTER).
 
         // Partners
@@ -898,6 +898,14 @@ function initDB() {
         // under what name should the "© … via Адресът на историята" watermark read.
         db.run('ALTER TABLE pending_addresses ADD COLUMN owns_image INTEGER DEFAULT 0', () => {});
         db.run('ALTER TABLE pending_addresses ADD COLUMN author_name TEXT', () => {});
+        // "Send back for correction": a moderator note shown to the submitter. A
+        // 'rejected' row that carries a note is treated as "needs correction" in the UI –
+        // the user can fix it and resubmit (which flips it back to 'pending').
+        db.run('ALTER TABLE pending_addresses ADD COLUMN moderation_note TEXT', () => {});
+        // denied=1 marks a *final* rejection (photos deleted, user cannot resubmit).
+        // We overload the existing 'rejected' status with this flag to avoid changing the
+        // status CHECK constraint: rejected+denied=0 → "for correction", denied=1 → "denied".
+        db.run('ALTER TABLE pending_addresses ADD COLUMN denied INTEGER DEFAULT 0', () => {});
 
         // Migrations: add columns that older DBs may be missing
         migrateHomes();
@@ -957,12 +965,12 @@ function populateNameLower(cb) {
 function importSeedData() {
     db.get('SELECT COUNT(*) AS n FROM homes', (err, row) => {
         if (err || (row && row.n > 0)) {
-            if (!err) console.log(`📊 DB has ${row.n} homes — ready.`);
+            if (!err) console.log(`📊 DB has ${row.n} homes - ready.`);
             return;
         }
         const dataPath = path.join(__dirname, 'data', 'people.js');
         if (!fs.existsSync(dataPath)) {
-            console.warn('⚠️  people.js not found — skipping seed.');
+            console.warn('⚠️  people.js not found - skipping seed.');
             return;
         }
         try {
@@ -1040,6 +1048,17 @@ function ensureThumb(img) {
     const p = img.path || '';
     if (/^https?:\/\/.+\.jpe?g$/i.test(p)) return Object.assign({}, img, { thumb: p.replace(/\.jpe?g$/i, '_thumb.jpg') });
     return img;
+}
+// Best calendar thumbnail for a person: prefer the portrait (the person's face) so
+// visitors recognise who it is, falling back to the first address photo. Derives the
+// lightweight _thumb.jpg variant when the URL follows our upload naming convention.
+function calPic(portraitUrl, imagesJson) {
+    const thumbOf = (url) => (typeof url === 'string' && /^https?:\/\/.+\.jpe?g$/i.test(url))
+        ? url.replace(/\.jpe?g$/i, '_thumb.jpg') : url;
+    if (portraitUrl) return thumbOf(portraitUrl) || portraitUrl;
+    let a = []; try { a = JSON.parse(imagesJson || '[]'); } catch {}
+    const t = ensureThumb(a[0] || null);
+    return t ? (t.thumb || t.path) : null;
 }
 function rowToHome(row, listMode = false) {
     const parse = (s, def = []) => { try { return JSON.parse(s || 'null') ?? def; } catch { return def; } };
@@ -1130,7 +1149,7 @@ app.post('/api/auth/register', rateLimitAuth, async (req, res) => {
         issueAuthCookie(res, { id, role: 'user' });
         res.status(201).json({ id, email, role: 'user' });
 
-        // Fire-and-forget welcome email — never blocks or fails the registration.
+        // Fire-and-forget welcome email - never blocks or fails the registration.
         sendEmail({
             to: email,
             subject: 'Добре дошли в Адресът на историята! 🏛️',
@@ -1183,7 +1202,7 @@ app.post('/api/auth/forgot-password', rateLimitAuth, async (req, res) => {
             const link = `${DOMAIN}/reset-password.html?token=${token}`;
             await sendEmail({
                 to: email,
-                subject: 'Нулиране на паролата — Адресът на историята',
+                subject: 'Нулиране на паролата - Адресът на историята',
                 html: resetEmailHtml(link),
             });
         }
@@ -1223,7 +1242,7 @@ app.post('/api/auth/reset-password', rateLimitAuth, async (req, res) => {
 app.get('/api/newsletter/unsubscribe', async (req, res) => {
     const id = String(req.query.u || '');
     const t  = String(req.query.t || '');
-    const page = (msg) => `<!doctype html><html lang="bg"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Отписване</title><link rel="stylesheet" href="/assets/css/styles.css?v=2"><style>body{display:flex;min-height:90vh;align-items:center;justify-content:center;font-family:'Mulish',sans-serif;text-align:center;padding:2rem}.u-card{max-width:420px;background:var(--card);border:1px solid var(--border);border-radius:18px;padding:2.2rem}.u-card h1{font-family:'Cormorant Garamond',serif;color:var(--fg)}.u-card a{color:var(--accent-strong);font-weight:700;text-decoration:none}</style></head><body><div class="u-card">${msg}</div></body></html>`;
+    const page = (msg) => `<!doctype html><html lang="bg"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Отписване</title><link rel="stylesheet" href="/assets/css/styles.css?v=X"><style>body{display:flex;min-height:90vh;align-items:center;justify-content:center;font-family:'Mulish',sans-serif;text-align:center;padding:2rem}.u-card{max-width:420px;background:var(--card);border:1px solid var(--border);border-radius:18px;padding:2.2rem}.u-card h1{font-family:'Cormorant Garamond',serif;color:var(--fg)}.u-card a{color:var(--accent-strong);font-weight:700;text-decoration:none}</style></head><body><div class="u-card">${msg}</div></body></html>`;
     try {
         if (!id || t !== unsubToken(id)) {
             return res.status(400).send(page('<h1>Невалидна връзка</h1><p style="color:var(--muted)">Връзката за отписване е невалидна.</p><a href="/index.html">Към началото</a>'));
@@ -1294,7 +1313,8 @@ app.get('/api/user/profile', requireUser, async (req, res) => {
         // This user's crowdsourced submissions. For approved ones we pull the
         // live thumbnail from homes; pending ones use the protected image route.
         const subs = await dbAll(
-            `SELECT p.id, p.title, p.category, p.status, p.created_at, p.image_path, p.result_slug,
+            `SELECT p.id, p.title, p.description, p.city, p.address, p.category, p.status,
+                    p.created_at, p.image_path, p.result_slug, p.moderation_note, p.denied,
                     h.images AS live_images
              FROM pending_addresses p
              LEFT JOIN homes h ON h.slug = p.result_slug
@@ -1302,18 +1322,28 @@ app.get('/api/user/profile', requireUser, async (req, res) => {
              ORDER BY p.created_at DESC`,
             [req.user.sub]
         );
+        let photosAdded = 0;   // photos this user contributed that are live on the site
         const submissions = subs.map(s => {
             let image = null;
+            const pendingImgs = parsePendingImages(s.image_path);
+            let images = [];   // editable photo list (pending/rejected use the protected route)
             if (s.status === 'approved' && s.live_images) {
-                try { const li = JSON.parse(s.live_images); if (li[0]) image = ensureThumb(li[0]).thumb || li[0].path; } catch {}
-            } else if (s.status === 'pending') {
-                var firstPending = parsePendingImages(s.image_path)[0];
-                if (firstPending) image = pendingThumbUrl(firstPending);
+                try {
+                    const li = JSON.parse(s.live_images);
+                    if (li[0]) image = ensureThumb(li[0]).thumb || li[0].path;
+                    photosAdded += li.length;
+                } catch {}
+            } else {
+                if (pendingImgs[0]) image = pendingThumbUrl(pendingImgs[0]);
+                images = pendingImgs.map((u, i) => ({ thumb: pendingThumbUrl(u), download: '/api/pending-image/' + s.id + '?i=' + i }));
             }
             return {
                 id: s.id, title: s.title, category: s.category || 'home',
-                status: s.status, created_at: s.created_at,
-                slug: s.result_slug || null, image,
+                description: s.description || '', city: s.city || '', address: s.address || '',
+                status: s.status, denied: !!s.denied, created_at: s.created_at,
+                moderation_note: s.moderation_note || '',
+                photo_count: (s.status === 'approved' && s.live_images) ? (() => { try { return JSON.parse(s.live_images).length; } catch { return 0; } })() : pendingImgs.length,
+                slug: s.result_slug || null, image, images,
             };
         });
 
@@ -1328,7 +1358,12 @@ app.get('/api/user/profile', requireUser, async (req, res) => {
             favorites:     rows.filter(r => r.status === 'favorite').map(toItem),
             visited:       rows.filter(r => r.status === 'visited').map(toItem),
             submissions:   submissions,
-            approved_count: submissions.filter(s => s.status === 'approved').length,
+            submitted_count: submissions.length,
+            approved_count:  submissions.filter(s => s.status === 'approved').length,
+            pending_count:   submissions.filter(s => s.status === 'pending').length,
+            correction_count: submissions.filter(s => s.status === 'rejected' && !s.denied).length,
+            denied_count:    submissions.filter(s => s.status === 'rejected' && s.denied).length,
+            photos_added:    photosAdded,
         });
     } catch (e) {
         console.error('profile error:', e.message);
@@ -1509,7 +1544,7 @@ async function deleteR2(url) {
     const key = r2KeyFromUrl(url);
     if (!key) return;
     try { await r2.send(new DeleteObjectCommand({ Bucket: R2_BUCKET, Key: key })); }
-    catch (e) { console.warn('R2 delete failed for', key, '—', e.message); }
+    catch (e) { console.warn('R2 delete failed for', key, '-', e.message); }
 }
 
 // Submit a suggestion (logged-in users). Accepts text fields + up to MAX_PHOTOS images.
@@ -1545,7 +1580,7 @@ app.post('/api/suggest', requireUser, rateLimitSuggest, acceptPhotos('images'), 
                 const url  = await uploadPhotoToR2(f.buffer, `pending/${base}`);
                 urls.push(url);
             } catch (e) {
-                console.warn('suggest: skipped a bad photo —', e.message);
+                console.warn('suggest: skipped a bad photo -', e.message);
             }
         }
         const image_path = urls.length ? JSON.stringify(urls) : null;
@@ -1560,6 +1595,51 @@ app.post('/api/suggest', requireUser, rateLimitSuggest, acceptPhotos('images'), 
         res.status(201).json({ id, status: 'pending', photos: urls.length });
     } catch (e) {
         console.error('suggest error:', e.message);
+        res.status(500).json({ error: 'Грешка при изпращане. Опитайте отново.' });
+    }
+});
+
+// Correct & resubmit a submission that a moderator sent back ('rejected'). Only the
+// owner may edit, and only while it's in the 'rejected' state. Updates the text
+// fields, optionally replaces the photos, clears the note and re-queues it (pending).
+app.put('/api/suggest/:id', requireUser, rateLimitSuggest, acceptPhotos('images'), async (req, res) => {
+    try {
+        const row = await dbGet('SELECT * FROM pending_addresses WHERE id=?', [req.params.id]);
+        if (!row) return res.status(404).json({ error: 'Предложението не е намерено' });
+        if (row.user_id !== req.user.sub) return res.status(403).json({ error: 'Нямате достъп' });
+        if (row.status !== 'rejected' || row.denied) return res.status(409).json({ error: 'Това предложение не подлежи на редакция' });
+
+        const b = req.body || {};
+        const title = sanitizeText(b.title, 200) || sanitizeText(row.title, 200);
+        if (!title) return res.status(400).json({ error: 'Заглавието е задължително' });
+        const category    = normCategory(b.category || row.category);
+        const description = (b.description !== undefined ? sanitizeText(b.description, 5000) : row.description) || null;
+        const city        = (b.city    !== undefined ? sanitizeText(b.city, 120)    : row.city) || null;
+        const address     = (b.address !== undefined ? sanitizeText(b.address, 200) : row.address) || null;
+
+        // If the user uploaded new photos, replace the old set (delete old from R2);
+        // otherwise keep what was there. This matches the common "the photos were bad" case.
+        let image_path = row.image_path;
+        if (req.files && req.files.length) {
+            for (const u of parsePendingImages(row.image_path)) { await deleteR2(u); await deleteR2(pendingThumbUrl(u)); }
+            const urls = [];
+            for (const f of req.files) {
+                try { urls.push(await uploadPhotoToR2(f.buffer, `pending/${crypto.randomBytes(16).toString('hex')}`)); }
+                catch (e) { console.warn('resubmit: skipped a bad photo -', e.message); }
+            }
+            image_path = urls.length ? JSON.stringify(urls) : null;
+        }
+
+        await dbRun(
+            `UPDATE pending_addresses
+             SET title=?, description=?, city=?, address=?, category=?, image_path=?,
+                 status='pending', moderation_note=NULL, reviewed_at=NULL, reviewed_by=NULL, created_at=?
+             WHERE id=?`,
+            [title, description, city, address, category, image_path, new Date().toISOString(), row.id]
+        );
+        res.json({ id: row.id, status: 'pending' });
+    } catch (e) {
+        console.error('resubmit error:', e.message);
         res.status(500).json({ error: 'Грешка при изпращане. Опитайте отново.' });
     }
 });
@@ -1636,8 +1716,8 @@ app.get('/api/admin/pending', requireModerator, async (req, res) => {
 app.post('/api/admin/moderate/:id', requireModerator, acceptPhotos('images'), async (req, res) => {
     const b = req.body || {};
     const action = b.action || '';
-    if (action !== 'approve' && action !== 'reject') {
-        return res.status(400).json({ error: "action must be 'approve' or 'reject'" });
+    if (['approve', 'reject', 'deny'].indexOf(action) < 0) {
+        return res.status(400).json({ error: "action must be 'approve', 'reject' or 'deny'" });
     }
     try {
         const row = await dbGet('SELECT * FROM pending_addresses WHERE id=?', [req.params.id]);
@@ -1647,12 +1727,25 @@ app.post('/api/admin/moderate/:id', requireModerator, acceptPhotos('images'), as
         const now = new Date().toISOString();
         const pendingUrls = parsePendingImages(row.image_path);
 
-        // ── Reject: delete every pending photo from R2, mark rejected ──
+        // ── Reject / send back for correction ──
+        // We keep the submitter's photos so they can fix the submission and resubmit
+        // (the photos may be fine; often only one needs replacing). An optional note
+        // gives the user instructions on what to correct.
         if (action === 'reject') {
+            const note = sanitizeText(b.note, 1000) || null;
+            await dbRun("UPDATE pending_addresses SET status='rejected', denied=0, reviewed_at=?, reviewed_by=?, moderation_note=? WHERE id=?",
+                [now, req.user.sub, note, row.id]);
+            return res.json({ id: row.id, status: 'rejected', denied: 0, note });
+        }
+
+        // ── Deny entirely: a final rejection. Delete the photos from R2 and mark the
+        // row denied so the submitter sees it as rejected and cannot resubmit. ──
+        if (action === 'deny') {
+            const note = sanitizeText(b.note, 1000) || null;
             for (const u of pendingUrls) { await deleteR2(u); await deleteR2(pendingThumbUrl(u)); }
-            await dbRun("UPDATE pending_addresses SET status='rejected', reviewed_at=?, reviewed_by=? WHERE id=?",
-                [now, req.user.sub, row.id]);
-            return res.json({ id: row.id, status: 'rejected' });
+            await dbRun("UPDATE pending_addresses SET status='rejected', denied=1, image_path=NULL, reviewed_at=?, reviewed_by=?, moderation_note=? WHERE id=?",
+                [now, req.user.sub, note, row.id]);
+            return res.json({ id: row.id, status: 'rejected', denied: 1, note });
         }
 
         // ── Approve, applying moderator edits ──
@@ -1678,14 +1771,14 @@ app.post('/api/admin/moderate/:id', requireModerator, acceptPhotos('images'), as
         const slug = await uniqueHomeSlug(slugifyTitle(title));
 
         // Which pending photos to keep (defaults to all). Only real pending URLs
-        // are honoured — arbitrary URLs in the request are ignored.
+        // are honoured - arbitrary URLs in the request are ignored.
         let keep = pendingUrls;
         if (b.keptImages !== undefined) {
             try { const arr = JSON.parse(b.keptImages); keep = Array.isArray(arr) ? arr.filter(u => pendingUrls.includes(u)) : []; }
             catch { keep = []; }
         }
 
-        // Watermark only when the suggester claimed the photos as their own — then
+        // Watermark only when the suggester claimed the photos as their own - then
         // it reads "© <author> via Адресът на историята". Unclaimed photos get NO
         // watermark (we may not own them). A moderator can override the name via the
         // 'wm_creator' field; an explicit empty value forces no watermark.
@@ -1850,7 +1943,7 @@ app.post('/api/upload', requireAuth, upload.single('image'), async (req, res) =>
             })),
         ]);
 
-        console.log(`📸 Uploaded ${filename} (+thumb) | wm:${applyWmark} | photographer:${photographer || '—'}`);
+        console.log(`📸 Uploaded ${filename} (+thumb) | wm:${applyWmark} | photographer:${photographer || '-'}`);
         res.json({
             url:      `${R2_PUBLIC_URL}/${filename}`,
             thumb:    `${R2_PUBLIC_URL}/${thumbName}`,
@@ -1902,7 +1995,7 @@ app.post('/api/admin/drive-sync', requireAuth, async (req, res) => {
                 } catch (e) { errors.push(`${f.name}: ${e.message}`); }
             }));
         }
-        console.log(`☁️  Drive sync: ${urls.length}/${files.length} imported | wm:${applyWmark} | ${photographer || '—'}`);
+        console.log(`☁️  Drive sync: ${urls.length}/${files.length} imported | wm:${applyWmark} | ${photographer || '-'}`);
         res.json({ count: urls.length, total: files.length, capped: files.length > MAX, urls, errors });
     } catch (e) {
         console.error('drive-sync error:', e.message);
@@ -1943,7 +2036,7 @@ app.get('/api/homes', async (req, res) => {
         const words = search.split(/\s+/).filter(Boolean);
         if (searchMode === 'name') {
             // name_lower holds a Unicode-lowercased copy, so this is truly
-            // case-insensitive — including for Cyrillic.
+            // case-insensitive - including for Cyrillic.
             where.push('(' + words.map(() => 'name_lower LIKE ?').join(' AND ') + ')');
             words.forEach(w => params.push(`%${w.toLowerCase()}%`));
         } else {
@@ -2195,7 +2288,7 @@ app.get('/api/news', async (req, res) => {
     }
 });
 
-// GET single article — public by slug OR admin by numeric id
+// GET single article - public by slug OR admin by numeric id
 app.get('/api/news/:ref', async (req, res) => {
     const ref = req.params.ref;
     try {
@@ -2227,7 +2320,7 @@ app.post('/api/news', requireAuth, async (req, res) => {
         cache.clear();
         res.json({ success: true, id: r.lastID });
 
-        // If published, email newsletter subscribers (fire-and-forget — never blocks).
+        // If published, email newsletter subscribers (fire-and-forget - never blocks).
         if (published) {
             sendNewsletter({ title, slug, excerpt: excerpt || '', cover_image: cover_image || '', link: cleanLink })
                 .catch(e => console.error('newsletter send error:', e.message));
@@ -2275,12 +2368,13 @@ app.get('/api/calendar', async (req, res) => {
 
     try {
         const rows = await dbAll(
-            `SELECT name,slug,birth_date,death_date FROM homes WHERE published=1
+            `SELECT name,slug,birth_date,death_date,images,category,portrait_url FROM homes WHERE published=1
              AND (strftime('%m',birth_date)=? OR strftime('%m',death_date)=?)`,
             [month, month]
         );
         const events = {};
         for (const r of rows) {
+            const image = calPic(r.portrait_url, r.images);
             for (const [field, type] of [['birth_date','birth'],['death_date','death']]) {
                 const d = r[field];
                 if (!d || !d.includes(`-${month}-`)) continue;
@@ -2288,7 +2382,7 @@ app.get('/api/calendar', async (req, res) => {
                 const day  = String(date.getDate()).padStart(2,'0');
                 const k    = `${month}-${day}`;
                 if (!events[k]) events[k] = [];
-                events[k].push({ name: r.name, slug: r.slug, type, full_date: d, years_ago: year - date.getFullYear() });
+                events[k].push({ name: r.name, slug: r.slug, type, full_date: d, years_ago: year - date.getFullYear(), image, birth_date: r.birth_date, death_date: r.death_date, category: r.category || 'home' });
             }
         }
         cache.set(key, events, 300);
@@ -2309,15 +2403,16 @@ app.get('/api/calendar/today', async (req, res) => {
 
     try {
         const rows = await dbAll(
-            `SELECT name,slug,birth_date,death_date FROM homes WHERE published=1
+            `SELECT name,slug,birth_date,death_date,images,category,portrait_url FROM homes WHERE published=1
              AND (strftime('%m-%d',birth_date)=? OR strftime('%m-%d',death_date)=?)`,
             [monthDay, monthDay]
         );
         const events = [];
         for (const r of rows) {
+            const image = calPic(r.portrait_url, r.images);
             for (const [field, type] of [['birth_date','birth'],['death_date','death']]) {
                 if (r[field] && r[field].substring(5) === monthDay) {
-                    events.push({ name: r.name, slug: r.slug, type, full_date: r[field], years_ago: viewYear - new Date(r[field]).getFullYear() });
+                    events.push({ name: r.name, slug: r.slug, type, full_date: r[field], years_ago: viewYear - new Date(r[field]).getFullYear(), image, birth_date: r.birth_date, death_date: r.death_date, category: r.category || 'home' });
                 }
             }
         }
@@ -2335,10 +2430,14 @@ app.get('/api/calendar/all', async (_req, res) => {
     if (hit) return res.json(hit);
     try {
         const rows = await dbAll(
-            'SELECT name,slug,birth_date,death_date FROM homes WHERE published=1 AND (birth_date IS NOT NULL OR death_date IS NOT NULL)'
+            'SELECT name,slug,birth_date,death_date,portrait_url,images FROM homes WHERE published=1 AND (birth_date IS NOT NULL OR death_date IS NOT NULL)'
         );
-        cache.set(key, rows, 1800);
-        res.json(rows);
+        const out = rows.map(r => ({
+            name: r.name, slug: r.slug, birth_date: r.birth_date, death_date: r.death_date,
+            image: calPic(r.portrait_url, r.images),
+        }));
+        cache.set(key, out, 1800);
+        res.json(out);
     } catch (e) {
         console.error('/api/calendar/all error:', e);
         res.status(500).json({ error: 'Database error' });
@@ -2482,20 +2581,20 @@ setInterval(() => {
     const rss = Math.round(process.memoryUsage().rss / 1024 / 1024);
     if (rss > GC_WARN && typeof global.gc === 'function') {
         global.gc();
-        if (rss > GC_CRIT) { console.warn(`⚠️  Critical RSS ${rss} MB — flushing cache`); cache.clear(); }
+        if (rss > GC_CRIT) { console.warn(`⚠️  Critical RSS ${rss} MB - flushing cache`); cache.clear(); }
     }
 }, LOW_SPEC ? 30_000 : 60_000);
 
 // ─── Start ────────────────────────────────────────────────────────────────────
 const server = app.listen(PORT, '0.0.0.0', () => {
-    console.log(`✅ Listening on :${PORT} — ${DOMAIN}\n`);
+    console.log(`✅ Listening on :${PORT} - ${DOMAIN}\n`);
 });
 server.keepAliveTimeout = 30_000;
 server.headersTimeout   = 31_000;
 
 // ─── Graceful shutdown ────────────────────────────────────────────────────────
 function shutdown(sig) {
-    console.log(`\n${sig} received — shutting down…`);
+    console.log(`\n${sig} received - shutting down…`);
     server.close(() => db.close(() => { console.log('👋 Closed.'); process.exit(0); }));
     setTimeout(() => process.exit(1), 10_000);
 }

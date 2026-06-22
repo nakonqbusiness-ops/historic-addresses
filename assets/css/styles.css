@@ -377,6 +377,61 @@ body.page-exiting {
     opacity: 0.85;
 }
 
+/* ── Auth profile dropdown (logged-in users), injected by account-nav.js ── */
+.nav-user { position: relative; flex-shrink: 0; }
+.nav-user-btn {
+    display: inline-flex; align-items: center; gap: 0.35rem;
+    padding: 0.22rem 0.45rem 0.22rem 0.28rem; background: transparent;
+    border: 1px solid var(--border); border-radius: 999px; cursor: pointer;
+    transition: border-color 0.2s ease, background 0.2s ease;
+}
+.nav-user-btn::before { display: none !important; }
+.nav-user-btn:hover, .nav-user.open .nav-user-btn { border-color: var(--accent-strong); background: rgba(205,133,63,0.08); transform: none !important; box-shadow: none !important; }
+.nav-user-avatar {
+    width: 30px; height: 30px; border-radius: 50%; background: var(--accent-gradient);
+    color: #1a1410; display: flex; align-items: center; justify-content: center;
+    font-family: 'Cormorant Garamond', Georgia, serif; font-weight: 700; font-size: 1.05rem; flex-shrink: 0;
+}
+.nav-user-chevron { color: var(--muted); transition: transform 0.25s ease; }
+.nav-user.open .nav-user-chevron { transform: rotate(180deg); color: var(--accent-strong); }
+
+.nav-user-menu {
+    position: absolute; top: calc(100% + 10px); right: 0; min-width: 250px;
+    background: #1a1510; border: 1px solid rgba(205,133,63,0.28); border-radius: 14px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.55); padding: 0.5rem; z-index: 60;
+    animation: navUserIn 0.18s ease both;
+}
+.nav-user-menu[hidden] { display: none; }
+@keyframes navUserIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+.nav-user-head { padding: 0.55rem 0.7rem 0.5rem; }
+.nav-user-name { font-family: 'Cormorant Garamond', Georgia, serif; font-weight: 700; font-size: 1.15rem; color: #f0e8d8; line-height: 1.2; word-break: break-word; }
+.nav-user-role { font-size: 0.72rem; color: #cd853f; margin-top: 0.15rem; font-weight: 600; letter-spacing: 0.02em; }
+.nav-user-div { height: 1px; background: rgba(205,133,63,0.16); margin: 0.35rem 0.3rem; }
+.nav-user-item {
+    display: flex; align-items: center; gap: 0.6rem; width: 100%; box-sizing: border-box;
+    padding: 0.6rem 0.7rem; border-radius: 9px; background: transparent; border: none;
+    text-align: left; text-decoration: none; color: #e8dcc8; font-family: 'Mulish', sans-serif;
+    font-size: 0.88rem; font-weight: 600; cursor: pointer; transition: background 0.15s ease, color 0.15s ease;
+}
+.nav-user-item::before, .nav-user-item::after { display: none !important; }
+.nav-user-item:hover { background: rgba(205,133,63,0.12); color: #fff; }
+.nui-ico { font-size: 1rem; width: 1.25rem; text-align: center; flex-shrink: 0; }
+.nav-user-logout { color: #e2a3a3; }
+.nav-user-logout:hover { background: rgba(201,80,80,0.16); color: #f5c4c4; }
+.nav-user-theme {
+    display: flex; align-items: center; justify-content: space-between; gap: 0.6rem;
+    padding: 0.45rem 0.7rem; font-family: 'Mulish', sans-serif; font-size: 0.88rem; font-weight: 600; color: #e8dcc8;
+}
+.nav-user-theme > span:first-child { display: flex; align-items: center; gap: 0.6rem; }
+.nav-user-theme-slot { display: flex; align-items: center; flex-shrink: 0; }
+
+/* On mobile the header wraps tall, so pin the avatar to the top-right corner (the
+   spot the standalone theme toggle used for guests) and anchor its menu there. */
+@media (max-width: 768px) {
+    .nav-user { position: fixed; top: 0.6rem; right: 0.75rem; z-index: 101; }
+    .nav-user-menu { position: fixed; top: 3.1rem; right: 0.6rem; left: auto; min-width: 220px; max-width: calc(100vw - 1.2rem); }
+}
+
 /* ── Global toast (account-nav.js → window.haToast) ── */
 .ha-toast {
     position: fixed;
@@ -773,7 +828,7 @@ body.page-exiting {
    A small gold chevron overlaid on the RIGHT EDGE of a horizontally-scrolling tab
    strip (map & addresses category tabs), telling the user there's more to the right.
    It's an absolutely-positioned overlay (not inside the scroll clip, so it never gets
-   cut off) and is shown ONLY on touch devices — never on desktop. JS sets its left/top
+   cut off) and is shown ONLY on touch devices - never on desktop. JS sets its left/top
    and toggles .show. */
 .sh-arrow {
     position: absolute;
@@ -791,7 +846,7 @@ body.page-exiting {
     z-index: 20;
     -webkit-tap-highlight-color: transparent;
 }
-/* Touch/mobile only — desktop (which has hover) never shows it, even at narrow widths. */
+/* Touch/mobile only - desktop (which has hover) never shows it, even at narrow widths. */
 @media (hover: none) and (pointer: coarse) {
     .sh-arrow.show { display: inline-flex; animation: shNudge 1.5s ease-in-out infinite; }
 }
@@ -1392,7 +1447,18 @@ button:not(.theme-toggle):not(.preview-item button):active {
         height: 28px !important;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
     }
-    
+    /* When logged in, the toggle lives inside the profile dropdown - keep it in
+       flow there instead of pinning it to the viewport corner. (Class+ID raises
+       specificity above the bare #theme-toggle rule above.) */
+    .nav-user-menu #theme-toggle {
+        position: relative !important;   /* keep in flow, but stay the containing block for the sun/moon icons */
+        top: auto !important;
+        right: auto !important;
+        left: auto !important;
+        z-index: auto !important;
+        box-shadow: none !important;
+    }
+
     #theme-toggle::before {
         width: 20px !important;
         height: 20px !important;

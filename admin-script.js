@@ -9,7 +9,7 @@
     let adminToken  = sessionStorage.getItem(SESSION_TOKEN) || '';
 
     // Attach the admin token to every same-origin API request (including GETs) so we
-    // don't have to touch each fetch() call site — and so the panel keeps working even
+    // don't have to touch each fetch() call site - and so the panel keeps working even
     // while maintenance mode is on (admin-token requests bypass the maintenance gate).
     const _fetch = window.fetch.bind(window);
     window.fetch = function(input, init) {
@@ -313,7 +313,7 @@ async function uploadToR2(file, homeSlug, watermark, photographer) {
         }
     }
 
-    // Portrait upload — no watermark
+    // Portrait upload - no watermark
     async function loadPortraitFile(file) {
         if (!file) return;
         if (!/^image\//.test(file.type)) { alert('Please select an image file'); return; }
@@ -420,7 +420,7 @@ async function uploadToR2(file, homeSlug, watermark, photographer) {
     document.getElementById('cancelDlg').addEventListener('click', closeModal);
     document.getElementById('closeDlg').addEventListener('click', closeModal);
 
-    // Gallery images upload — watermark applied
+    // Gallery images upload - watermark applied
     async function loadImageFile(file) {
         if (!file) return;
         if (!/^image\//.test(file.type)) { alert('Please select an image'); return; }
@@ -490,7 +490,7 @@ async function uploadToR2(file, homeSlug, watermark, photographer) {
             });
             syncImageField(); renderImageList();
             var msg = '✓ Добавени ' + (r.d.count || 0) + ' от ' + (r.d.total || 0) + ' снимки.';
-            if (r.d.capped) msg += ' (Папката е голяма — импортирани са първите ' + (r.d.count || 0) + '. Стартирайте отново за още.)';
+            if (r.d.capped) msg += ' (Папката е голяма - импортирани са първите ' + (r.d.count || 0) + '. Стартирайте отново за още.)';
             if (r.d.errors && r.d.errors.length) msg += ' Пропуснати: ' + r.d.errors.length + '.';
             driveStatus(msg, 'ok');
         })
@@ -622,7 +622,7 @@ async function uploadToR2(file, homeSlug, watermark, photographer) {
         renderLogoPreview();
     }
 
-    // Logo upload — no watermark
+    // Logo upload - no watermark
     async function loadLogoFile(file) {
         if (!file) return;
         if (!/^image\//.test(file.type)) { alert('Please select an image'); return; }
@@ -763,7 +763,7 @@ async function uploadToR2(file, homeSlug, watermark, photographer) {
         renderNewsCoverPreview();
     }
 
-    // News cover upload — watermark applied
+    // News cover upload - watermark applied
     async function loadNewsCoverFile(file) {
         if (!file) return;
         if (!/^image\//.test(file.type)) { alert('Please select an image'); return; }
@@ -907,7 +907,7 @@ async function uploadToR2(file, homeSlug, watermark, photographer) {
         renderTeamPhotoPreview();
     }
 
-    // Team photo upload — no watermark
+    // Team photo upload - no watermark
     async function loadTeamPhotoFile(file) {
         if (!file) return;
         if (!/^image\//.test(file.type)) { alert('Please select an image'); return; }

@@ -8,7 +8,7 @@
     <link rel="icon" type="image/svg+xml" href="/assets/img/favicon.svg" />
     <link rel="shortcut icon" href="/assets/img/favicon.ico" />
 
-    <title>Модерация — Адресът на историята</title>
+    <title>Модерация - Адресът на историята</title>
     <meta name="robots" content="noindex, nofollow">
 
     <script>
@@ -26,9 +26,9 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Mulish:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
-    <link rel="stylesheet" href="/assets/css/styles.css?v=3">
+    <link rel="stylesheet" href="/assets/css/styles.css?v=5">
     <script defer src="/assets/js/theme.js"></script>
-    <script defer src="/assets/js/account-nav.js?v=12"></script>
+    <script defer src="/assets/js/account-nav.js?v=14"></script>
 
     <style>
         :root { --font-display: 'Cormorant Garamond', Georgia, serif; --font-body: 'Mulish', sans-serif; }
@@ -72,6 +72,8 @@
         .mod-btn.review:hover:not(:disabled) { background: var(--accent-strong); color: #fff; transform: none !important; box-shadow: none !important; }
         .mod-btn.reject { border-color: rgba(192,86,79,0.5); color: #d98a8a; }
         .mod-btn.reject:hover:not(:disabled) { background: rgba(192,86,79,0.14); border-color: #c0564f; transform: none !important; box-shadow: none !important; }
+        .mod-btn.deny { border-color: rgba(140,40,36,0.6); color: #cf6f6f; }
+        .mod-btn.deny:hover:not(:disabled) { background: rgba(140,40,36,0.22); border-color: #8c2824; color: #f0a0a0; transform: none !important; box-shadow: none !important; }
         .mod-result { text-align: center; font-weight: 700; font-size: 0.85rem; padding: 0.5rem; border-radius: 8px; }
         .mod-result.approved { color: #7bbf80; } .mod-result.rejected { color: #d98a8a; }
 
@@ -150,6 +152,8 @@
         .mod-foot-btn:disabled { opacity: 0.55; cursor: default; }
         .mod-foot-btn.reject { border-color: rgba(192,86,79,0.5); color: #d98a8a; }
         .mod-foot-btn.reject:hover:not(:disabled) { background: rgba(192,86,79,0.14); border-color: #c0564f; transform: none !important; box-shadow: none !important; }
+        .mod-foot-btn.deny { border-color: rgba(140,40,36,0.6); color: #cf6f6f; }
+        .mod-foot-btn.deny:hover:not(:disabled) { background: rgba(140,40,36,0.22); border-color: #8c2824; color: #f0a0a0; transform: none !important; box-shadow: none !important; }
         .mod-foot-btn.approve { background: var(--accent-gradient); color: #1a1410; border: none; flex: 1; min-width: 200px; }
         .mod-foot-btn.approve:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(205,133,63,0.3); }
         .btn-spinner { width: 15px; height: 15px; border: 2px solid rgba(26,20,16,0.3); border-top-color: #1a1410; border-radius: 50%; animation: spin 0.7s linear infinite; }
@@ -229,13 +233,13 @@
             <div class="mod-tabs" id="modTabs" role="tablist">
                 <button class="mod-tab active" data-status="pending" role="tab">Изчакващи <span class="mod-tab-n" id="nPending"></span></button>
                 <button class="mod-tab" data-status="approved" role="tab">Одобрени</button>
-                <button class="mod-tab" data-status="rejected" role="tab">Отхвърлени</button>
+                <button class="mod-tab" data-status="rejected" role="tab">За корекция</button>
             </div>
             <div id="modList" class="mod-list"></div>
         </div>
 
         <div id="viewUsers" style="display:none">
-            <p class="users-hint"><strong>Собственик</strong> — пълен достъп и управление на роли; <strong>Модератор</strong> — одобрява предложения; <strong>Потребител</strong> — обикновен достъп.</p>
+            <p class="users-hint"><strong>Собственик</strong> - пълен достъп и управление на роли; <strong>Модератор</strong> - одобрява предложения; <strong>Потребител</strong> - обикновен достъп.</p>
             <div id="usersList" class="users-list"></div>
         </div>
     </div>
@@ -296,7 +300,7 @@
                 </div>
 
                 <div class="mod-fld full">
-                    <label for="edWmCreator">Воден знак — име на автора</label>
+                    <label for="edWmCreator">Воден знак - име на автора</label>
                     <input id="edWmCreator" class="mod-inp" type="text" maxlength="80" placeholder="празно = без воден знак">
                     <p class="mod-hint" id="edWmHint" style="font-size:0.76rem;color:var(--muted);margin:0.35rem 0 0;"></p>
                 </div>
@@ -331,7 +335,8 @@
             <div class="mod-submitter" id="edSubmitter"></div>
         </div>
         <div class="mod-dialog-foot">
-            <button type="button" class="mod-foot-btn reject" id="edReject">✕ Отхвърли</button>
+            <button type="button" class="mod-foot-btn reject" id="edReject">↩ Върни за корекция</button>
+            <button type="button" class="mod-foot-btn deny" id="edDeny">🚫 Отхвърли</button>
             <button type="button" class="mod-foot-btn approve" id="edApprove"><span id="edApproveLabel">✓ Одобри и публикувай</span></button>
         </div>
     </div>
@@ -399,7 +404,7 @@
         body.className = 'mod-body';
         var chip = document.createElement('span');
         chip.className = 'mod-cat'; chip.style.background = cat.color; chip.textContent = cat.label;
-        var name = document.createElement('h3'); name.className = 'mod-name'; name.textContent = s.title || '—';
+        var name = document.createElement('h3'); name.className = 'mod-name'; name.textContent = s.title || '-';
         var metaBits = [];
         if (s.city) metaBits.push(s.city);
         if (s.address) metaBits.push(s.address);
@@ -408,7 +413,7 @@
         body.appendChild(chip); body.appendChild(name); if (metaBits.length) body.appendChild(meta);
         if (s.description) { var d = document.createElement('p'); d.className = 'mod-desc'; d.textContent = s.description; body.appendChild(d); }
         var sub = document.createElement('div'); sub.className = 'mod-sub';
-        var by = document.createElement('span'); by.appendChild(document.createTextNode('От: ')); var em = document.createElement('strong'); em.textContent = s.user_email || '—'; by.appendChild(em);
+        var by = document.createElement('span'); by.appendChild(document.createTextNode('От: ')); var em = document.createElement('strong'); em.textContent = s.user_email || '-'; by.appendChild(em);
         var dt = document.createElement('span'); dt.textContent = '🕓 ' + fmtDate(s.created_at);
         sub.appendChild(by); sub.appendChild(dt);
         body.appendChild(sub);
@@ -422,16 +427,25 @@
             review.addEventListener('click', function(){ openEditor(s, card); });
             var reject = document.createElement('button');
             reject.className = 'mod-btn reject'; reject.type = 'button';
-            reject.innerHTML = '✕ Отхвърли';
+            reject.innerHTML = '↩ За корекция';
             reject.addEventListener('click', function(){
-                if (!confirm('Да отхвърля това предложение? Снимката ще бъде изтрита.')) return;
-                doModerate(card, s.id, { action: 'reject' });
+                var note = promptCorrectionNote();
+                if (note === null) return;
+                doModerate(card, s.id, { action: 'reject', note: note });
             });
-            actions.appendChild(review); actions.appendChild(reject);
+            var deny = document.createElement('button');
+            deny.className = 'mod-btn deny'; deny.type = 'button';
+            deny.innerHTML = '🚫 Отхвърли';
+            deny.addEventListener('click', function(){
+                var reason = promptDenyReason();
+                if (reason === null) return;
+                doModerate(card, s.id, { action: 'deny', note: reason });
+            });
+            actions.appendChild(review); actions.appendChild(reject); actions.appendChild(deny);
         } else {
             var res = document.createElement('div');
             res.className = 'mod-result ' + s.status;
-            res.textContent = s.status === 'approved' ? '✓ Одобрено' : '✕ Отхвърлено';
+            res.textContent = s.status === 'approved' ? '✓ Одобрено' : '↩ За корекция';
             actions.appendChild(res);
             if (s.status === 'approved' && s.slug) {
                 var view = document.createElement('a');
@@ -503,14 +517,14 @@
         document.getElementById('edWmCreator').value = (s.owns_image && s.author_name) ? s.author_name : '';
         document.getElementById('edWmHint').textContent = (s.owns_image && s.author_name)
             ? 'Потребителят посочи, че снимките са негови. Ще се изпише „© <име> via Адресът на историята".'
-            : 'Потребителят не отбеляза снимките като свои — оставете празно за без воден знак.';
+            : 'Потребителят не отбеляза снимките като свои - оставете празно за без воден знак.';
         document.getElementById('edTags').value = '';
         document.getElementById('edSources').value = '';
         document.getElementById('edBirth').value = '';
         document.getElementById('edDeath').value = '';
         dateMode.value = (s.category === 'events') ? 'one' : 'none';
         applyDateMode();
-        document.getElementById('edSubmitter').innerHTML = 'Изпратено от <strong>' + esc(s.user_email || '—') + '</strong> на ' + esc(fmtDate(s.created_at));
+        document.getElementById('edSubmitter').innerHTML = 'Изпратено от <strong>' + esc(s.user_email || '-') + '</strong> на ' + esc(fmtDate(s.created_at));
 
         renderPhotos();
         modal.classList.add('show');
@@ -574,26 +588,52 @@
 
     function resetApprove() {
         var btn = document.getElementById('edApprove');
-        btn.disabled = false; document.getElementById('edReject').disabled = false;
+        btn.disabled = false; document.getElementById('edReject').disabled = false; document.getElementById('edDeny').disabled = false;
         var sp = btn.querySelector('.btn-spinner'); if (sp) sp.remove();
         document.getElementById('edApproveLabel').textContent = '✓ Одобри и публикувай';
     }
 
-    document.getElementById('edReject').addEventListener('click', function(){
-        if (!editing) return;
-        if (!confirm('Да отхвърля това предложение? Снимката ще бъде изтрита.')) return;
-        var fd = new FormData(); fd.append('action', 'reject');
+    function modalModerate(fd, doneMsg) {
         var card = editing.s ? editing.card : null;
         var id = editing.s.id;
-        document.getElementById('edReject').disabled = true; document.getElementById('edApprove').disabled = true;
+        document.getElementById('edReject').disabled = true; document.getElementById('edApprove').disabled = true; document.getElementById('edDeny').disabled = true;
         sendModerate(id, fd).then(function(r){
             resetApprove();
             if (!r.ok) { toast((r.data && r.data.error) || 'Възникна грешка.'); return; }
             closeEditor();
-            toast('Предложението е отхвърлено', { duration: 2200 });
+            toast(doneMsg, { duration: 2200 });
             removeCard(card);
         }).catch(function(){ resetApprove(); toast('Възникна грешка при свързване.'); });
+    }
+
+    document.getElementById('edReject').addEventListener('click', function(){
+        if (!editing) return;
+        var note = promptCorrectionNote();
+        if (note === null) return;
+        var fd = new FormData(); fd.append('action', 'reject'); fd.append('note', note);
+        modalModerate(fd, 'Изпратено за корекция');
     });
+
+    document.getElementById('edDeny').addEventListener('click', function(){
+        if (!editing) return;
+        var reason = promptDenyReason();
+        if (reason === null) return;
+        var fd = new FormData(); fd.append('action', 'deny'); fd.append('note', reason);
+        modalModerate(fd, 'Предложението е отхвърлено');
+    });
+
+    // Ask the moderator for optional instructions when sending a submission back for
+    // correction. Returns the note string, or null if the moderator cancelled.
+    function promptCorrectionNote() {
+        return window.prompt('Върни за корекция. Въведете бележка с инструкции към потребителя (по желание):', '');
+    }
+    // Permanent denial: confirm first (photos are deleted, no resubmit), then ask for an
+    // optional reason. Returns the reason string, or null if the moderator cancelled.
+    function promptDenyReason() {
+        if (!confirm('Да отхвърля ОКОНЧАТЕЛНО това предложение? Снимките ще бъдат изтрити и потребителят няма да може да го редактира.')) return null;
+        var r = window.prompt('Причина за отхвърляне (по желание, ще се покаже на потребителя):', '');
+        return r === null ? '' : r;   // already confirmed → proceed even if the reason prompt is dismissed
+    }
 
     function sendModerate(id, fd) {
         return fetch('/api/admin/moderate/' + encodeURIComponent(id), { method: 'POST', credentials: 'include', body: fd })
@@ -608,7 +648,7 @@
         Object.keys(payload).forEach(function(k){ fd.append(k, payload[k]); });
         sendModerate(id, fd).then(function(r){
             if (!r.ok) { Array.prototype.forEach.call(btns, function(b){ b.disabled = false; }); toast((r.data && r.data.error) || 'Възникна грешка.'); return; }
-            toast(payload.action === 'approve' ? 'Одобрено ✓' : 'Отхвърлено', { duration: 2000 });
+            toast(payload.action === 'approve' ? 'Одобрено ✓' : payload.action === 'deny' ? 'Отхвърлено' : 'Изпратено за корекция', { duration: 2000 });
             removeCard(card);
         }).catch(function(){ Array.prototype.forEach.call(btns, function(b){ b.disabled = false; }); toast('Възникна грешка при свързване.'); });
     }

@@ -9,446 +9,238 @@
     <link rel="apple-touch-icon" sizes="180x180" href="/assets/img/apple-touch-icon.png" />
     <link rel="manifest" href="/assets/img/site.webmanifest" />
 
-    <title>Календар - Адресът на историята</title>
-    <meta name="description" content="Вижте рождени дни и годишнини от живота на значими български личности.">
+    <title>Календар на годишнините - Адресът на историята</title>
+    <meta name="description" content="Интерактивен календар с рождените дни и възпоменанията на значими български личности от архива.">
     <script>
         (function() {
             try {
                 var stored = localStorage.getItem('theme-preference');
-                var theme = (stored === 'dark' || stored === 'light') ? stored : 'dark';
-                document.documentElement.setAttribute('data-theme', theme);
+                if (stored === 'system') stored = 'dark';
+                document.documentElement.setAttribute('data-theme', (stored === 'dark' || stored === 'light') ? stored : 'dark');
             } catch(e) {}
         })();
     </script>
-    <link rel="stylesheet" href="assets/css/styles.css?v=3">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Mulish:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="assets/css/styles.css?v=5">
     <script defer src="assets/js/theme.js"></script>
     <script defer src="assets/js/transitions.js"></script>
+
     <style>
-        @media (max-width: 768px) {
-            .container {
-                padding: 1rem 0.5rem !important;
-            }
-        }
-        @media (max-width: 480px) {
-            .container {
-                padding: 0.8rem 0.3rem !important;
-            }
-        }
+        :root { --font-display: 'Cormorant Garamond', Georgia, serif; --font-body: 'Mulish', sans-serif;
+                --c-birth: #cd853f; --c-death: #b0746a; }
+        .cal-page, .cal-page * { font-family: var(--font-body); }
+        .cal-wrap { max-width: 1080px; margin: 0 auto; padding: clamp(1.5rem, 4vw, 3rem) 1.25rem 5rem; }
 
-        .calendar-legend {
-            display: flex;
-            gap: 1rem;
-            justify-content: center;
-            margin-bottom: 1rem;
-            padding: 0.75rem;
-            background: var(--card);
-            border-radius: 10px;
-            border: 1px solid var(--border);
-            flex-wrap: wrap;
-        }
-        .legend-item {
-            display: flex;
-            align-items: center;
-            gap: 0.4rem;
-            font-size: 0.9rem;
-        }
-        .legend-badge {
-            padding: 0.2rem 0.5rem;
-            border-radius: 5px;
-            font-weight: 600;
-            font-size: 0.8rem;
-        }
-        .legend-badge.birth {
-            background: rgba(76, 175, 80, 0.2);
-            color: #4CAF50;
-        }
-        .legend-badge.death {
-            background: rgba(158, 158, 158, 0.2);
-            color: #9E9E9E;
-        }
+        .cal-head { text-align: center; margin-bottom: 1.75rem; }
+        .cal-eyebrow { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.25em; text-transform: uppercase; color: var(--accent-strong); margin: 0 0 0.5rem; }
+        .cal-title { font-family: var(--font-display); font-size: clamp(2rem, 5vw, 3rem); font-weight: 700; color: var(--fg); margin: 0; line-height: 1.05; }
+        .cal-subtitle { color: var(--muted); font-size: 1rem; margin: 0.6rem 0 0; }
 
-        .calendar-hint {
-            text-align: center;
-            color: var(--muted);
-            font-size: 0.75rem;
-            margin-top: 0.5rem;
-            opacity: 0.6;
-        }
+        [hidden] { display: none !important; }
 
-        .calendar-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1.5rem;
-            flex-wrap: wrap;
-            gap: 0.8rem;
-        }
-        .calendar-nav {
-            display: flex;
-            gap: 0.8rem;
-            align-items: center;
-        }
-        .calendar-nav button {
-            min-width: 44px;
-            padding: 0.6rem 0.9rem;
-        }
-        .calendar-title {
-            font-size: 1.3rem;
-            font-weight: 700;
-            color: var(--fg);
-        }
-        
-        .calendar-grid {
-            display: grid;
-            grid-template-columns: repeat(7, 1fr);
-            gap: 8px;
-            margin-bottom: 0.5rem;
-            width: 100%;
-        }
-        .calendar-day-header {
-            text-align: center;
-            padding: 0.8rem 0.3rem;
-            font-weight: 700;
-            color: var(--muted);
-            font-size: 0.85rem;
-            text-transform: uppercase;
-        }
-        
-        .calendar-day {
-            aspect-ratio: 1;
-            background: var(--card);
-            border: 2px solid var(--border);
-            border-radius: 10px;
-            padding: 0.4rem;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-            cursor: default;
-            transition: all 0.3s ease;
-            min-height: 75px;
-        }
-        
-        .calendar-day.other-month {
-            opacity: 0.2;
-            background: transparent;
-        }
-        
-/* "Today" - Clean Border Style */
-.calendar-day.today {
-    /* Keep the exact same structure as other boxes */
-    background: var(--card) !important; 
-    border: 2px solid #c2bdb1 !important; /* Clean white border */
-    
-    /* Remove all extra effects that were causing "noise" */
-    box-shadow: none !important;
-    transform: none !important;
-}
+        /* Gold pill link (reused by the selected-person box) */
+        .cal-spot-link { display: inline-flex; align-items: center; gap: 0.45rem; font-weight: 700; font-size: 0.88rem; color: #1a1410; background: var(--accent-gradient); padding: 0.5rem 1.1rem; border-radius: 999px; text-decoration: none; transition: transform 0.2s, box-shadow 0.2s; }
+        .cal-spot-link:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(205,133,63,0.4); }
 
-/* Make the date number white to match the border */
-.calendar-day.today .calendar-day-number {
-    color: #c2bdb1 !important;
-    text-shadow: none !important;
-}
-        
-        .calendar-day.has-events {
-            cursor: pointer;
-            border-color: var(--accent-strong);
-            background: linear-gradient(135deg, rgba(205, 133, 63, 0.12) 0%, rgba(205, 133, 63, 0.04) 100%);
-        }
-        
-        .calendar-day.has-events:hover {
-            transform: translateY(-4px) scale(1.01);
-            box-shadow: 0 6px 20px rgba(205, 133, 63, 0.25);
-            border-color: var(--accent-soft);
-            background: linear-gradient(135deg, rgba(205, 133, 63, 0.2) 0%, rgba(205, 133, 63, 0.1) 100%);
-        }
-        
-        .calendar-day-number {
-            font-weight: 800;
-            font-size: 1.6rem;
-            color: var(--fg);
-            line-height: 1;
-            margin-bottom: 0.3rem;
-        }
-        
-        .calendar-day.has-events .calendar-day-number {
-            color: var(--accent-strong);
-        }
-    
-        .calendar-events-badges {
-            display: flex;
-            gap: 3px;
-            flex-wrap: wrap;
-            justify-content: center;
-            align-items: center;
-        }
-        
-        .event-badge {
-            font-size: 1.2rem;
-            line-height: 1;
-        }
-        
-        .event-badge.birth {
-            filter: drop-shadow(0 1px 3px rgba(76, 175, 80, 0.4));
-        }
-        
-        .event-badge.death {
-            filter: drop-shadow(0 1px 3px rgba(158, 158, 158, 0.4));
-        }
-        
-        .event-count {
-            position: absolute;
-            top: 4px;
-            right: 4px;
-            background: var(--accent-strong);
-            color: white;
-            border-radius: 50%;
-            width: 20px;
-            height: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.7rem;
-            font-weight: 700;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.25);
-        }
+        /* ── Selected person box (from search) ── */
+        .cal-person-box:empty { display: none; }
+        .cal-person { position: relative; display: flex; align-items: center; gap: 1rem; max-width: 560px; margin: 0 auto 1.75rem; background: radial-gradient(120% 140% at 0% 0%, rgba(205,133,63,0.12), transparent 60%), var(--card); border: 1px solid rgba(205,133,63,0.35); border-radius: 16px; padding: 1rem 1.1rem; box-shadow: var(--shadow-soft); animation: calIn 0.3s ease both; }
+        .cal-person-photo { width: 68px; height: 68px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent-strong); flex-shrink: 0; background: var(--border); }
+        .cal-person-photo.ph { display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-weight: 700; font-size: 1.5rem; color: #1a1410; background: var(--accent-gradient); }
+        .cal-person-info { flex: 1; min-width: 0; }
+        .cal-person-eyebrow { font-size: 0.64rem; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; color: var(--accent-strong); margin-bottom: 0.15rem; }
+        .cal-person-name { font-family: var(--font-display); font-size: 1.45rem; font-weight: 700; color: var(--fg); line-height: 1.1; }
+        .cal-person-meta { font-size: 0.82rem; color: var(--muted); margin: 0.2rem 0 0.65rem; }
+        .cal-person-close { position: absolute; top: 0.45rem; right: 0.55rem; background: none; border: none; color: var(--muted); cursor: pointer; font-size: 0.9rem; line-height: 1; padding: 0.25rem; }
+        .cal-person-close::before { display: none !important; }
+        .cal-person-close:hover { color: var(--fg); transform: none !important; box-shadow: none !important; }
 
-        .calendar-day.highlighted {
-            animation: pulse 1.5s ease-in-out 3;
-        }
+        /* ── Search ── */
+        .cal-search-wrap { position: relative; max-width: 560px; margin: 0 auto 1.75rem; }
+        .cal-search { width: 100%; box-sizing: border-box; padding: 0.8rem 1rem 0.8rem 2.7rem; border-radius: 12px; border: 1px solid var(--border); background: var(--card); color: var(--fg); font-size: 0.95rem; }
+        .cal-search:focus { outline: none; border-color: var(--accent-strong); box-shadow: 0 0 0 3px rgba(205,133,63,0.15); }
+        .cal-search-ico { position: absolute; left: 0.95rem; top: 0.85rem; color: var(--muted); }
+        .cal-search-results { position: absolute; left: 0; right: 0; top: calc(100% + 0.4rem); z-index: 30; background: var(--card); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 16px 40px rgba(0,0,0,0.4); overflow: hidden; }
+        .cal-search-results:empty { display: none; }
+        .cal-sr { display: flex; align-items: center; gap: 0.7rem; padding: 0.6rem 0.85rem; cursor: pointer; border-bottom: 1px solid var(--border); }
+        .cal-sr:last-child { border-bottom: none; }
+        .cal-sr:hover { background: rgba(205,133,63,0.1); }
+        .cal-sr-photo { width: 38px; height: 38px; border-radius: 50%; object-fit: cover; flex-shrink: 0; background: var(--border); }
+        .cal-sr-photo.ph { display: flex; align-items: center; justify-content: center; font-weight: 700; color: #1a1410; background: var(--accent-soft); }
+        .cal-sr-name { font-weight: 700; color: var(--fg); font-size: 0.92rem; }
+        .cal-sr-dates { font-size: 0.78rem; color: var(--muted); margin-top: 1px; }
+        .cal-sr-empty { padding: 0.8rem 0.9rem; color: var(--muted); font-size: 0.85rem; }
 
-        @keyframes pulse {
-            0%, 100% { box-shadow: 0 0 0 0 rgba(205, 133, 63, 0.6); }
-            50% { box-shadow: 0 0 0 12px rgba(205, 133, 63, 0); }
-        }
+        /* ── Toolbar ── */
+        .cal-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.9rem; margin-bottom: 1rem; }
+        .cal-nav { display: flex; align-items: center; gap: 0.4rem; position: relative; }
+        .cal-arrow, .cal-today { display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--border); background: var(--card); color: var(--fg); cursor: pointer; border-radius: 10px; font-family: var(--font-body); transition: all 0.2s; }
+        .cal-arrow::before, .cal-today::before, .cal-month-title::before, .cal-chip::before, .cal-vbtn::before, .cal-surprise::before { display: none !important; }
+        .cal-arrow { width: 38px; height: 38px; font-size: 1rem; }
+        .cal-arrow:hover, .cal-today:hover { border-color: var(--accent-strong); color: var(--accent-strong); transform: none !important; box-shadow: none !important; }
+        .cal-month-title { font-family: var(--font-display); font-size: 1.65rem; font-weight: 700; color: var(--fg); background: none; border: none; cursor: pointer; padding: 0.2rem 0.7rem; min-width: 10.5rem; text-align: center; }
+        .cal-month-title:hover { color: var(--accent-strong); transform: none !important; box-shadow: none !important; }
+        .cal-today { padding: 0 0.95rem; height: 38px; font-size: 0.82rem; font-weight: 700; }
+        .cal-right { display: flex; align-items: center; gap: 0.9rem; flex-wrap: wrap; }
+        .cal-filters, .cal-views { display: flex; gap: 0.3rem; padding: 0.25rem; background: var(--card); border: 1px solid var(--border); border-radius: 11px; }
+        .cal-chip, .cal-vbtn { display: inline-flex; align-items: center; gap: 0.35rem; border: none; background: transparent; color: var(--muted); cursor: pointer; font-family: var(--font-body); font-size: 0.82rem; font-weight: 700; padding: 0.4rem 0.8rem; border-radius: 8px; white-space: nowrap; transition: color 0.2s, background 0.2s; }
+        .cal-chip:hover, .cal-vbtn:hover { color: var(--fg); }
+        .cal-chip.active { background: var(--accent-gradient); color: #1a1410; }
+        .cal-chip.active.death { background: linear-gradient(135deg, #b0746a, #c89a8a); color: #1a1410; }
+        .cal-vbtn.active { background: var(--accent-gradient); color: #1a1410; }
+        .cal-dot { width: 9px; height: 9px; border-radius: 50%; }
+        .cal-dot.birth { background: var(--c-birth); } .cal-dot.death { background: var(--c-death); }
 
-        .events-list {
-            margin-top: 1.5rem;
-        }
-        .event-card {
-            background: var(--card);
-            border: 1px solid var(--border);
-            border-radius: 14px;
-            padding: 1.2rem;
-            margin-bottom: 0.8rem;
-            display: flex;
-            gap: 0.9rem;
-            align-items: center;
-            transition: all 0.3s ease;
-            cursor: pointer;
-            text-decoration: none;
-            color: inherit;
-        }
-        .event-card:hover {
-            transform: translateY(-3px);
-            box-shadow: var(--shadow-soft);
-            border-color: var(--accent-strong);
-        }
-        .event-icon {
-            font-size: 2.2rem;
-            flex-shrink: 0;
-        }
-        .event-content {
-            flex: 1;
-        }
-        .event-name {
-            font-size: 1.1rem;
-            font-weight: 700;
-            color: var(--fg);
-            margin-bottom: 0.2rem;
-        }
-        .event-date {
-            color: var(--muted);
-            font-size: 0.85rem;
-        }
-        .event-years {
-            color: var(--accent-soft);
-            font-size: 0.8rem;
-            font-weight: 600;
-            margin-top: 0.2rem;
-        }
+        /* month picker popover */
+        .cal-picker { position: absolute; top: calc(100% + 0.5rem); left: 50%; transform: translateX(-50%); z-index: 40; width: 280px; background: var(--card); border: 1px solid var(--border); border-radius: 14px; box-shadow: 0 18px 48px rgba(0,0,0,0.45); padding: 0.9rem; display: none; }
+        .cal-picker.show { display: block; }
+        .cal-picker-yr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.6rem; }
+        .cal-picker-yr span { font-family: var(--font-display); font-weight: 700; font-size: 1.2rem; color: var(--fg); }
+        .cal-picker-yr button { width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: var(--fg); cursor: pointer; }
+        .cal-picker-yr button::before { display: none !important; }
+        .cal-picker-months { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.4rem; }
+        .cal-picker-months button { padding: 0.5rem 0; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: var(--fg); cursor: pointer; font-size: 0.82rem; font-weight: 600; transition: all 0.15s; }
+        .cal-picker-months button::before { display: none !important; }
+        .cal-picker-months button:hover { border-color: var(--accent-strong); color: var(--accent-strong); }
+        .cal-picker-months button.cur { background: var(--accent-gradient); color: #1a1410; border-color: transparent; }
 
-        /* SEARCH */
-        .search-result-item {
-            background: var(--card);
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            padding: 0.9rem;
-            margin-bottom: 0.4rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .search-result-item:hover {
-            transform: translateY(-2px);
-            box-shadow: var(--shadow-soft);
-            background: rgba(205, 133, 63, 0.08);
-            border-color: var(--accent-strong);
-        }
-        .search-result-name {
-            font-weight: 700;
-            color: var(--fg);
-            margin-bottom: 0.2rem;
-        }
-        .search-result-dates {
-            font-size: 0.8rem;
-            color: var(--muted);
-        }
-        .search-result-badge {
-            background: rgba(205, 133, 63, 0.18);
-            padding: 0.2rem 0.6rem;
-            border-radius: 999px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            color: var(--accent-strong);
-        }
+        .cal-stats { text-align: center; color: var(--muted); font-size: 0.85rem; margin-bottom: 1.1rem; }
+        .cal-stats strong { color: var(--accent-strong); }
 
-        @media (max-width: 768px) {
-            .calendar-grid {
-                gap: 3px;
-            }
-            .calendar-day {
-                min-height: 50px;
-                padding: 0.2rem;
-                border-width: 1px;
-            }
-            .calendar-day-number {
-                font-size: 1.1rem;
-                margin-bottom: 0.15rem;
-            }
-            
-            .calendar-events-badges {
-                display: none !important;
-            }
-            
-            .event-count {
-                position: static !important; 
-                width: 18px;
-                height: 18px;
-                font-size: 0.65rem;
-                margin-top: 2px;
-            }
+        /* ── Month grid ── */
+        .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.5rem; transition: opacity 0.25s ease, transform 0.25s ease; }
+        .cal-grid.fading { opacity: 0; transform: translateY(6px); }
+        .cal-dow { text-align: center; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); padding: 0.3rem 0; }
+        .cal-cell { position: relative; min-height: 94px; border-radius: 12px; border: 1px solid var(--border); background: var(--card); padding: 0.55rem 0.5rem; display: flex; flex-direction: column; align-items: center; transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s; }
+        .cal-cell.other { opacity: 0.35; background: transparent; border-color: transparent; }
+        .cal-cell.has { cursor: pointer; }
+        .cal-cell.has:hover { transform: translateY(-3px); border-color: var(--accent-strong); box-shadow: var(--shadow); }
+        .cal-cell.today { border-color: var(--accent-strong); background: linear-gradient(160deg, rgba(205,133,63,0.22), rgba(205,133,63,0.05)); box-shadow: 0 0 0 2px var(--accent-strong) inset, 0 6px 18px rgba(205,133,63,0.22); }
+        .cal-cell.sel { border-color: var(--accent-strong); box-shadow: 0 0 0 2px rgba(205,133,63,0.5); }
+        .cal-cell-num { font-family: var(--font-display); font-size: 1.45rem; font-weight: 700; color: var(--fg); line-height: 1; margin-top: 0.15rem; text-align: center; }
+        .cal-cell.today .cal-cell-num { color: #1a1410; background: var(--accent-gradient); width: 1.95rem; height: 1.95rem; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(0,0,0,0.3); }
+        .cal-cell-dots { display: flex; gap: 4px; margin-top: auto; padding-top: 0.4rem; flex-wrap: wrap; justify-content: center; }
+        .cal-cell-dots .d { width: 8px; height: 8px; border-radius: 50%; }
+        .cal-cell-dots .d.birth { background: var(--c-birth); } .cal-cell-dots .d.death { background: var(--c-death); }
 
-            .calendar-day-header {
-                padding: 0.5rem 0.2rem;
-                font-size: 0.7rem;
-            }
-            .calendar-nav button {
-                padding: 0.5rem 0.8rem;
-                font-size: 0.9rem;
-            }
-            .calendar-title {
-                font-size: 1.1rem;
-            }
-            .calendar-legend {
-                padding: 0.6rem;
-                gap: 0.7rem;
-            }
-            .legend-item {
-                font-size: 0.8rem;
-            }
-        }
+        /* ── Agenda view ── */
+        .cal-agenda { display: flex; flex-direction: column; gap: 1.4rem; }
+        .cal-agenda-day { }
+        .cal-agenda-date { font-family: var(--font-display); font-size: 1.2rem; font-weight: 700; color: var(--accent-strong); margin: 0 0 0.6rem; display: flex; align-items: baseline; gap: 0.5rem; }
+        .cal-agenda-date small { font-size: 0.8rem; color: var(--muted); font-family: var(--font-body); font-weight: 600; }
+        .cal-agenda-empty, .cal-grid-empty { text-align: center; color: var(--muted); padding: 3rem 1rem; background: var(--card); border: 1px dashed var(--border); border-radius: 16px; }
 
-        @media (max-width: 480px) {
-            .calendar-grid {
-                gap: 2px;
-            }
-            .calendar-day {
-                min-height: 45px; 
-                padding: 0.15rem;
-                border-radius: 6px;
-            }
-            .calendar-day-number {
-                font-size: 1rem;
-                margin-bottom: 0.05rem;
-            }
-            
-            .event-count {
-                width: 15px;
-                height: 15px;
-                font-size: 0.6rem;
-            }
+        /* ── Event cards ── */
+        .cal-events { margin-top: 1.6rem; }
+        .cal-events-title { font-family: var(--font-display); font-size: 1.4rem; font-weight: 700; color: var(--fg); margin: 0 0 0.9rem; }
+        .cal-ev { display: flex; align-items: center; gap: 0.85rem; background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 0.7rem 0.85rem; text-decoration: none; color: inherit; margin-bottom: 0.6rem; box-shadow: var(--shadow-soft); transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s; animation: calIn 0.35s ease both; }
+        .cal-ev:hover { transform: translateX(3px); border-color: var(--accent-strong); box-shadow: var(--shadow); }
+        @keyframes calIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+        .cal-ev-photo { width: 54px; height: 54px; border-radius: 50%; object-fit: cover; flex-shrink: 0; background: var(--border); }
+        .cal-ev-photo.ph { display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-weight: 700; font-size: 1.3rem; color: #1a1410; background: var(--accent-gradient); }
+        .cal-ev-body { flex: 1; min-width: 0; }
+        .cal-ev-name { font-family: var(--font-display); font-size: 1.25rem; font-weight: 700; color: var(--fg); line-height: 1.15; }
+        .cal-ev-meta { font-size: 0.83rem; color: var(--muted); margin-top: 0.15rem; display: flex; align-items: center; gap: 0.45rem; flex-wrap: wrap; }
+        .cal-ev-type { display: inline-flex; align-items: center; gap: 0.3rem; font-weight: 700; padding: 0.12rem 0.55rem; border-radius: 999px; font-size: 0.74rem; }
+        .cal-ev-type.birth { background: rgba(205,133,63,0.15); color: var(--c-birth); }
+        .cal-ev-type.death { background: rgba(176,116,106,0.16); color: var(--c-death); }
+        .cal-ev-arrow { color: var(--accent-strong); font-size: 1.2rem; flex-shrink: 0; }
 
-            .calendar-day-header {
-                padding: 0.4rem 0.1rem;
-                font-size: 0.65rem;
-            }
-            .calendar-legend {
-                padding: 0.5rem;
-                gap: 0.5rem;
-            }
-            .legend-item {
-                font-size: 0.75rem;
-            }
-            .legend-badge {
-                font-size: 0.7rem;
-                padding: 0.15rem 0.4rem;
-            }
+        .cal-surprise-wrap { text-align: center; margin-top: 2.2rem; }
+        .cal-surprise { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.7rem 1.5rem; border-radius: 999px; border: 1px solid var(--accent-strong); background: transparent; color: var(--accent-strong); font-family: var(--font-body); font-weight: 700; font-size: 0.92rem; cursor: pointer; transition: background 0.2s, color 0.2s, transform 0.2s; }
+        .cal-surprise:hover { background: var(--accent-strong); color: #fff; transform: translateY(-2px); }
+
+        @media (max-width: 640px) {
+            .cal-cell { min-height: 68px; padding: 0.4rem 0.25rem; border-radius: 9px; }
+            .cal-cell-num { font-size: 1.2rem; margin-top: 0.1rem; }
+            .cal-cell.today .cal-cell-num { width: 1.65rem; height: 1.65rem; }
+            .cal-cell-dots { gap: 3px; padding-top: 0.3rem; }
+            .cal-cell-dots .d { width: 7px; height: 7px; }
+            .cal-grid { gap: 0.3rem; }
+            /* styles.css has a mobile `button:not(#theme-toggle)` touch rule whose :not(#id)
+               gives it ID-level specificity, so we need !important to keep the toolbar compact. */
+            .cal-month-title { font-size: 1.45rem !important; min-width: 0; min-block-size: 0 !important; padding: 0.2rem 0.5rem !important; }
+            .cal-toolbar { justify-content: center; }
+            .cal-right { justify-content: center; width: 100%; gap: 0.5rem; }
+            .cal-filters, .cal-views { gap: 0.15rem; padding: 0.2rem; }
+            .cal-chip, .cal-vbtn { font-size: 0.74rem !important; padding: 0.42rem 0.55rem !important; gap: 0.25rem; min-block-size: 0 !important; }
+            .cal-arrow, .cal-today { min-block-size: 0 !important; padding: 0 0.7rem !important; }
+            .cal-arrow { padding: 0 !important; }
+            .cal-dot { width: 8px; height: 8px; }
         }
     </style>
-    <script defer src="assets/js/account-nav.js?v=12"></script>
+    <script defer src="assets/js/account-nav.js?v=14"></script>
 </head>
-<body>
-    <header class="site-header">
-        <a class="logo-link" href="index.html">
-            <img src="assets/img/HistAdrLogo.png" alt="Адресът на историята" class="header-logo">
-            <span class="logo-text">Адресът на историята</span>
-        </a>
-<nav class="nav">
-    <a href="index.html">Начало</a>
-    <a href="map.html">Карта</a>
-    <a href="addresses.html">Адреси</a>
-    <a href="calendar.html">Календар</a>
-    <a href="news.html">Новини</a>
-    <a href="about.html">За Нас</a>
-</nav>
-        <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode"></button>
-    </header>
+<body class="cal-page">
+<header class="site-header">
+    <a class="logo-link" href="index.html">
+        <img src="assets/img/HistAdrLogo.png" alt="Адресът на историята" class="header-logo">
+        <span class="logo-text">Адресът на историята</span>
+    </a>
+    <nav class="nav">
+        <a href="index.html">Начало</a>
+        <a href="map.html">Карта</a>
+        <a href="addresses.html">Адреси</a>
+        <a href="calendar.html" class="active">Календар</a>
+        <a href="news.html">Новини</a>
+        <a href="about.html">За Нас</a>
+    </nav>
+    <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode"></button>
+</header>
 
-    <main class="container">
-        <h1 class="page-title gradient-text">📅 Календар на събитията</h1>
-        
-        <div class="calendar-legend">
-            <div class="legend-item">
-                <span style="font-size: 1.2rem;">🎂</span>
-                <span class="legend-badge birth">Рожден ден</span>
-            </div>
-            <div class="legend-item">
-                <span style="font-size: 1.2rem;">🕯️</span>
-                <span class="legend-badge death">Годишнина от смъртта</span>
-            </div>
-        </div>
-        
-        <div style="margin-bottom: 1.2rem;">
-            <input 
-                type="text" 
-                id="searchInput" 
-                class="input" 
-                placeholder="🔍 Търси по име на личност..." 
-                style="width: 100%; max-width: 500px; font-size: 0.95rem;"
-            >
-            <div id="searchResults" style="margin-top: 0.4rem;"></div>
-        </div>
-        
-        <div class="calendar-header">
-            <div class="calendar-nav">
-                <button id="prevMonth" class="theme-toggle">◀</button>
-                <span class="calendar-title" id="monthYear">Зареждане...</span>
-                <button id="nextMonth" class="theme-toggle">▶</button>
-            </div>
-            <button id="todayBtn" class="theme-toggle">Днес</button>
-        </div>
+<main class="cal-wrap">
+    <div class="cal-head">
+        <p class="cal-eyebrow">Календар на годишнините</p>
+        <h1 class="cal-title">Историята, ден по ден</h1>
+        <p class="cal-subtitle">Рождени дни и възпоменания на личностите от архива.</p>
+    </div>
 
-        <div class="calendar-grid" id="calendarGrid"></div>
-        
-        <div class="calendar-hint">💡 Кликнете върху датите със събития</div>
-        
-        <div class="events-list" id="eventsList"></div>
-    </main>
+    <div class="cal-search-wrap">
+        <svg class="cal-search-ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="searchInput" class="cal-search" placeholder="Търсене по име на личност…" autocomplete="off">
+        <div id="searchResults" class="cal-search-results"></div>
+    </div>
+
+    <div class="cal-person-box" id="personBox"></div>
+
+    <div class="cal-toolbar">
+        <div class="cal-nav">
+            <button class="cal-arrow" id="prevMonth" aria-label="Предишен месец">◀</button>
+            <button class="cal-month-title" id="monthYear">…</button>
+            <button class="cal-arrow" id="nextMonth" aria-label="Следващ месец">▶</button>
+            <button class="cal-today" id="todayBtn">Днес</button>
+            <div class="cal-picker" id="picker"></div>
+        </div>
+        <div class="cal-right">
+            <div class="cal-filters" role="group" aria-label="Филтър">
+                <button class="cal-chip active" data-filter="all">Всички</button>
+                <button class="cal-chip" data-filter="birth"><span class="cal-dot birth"></span>Рождени дни</button>
+                <button class="cal-chip" data-filter="death"><span class="cal-dot death"></span>Кончини</button>
+            </div>
+            <div class="cal-views" role="group" aria-label="Изглед">
+                <button class="cal-vbtn active" data-view="grid">Месец</button>
+                <button class="cal-vbtn" data-view="agenda">Списък</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="cal-stats" id="calStats"></div>
+
+    <div id="gridView">
+        <div class="cal-grid" id="calendarGrid"></div>
+    </div>
+    <div class="cal-agenda" id="agendaView" hidden></div>
+
+    <div class="cal-events" id="eventsList"></div>
+
+    <div class="cal-surprise-wrap">
+        <button class="cal-surprise" id="surpriseBtn">🎲 Изненадай ме - случайна личност</button>
+    </div>
+</main>
 
 <footer class="site-footer">
     <div class="footer-inner">
@@ -462,267 +254,281 @@
                 Email
             </a>
         </div>
-
-        <a href="https://buymeacoffee.com/historyaddress.bg" target="_blank" rel="noopener noreferrer" class="footer-donate" aria-label="Подкрепете ни — дарение">
+        <a href="https://buymeacoffee.com/historyaddress.bg" target="_blank" rel="noopener noreferrer" class="footer-donate" aria-label="Подкрепете ни - дарение">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
           Подкрепете ни
         </a>
-
         <p class="footer-links">
-            <a href="privacy.html">Поверителност</a>
-            <span>•</span>
-            <a href="terms.html">Условия</a>
-            <span>•</span>
+            <a href="privacy.html">Поверителност</a> <span>•</span>
+            <a href="terms.html">Условия</a> <span>•</span>
             <a href="copyright.html">Авторски права</a> <span>•</span> <a href="donation-terms.html">Дарения</a>
         </p>
-
         <p class="footer-copy">© <span id="year"></span> Адресът на историята</p>
     </div>
 </footer>
 
 <script>
+function handleEmailClick(event) {
+    if (window.innerWidth <= 768) return;
+    event.preventDefault();
+    var m = document.getElementById('emailModal');
+    if (!m) {
+        m = document.createElement('div'); m.id = 'emailModal'; m.className = 'email-modal';
+        m.innerHTML = '<div class="email-modal-content"><h3>📧 Свържете се с нас</h3><div class="email-address-display">historyaddressbg@gmail.com</div><div class="email-modal-buttons"><button class="btn-copy" onclick="navigator.clipboard.writeText(\'historyaddressbg@gmail.com\')">📋 Копирай</button><button class="btn-close" onclick="document.getElementById(\'emailModal\').style.display=\'none\';document.body.style.overflow=\'\'">✕ Затвори</button></div></div>';
+        document.body.appendChild(m);
+        m.addEventListener('click', function(e){ if (e.target === m) { m.style.display='none'; document.body.style.overflow=''; } });
+    }
+    m.style.display = 'flex'; document.body.style.overflow = 'hidden';
+}
+</script>
+
+<script>
 (function() {
-    var apiBase = window.location.protocol === 'file:' ? 'http://localhost:3000' : window.location.origin;
-    
-    var savedState = null;
-    try {
-        var saved = sessionStorage.getItem('calendar-state');
-        if (saved) savedState = JSON.parse(saved);
-    } catch(e) {}
-    
-    var currentDate = savedState && savedState.month && savedState.year 
-        ? new Date(savedState.year, savedState.month - 1, 1)
-        : new Date();
-    var selectedDate = savedState ? savedState.selectedDate : null;
-    var eventsData = {};
-    var allPeopleData = [];
-    var searchTimeout;
-    
-    var monthNames = ['Януари', 'Февруари', 'Март', 'Април', 'Май', 'Юни', 'Юли', 'Август', 'Септември', 'Октомври', 'Ноември', 'Декември'];
-    var dayNames = ['Нд', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
-    
-    function saveCalendarState() {
-        try {
-            sessionStorage.setItem('calendar-state', JSON.stringify({
-                month: currentDate.getMonth() + 1,
-                year: currentDate.getFullYear(),
-                selectedDate: selectedDate
-            }));
-        } catch(e) {}
-    }
-    
-    function loadAllPeople() {
-        fetch(apiBase + '/api/calendar/all')
-            .then(function(res) { return res.json(); })
-            .then(function(data) { allPeopleData = data; })
-            .catch(function(err) { console.error('Error loading people:', err); });
-    }
-    
-    document.getElementById('searchInput').addEventListener('input', function(e) {
-        clearTimeout(searchTimeout);
-        var query = e.target.value.trim().toLowerCase();
-        if (query.length < 2) {
-            document.getElementById('searchResults').innerHTML = '';
-            return;
-        }
-        searchTimeout = setTimeout(function() { performSearch(query); }, 300);
-    });
-    
-    function performSearch(query) {
-        var words = query.split(/\s+/);
-        var results = allPeopleData.filter(function(person) {
-            var nameLower = person.name.toLowerCase();
-            return words.every(function(word) { return nameLower.includes(word); });
-        });
-        displaySearchResults(results.slice(0, 5));
-    }
-    
-    function displaySearchResults(results) {
-        var container = document.getElementById('searchResults');
-        if (results.length === 0) {
-            container.innerHTML = '<div style="color: var(--muted); font-size: 0.85rem;">Няма резултати</div>';
-            return;
-        }
-        
-        var html = '';
-        results.forEach(function(person) {
-            var dates = [];
-            if (person.birth_date) dates.push('🎂 ' + person.birth_date);
-            if (person.death_date) dates.push('🕯️ ' + person.death_date);
-            var datesText = dates.join(' • ');
-            
-            var count = (person.birth_date ? 1 : 0) + (person.death_date ? 1 : 0);
-            var badge = count + ' ' + (count === 1 ? 'дата' : 'дати');
-            
-            html += '<div class="search-result-item" onclick="showPersonDates(\'' + (person.birth_date || '') + '\', \'' + (person.death_date || '') + '\', \'' + person.name.replace(/'/g, "\\'") + '\')">';
-            html += '<div>';
-            html += '<div class="search-result-name">' + person.name + '</div>';
-            html += '<div class="search-result-dates">' + datesText + '</div>';
-            html += '</div>';
-            html += '<div class="search-result-badge">' + badge + '</div>';
-            html += '</div>';
-        });
-        container.innerHTML = html;
+    document.getElementById('year').textContent = new Date().getFullYear();
+
+    var MONTHS = ['Януари','Февруари','Март','Април','Май','Юни','Юли','Август','Септември','Октомври','Ноември','Декември'];
+    var DOW = ['Пн','Вт','Ср','Чт','Пт','Сб','Нд'];
+
+    var state = { month: new Date().getMonth() + 1, year: new Date().getFullYear(), filter: 'all', view: 'grid', selected: null };
+    try { var s = JSON.parse(sessionStorage.getItem('cal-state') || 'null'); if (s) { state.month = s.month; state.year = s.year; state.filter = s.filter || 'all'; state.view = s.view || 'grid'; state.selected = s.selected || null; } } catch(e) {}
+    // When returning via the browser Back button after opening an address, scroll the
+    // user back down to the day list they were viewing.
+    var pendingReturn = false;
+    try { if (sessionStorage.getItem('cal-return')) { sessionStorage.removeItem('cal-return'); pendingReturn = !!state.selected; } } catch(e) {}
+    document.addEventListener('click', function(e){ if (e.target.closest('a.cal-ev, a.cal-spot-link')) { try { sessionStorage.setItem('cal-return', '1'); } catch(_) {} } });
+    var events = {};        // 'MM-DD' -> [event]
+    var allPeople = [];
+
+    function save() { try { sessionStorage.setItem('cal-state', JSON.stringify(state)); } catch(e) {} }
+    function esc(t) { return String(t == null ? '' : t).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+    function initial(name) { return (name || '?').trim().charAt(0).toUpperCase() || '?'; }
+    function yr(d) { return d ? d.slice(0, 4) : ''; }
+    function yearsWord(n) { return n + ' ' + (n === 1 ? 'година' : 'години'); }
+    function passFilter(ev) { return state.filter === 'all' || ev.type === state.filter; }
+
+    // Image fallback chain: thumbnail → full image → initial placeholder. Portraits may
+    // lack a generated _thumb.jpg; if so we retry the full file before giving up.
+    window.calImgErr = function(img) {
+        var s = img.getAttribute('src') || '';
+        if (/_thumb\.jpg$/i.test(s)) { img.src = s.replace(/_thumb\.jpg$/i, '.jpg'); return; }
+        var ini = img.getAttribute('data-ini') || '?';
+        img.outerHTML = '<div class="' + img.className + ' ph">' + ini + '</div>';
+    };
+    function photoHtml(ev, cls) {
+        var ini = esc(initial(ev.name));
+        if (ev.image) return '<img class="' + cls + '" src="' + esc(ev.image) + '" alt="" loading="lazy" data-ini="' + ini + '" onerror="calImgErr(this)">';
+        return '<div class="' + cls + ' ph">' + ini + '</div>';
     }
 
-    window.showPersonDates = function(birthDate, deathDate, personName) {
-        var container = document.getElementById('searchResults');
-        var html = '<div style="background: var(--card); border: 2px solid var(--accent-strong); border-radius: 10px; padding: 0.9rem; margin-bottom: 0.4rem;">';
-        html += '<div style="font-weight: 700; margin-bottom: 0.6rem; font-size: 1rem;">' + personName + '</div>';
-        
-        if (birthDate) {
-            html += '<div class="search-result-item" style="margin-bottom: 0.4rem;" onclick="jumpToDate(\'' + birthDate + '\', \'' + personName.replace(/'/g, "\\'") + '\')">';
-            html += '<div><div class="search-result-name">🎂 Рожден ден</div>';
-            html += '<div class="search-result-dates">' + birthDate + '</div></div>';
-            html += '<div class="search-result-badge">Виж</div></div>';
-        }
-        
-        if (deathDate) {
-            html += '<div class="search-result-item" style="margin-bottom: 0;" onclick="jumpToDate(\'' + deathDate + '\', \'' + personName.replace(/'/g, "\\'") + '\')">';
-            html += '<div><div class="search-result-name">🕯️ Дата на смърт</div>';
-            html += '<div class="search-result-dates">' + deathDate + '</div></div>';
-            html += '<div class="search-result-badge">Виж</div></div>';
-        }
-        
-        html += '<button onclick="performSearch(document.getElementById(\'searchInput\').value)" style="margin-top: 0.6rem; padding: 0.45rem 0.9rem; background: var(--muted); border: none; border-radius: 7px; cursor: pointer; width: 100%; color: var(--fg); font-weight: 600; font-size: 0.85rem;">← Назад</button>';
-        html += '</div>';
-        
-        container.innerHTML = html;
-    }
-    
-    window.jumpToDate = function(dateStr, personName) {
-        var date = new Date(dateStr);
-        currentDate = new Date(date.getFullYear(), date.getMonth(), 1);
-        saveCalendarState();
-        loadEvents();
-        
-        document.getElementById('searchInput').value = '';
-        document.getElementById('searchResults').innerHTML = '';
-        
-        setTimeout(function() {
-            var dateKey = String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0');
-            selectedDate = dateKey;
-            saveCalendarState();
-            showEventsForDate(dateKey);
-            highlightDay(date.getDate());
-            
-            setTimeout(function() {
-                document.getElementById('eventsList').scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }, 100);
-        }, 200);
-    }
-    
-    function highlightDay(day) {
-        var cells = document.querySelectorAll('.calendar-day');
-        cells.forEach(function(cell) {
-            var num = cell.querySelector('.calendar-day-number');
-            if (num && parseInt(num.textContent) === day && !cell.classList.contains('other-month')) {
-                cell.classList.add('highlighted');
-                setTimeout(function() { cell.classList.remove('highlighted'); }, 4500);
-            }
-        });
-    }
-    
-    function loadEvents() {
-        var month = currentDate.getMonth() + 1;
-        var year = currentDate.getFullYear();
-        saveCalendarState();
-        fetch(apiBase + '/api/calendar?month=' + month + '&year=' + year)
-            .then(function(res) { return res.json(); })
-            .then(function(data) {
-                eventsData = data;
-                renderCalendar();
-                if (selectedDate) showEventsForDate(selectedDate);
+    // ── Month load + render ──
+    function load() {
+        save();
+        fetch('/api/calendar?month=' + state.month + '&year=' + state.year)
+            .then(function(r){ return r.json(); })
+            .then(function(data){
+                events = data || {}; render();
+                if (pendingReturn) { pendingReturn = false; var el = document.getElementById('eventsList'); if (el && el.innerHTML) el.scrollIntoView({ block: 'start' }); }
             });
     }
-    
-    function renderCalendar() {
+
+    function countMonth() {
+        var b = 0, d = 0;
+        Object.keys(events).forEach(function(k){ events[k].forEach(function(e){ if (e.type === 'birth') b++; else d++; }); });
+        return { b: b, d: d, total: b + d };
+    }
+
+    function render() {
+        document.getElementById('monthYear').textContent = MONTHS[state.month - 1] + ' ' + state.year;
+        // filter buttons / view buttons reflect state
+        Array.prototype.forEach.call(document.querySelectorAll('.cal-chip'), function(c){ c.classList.toggle('active', c.getAttribute('data-filter') === state.filter); c.classList.toggle('death', c.getAttribute('data-filter') === 'death'); });
+        Array.prototype.forEach.call(document.querySelectorAll('.cal-vbtn'), function(c){ c.classList.toggle('active', c.getAttribute('data-view') === state.view); });
+
+        var c = countMonth();
+        document.getElementById('calStats').innerHTML = c.total
+            ? '<strong>' + c.total + '</strong> годишнини · 🎂 ' + c.b + ' рождени дни · 🕯️ ' + c.d + ' кончини'
+            : 'Няма отбелязани годишнини през ' + MONTHS[state.month - 1].toLowerCase() + '.';
+
+        document.getElementById('gridView').hidden = state.view !== 'grid';
+        document.getElementById('agendaView').hidden = state.view !== 'agenda';
+        if (state.view === 'grid') renderGrid(); else renderAgenda();
+        if (state.selected) showDay(state.selected); else document.getElementById('eventsList').innerHTML = '';
+    }
+
+    function dayEvents(dd) { return (events[state.mm + '-' + dd] || []).filter(passFilter); }
+
+    function renderGrid() {
+        state.mm = String(state.month).padStart(2, '0');
         var grid = document.getElementById('calendarGrid');
-        grid.innerHTML = '';
-        dayNames.forEach(function(day) {
-            var header = document.createElement('div');
-            header.className = 'calendar-day-header';
-            header.textContent = day;
-            grid.appendChild(header);
-        });
-        
-        var year = currentDate.getFullYear();
-        var month = currentDate.getMonth();
-        var firstDay = new Date(year, month, 1).getDay();
-        var daysInMonth = new Date(year, month + 1, 0).getDate();
-        var daysInPrevMonth = new Date(year, month, 0).getDate();
-        
-        for (var i = firstDay - 1; i >= 0; i--) grid.appendChild(createDayCell(daysInPrevMonth - i, true, false));
-        for (var day = 1; day <= daysInMonth; day++) {
+        grid.classList.add('fading');
+        setTimeout(function() {
+            grid.innerHTML = '';
+            DOW.forEach(function(d){ var h = document.createElement('div'); h.className = 'cal-dow'; h.textContent = d; grid.appendChild(h); });
+            var y = state.year, m = state.month - 1;
+            var first = (new Date(y, m, 1).getDay() + 6) % 7;   // Monday-first
+            var days = new Date(y, m + 1, 0).getDate();
             var today = new Date();
-            var isToday = today.getMonth() === month && today.getFullYear() === year && day === today.getDate();
-            grid.appendChild(createDayCell(day, false, isToday));
-        }
-        var totalCells = grid.children.length - 7;
-        var remainingCells = (Math.ceil(totalCells / 7) * 7) - totalCells;
-        for (var day = 1; day <= remainingCells; day++) grid.appendChild(createDayCell(day, true, false));
-        document.getElementById('monthYear').textContent = monthNames[month] + ' ' + year;
+            for (var i = 0; i < first; i++) { var o = document.createElement('div'); o.className = 'cal-cell other'; grid.appendChild(o); }
+            for (var day = 1; day <= days; day++) {
+                var dd = String(day).padStart(2, '0');
+                var evs = dayEvents(dd);
+                var cell = document.createElement('div');
+                cell.className = 'cal-cell' + (evs.length ? ' has' : '') +
+                    (today.getDate() === day && today.getMonth() === m && today.getFullYear() === y ? ' today' : '') +
+                    (state.selected === dd ? ' sel' : '');
+                var dotsHtml = '';
+                if (evs.length) {
+                    var shown = evs.slice(0, 6).map(function(e){ return '<span class="d ' + e.type + '"></span>'; }).join('');
+                    dotsHtml = '<div class="cal-cell-dots">' + shown + '</div>';
+                }
+                cell.innerHTML = '<div class="cal-cell-num">' + day + '</div>' + dotsHtml;
+                if (evs.length) { (function(dd){ cell.addEventListener('click', function(){ select(dd); }); })(dd); }
+                grid.appendChild(cell);
+            }
+            grid.classList.remove('fading');
+        }, 120);
     }
-    
-    function createDayCell(day, otherMonth, isToday) {
-        var cell = document.createElement('div');
-        cell.className = 'calendar-day' + (otherMonth ? ' other-month' : '') + (isToday ? ' today' : '');
-        var dateKey = String(currentDate.getMonth() + (otherMonth ? (day > 15 ? 0 : 2) : 1)).padStart(2, '0') + '-' + String(day).padStart(2, '0');
-        var events = eventsData[dateKey] || [];
-        
-        if (events.length > 0 && !otherMonth) {
-            cell.className += ' has-events';
-            cell.onclick = function() { selectedDate = dateKey; saveCalendarState(); showEventsForDate(dateKey); };
-        }
-        
-        var number = document.createElement('div');
-        number.className = 'calendar-day-number';
-        number.textContent = day;
-        cell.appendChild(number);
-        
-        if (events.length > 0) {
-            var count = document.createElement('div');
-            count.className = 'event-count';
-            count.textContent = events.length;
-            cell.appendChild(count);
-            
-            var badges = document.createElement('div');
-            badges.className = 'calendar-events-badges';
-            events.forEach(function(event) {
-                var badge = document.createElement('span');
-                badge.className = 'event-badge ' + event.type;
-                badge.textContent = event.type === 'birth' ? '🎂' : '🕯️';
-                badges.appendChild(badge);
+
+    function renderAgenda() {
+        state.mm = String(state.month).padStart(2, '0');
+        var wrap = document.getElementById('agendaView');
+        var days = Object.keys(events).map(function(k){ return k.split('-')[1]; })
+            .filter(function(dd, i, arr){ return arr.indexOf(dd) === i; })
+            .filter(function(dd){ return dayEvents(dd).length; })
+            .sort();
+        if (!days.length) { wrap.innerHTML = '<div class="cal-agenda-empty">Няма годишнини за избрания филтър през този месец.</div>'; return; }
+        wrap.innerHTML = days.map(function(dd){
+            var evs = dayEvents(dd);
+            return '<div class="cal-agenda-day"><h3 class="cal-agenda-date">' + parseInt(dd) + ' ' + MONTHS[state.month - 1] +
+                ' <small>' + evs.length + (evs.length === 1 ? ' годишнина' : ' годишнини') + '</small></h3>' +
+                evs.map(evCard).join('') + '</div>';
+        }).join('');
+    }
+
+    function evCard(ev) {
+        var verb = ev.type === 'birth' ? 'Роден(а)' : 'Починал(а)';
+        var icon = ev.type === 'birth' ? '🎂' : '🕯️';
+        var lifespan = (ev.birth_date && ev.death_date) ? ' · ' + yr(ev.birth_date) + '–' + yr(ev.death_date) : '';
+        return '<a class="cal-ev" href="address.html?slug=' + encodeURIComponent(ev.slug) + '">' +
+            photoHtml(ev, 'cal-ev-photo') +
+            '<div class="cal-ev-body"><div class="cal-ev-name">' + esc(ev.name) + '</div>' +
+            '<div class="cal-ev-meta"><span class="cal-ev-type ' + ev.type + '">' + icon + ' ' + verb + '</span> преди ' + yearsWord(ev.years_ago) + ' (' + yr(ev.full_date) + ' г.)' + lifespan + '</div></div>' +
+            '<span class="cal-ev-arrow">→</span></a>';
+    }
+
+    function select(dd) { clearPerson(); state.selected = dd; save(); render(); showDay(dd); document.getElementById('eventsList').scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+    function showDay(dd) {
+        var evs = dayEvents(dd);
+        var el = document.getElementById('eventsList');
+        if (!evs.length) { el.innerHTML = ''; return; }
+        el.innerHTML = '<h2 class="cal-events-title">' + parseInt(dd) + ' ' + MONTHS[state.month - 1] + '</h2>' + evs.map(evCard).join('');
+    }
+
+    // ── Navigation ──
+    function changeMonth(delta) {
+        clearPerson();
+        var m = state.month - 1 + delta, y = state.year;
+        if (m < 0) { m = 11; y--; } if (m > 11) { m = 0; y++; }
+        state.month = m + 1; state.year = y; state.selected = null;
+        document.getElementById('eventsList').innerHTML = '';
+        load();
+    }
+    document.getElementById('prevMonth').addEventListener('click', function(){ changeMonth(-1); });
+    document.getElementById('nextMonth').addEventListener('click', function(){ changeMonth(1); });
+    document.getElementById('todayBtn').addEventListener('click', function(){ clearPerson(); var n = new Date(); state.month = n.getMonth() + 1; state.year = n.getFullYear(); state.selected = String(n.getDate()).padStart(2,'0'); document.getElementById('eventsList').innerHTML=''; load(); });
+    document.addEventListener('keydown', function(e){ if (e.target.tagName === 'INPUT') return; if (e.key === 'ArrowLeft') changeMonth(-1); else if (e.key === 'ArrowRight') changeMonth(1); });
+
+    // filters + views
+    Array.prototype.forEach.call(document.querySelectorAll('.cal-chip'), function(c){ c.addEventListener('click', function(){ state.filter = c.getAttribute('data-filter'); save(); render(); }); });
+    Array.prototype.forEach.call(document.querySelectorAll('.cal-vbtn'), function(c){ c.addEventListener('click', function(){ state.view = c.getAttribute('data-view'); save(); render(); }); });
+
+    // ── Month picker popover ──
+    var picker = document.getElementById('picker'), pickerYear = state.year, pickerOpen = false;
+    function renderPicker() {
+        picker.innerHTML = '<div class="cal-picker-yr"><button data-yr="-1">◀</button><span>' + pickerYear + '</span><button data-yr="1">▶</button></div>' +
+            '<div class="cal-picker-months">' + MONTHS.map(function(mn, i){
+                var cur = (i + 1 === state.month && pickerYear === state.year) ? ' class="cur"' : '';
+                return '<button data-m="' + (i + 1) + '"' + cur + '>' + mn.slice(0, 3) + '</button>';
+            }).join('') + '</div>';
+        picker.querySelector('[data-yr="-1"]').addEventListener('click', function(e){ e.stopPropagation(); pickerYear--; renderPicker(); });
+        picker.querySelector('[data-yr="1"]').addEventListener('click', function(e){ e.stopPropagation(); pickerYear++; renderPicker(); });
+        Array.prototype.forEach.call(picker.querySelectorAll('[data-m]'), function(b){ b.addEventListener('click', function(e){ e.stopPropagation(); clearPerson(); state.month = +b.getAttribute('data-m'); state.year = pickerYear; state.selected = null; document.getElementById('eventsList').innerHTML=''; closePicker(); load(); }); });
+    }
+    function openPicker() { pickerYear = state.year; renderPicker(); picker.classList.add('show'); pickerOpen = true; }
+    function closePicker() { picker.classList.remove('show'); pickerOpen = false; }
+    document.getElementById('monthYear').addEventListener('click', function(e){ e.stopPropagation(); pickerOpen ? closePicker() : openPicker(); });
+    document.addEventListener('click', function(){ if (pickerOpen) closePicker(); });
+
+    // ── Surprise me ──
+    document.getElementById('surpriseBtn').addEventListener('click', function(){
+        if (!allPeople.length) return;
+        var pool = allPeople.filter(function(p){ return p.birth_date || p.death_date; });
+        var p = pool[Math.floor(Math.random() * pool.length)];
+        openPerson(p);
+    });
+
+    // ── Selected person box (opened from search) ──
+    function clearPerson() { document.getElementById('personBox').innerHTML = ''; }
+    function openPerson(p) {
+        var d = p.birth_date || p.death_date;
+        var dt = new Date(d);
+        state.month = dt.getMonth() + 1; state.year = new Date().getFullYear();
+        state.selected = String(dt.getDate()).padStart(2, '0');
+        document.getElementById('eventsList').innerHTML = '';
+        load();
+        var dates = [];
+        if (p.birth_date) dates.push('🎂 роден(а) ' + yr(p.birth_date) + ' г.');
+        if (p.death_date) dates.push('🕯️ починал(а) ' + yr(p.death_date) + ' г.');
+        var box = document.getElementById('personBox');
+        box.innerHTML = '<div class="cal-person">' +
+            photoHtml({ name: p.name, image: p.image }, 'cal-person-photo') +
+            '<div class="cal-person-info">' +
+                '<div class="cal-person-eyebrow">Избрана личност</div>' +
+                '<div class="cal-person-name">' + esc(p.name) + '</div>' +
+                '<div class="cal-person-meta">' + (dates.join(' · ') || '-') + '</div>' +
+                '<a class="cal-spot-link" href="address.html?slug=' + encodeURIComponent(p.slug) + '">Виж повече →</a>' +
+            '</div>' +
+            '<button class="cal-person-close" aria-label="Затвори">✕</button></div>';
+        box.querySelector('.cal-person-close').addEventListener('click', clearPerson);
+        box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    // ── Search ──
+    function loadAll() { fetch('/api/calendar/all').then(function(r){ return r.json(); }).then(function(d){ allPeople = d || []; }).catch(function(){}); }
+    var searchT;
+    var searchInput = document.getElementById('searchInput'), searchRes = document.getElementById('searchResults');
+    searchInput.addEventListener('input', function(){
+        clearTimeout(searchT);
+        var q = searchInput.value.trim().toLowerCase();
+        if (q.length < 2) { searchRes.innerHTML = ''; return; }
+        searchT = setTimeout(function(){
+            var words = q.split(/\s+/);
+            var hits = allPeople.filter(function(p){ var n = p.name.toLowerCase(); return words.every(function(w){ return n.indexOf(w) > -1; }); }).slice(0, 6);
+            if (!hits.length) { searchRes.innerHTML = '<div class="cal-sr-empty">Няма резултати</div>'; return; }
+            searchRes.innerHTML = hits.map(function(p, i){
+                var dates = [];
+                if (p.birth_date) dates.push('🎂 ' + yr(p.birth_date));
+                if (p.death_date) dates.push('🕯️ ' + yr(p.death_date));
+                var ini = esc(initial(p.name));
+                var photo = p.image
+                    ? '<img class="cal-sr-photo" src="' + esc(p.image) + '" alt="" loading="lazy" data-ini="' + ini + '" onerror="calImgErr(this)">'
+                    : '<div class="cal-sr-photo ph">' + ini + '</div>';
+                return '<div class="cal-sr" data-i="' + i + '">' + photo +
+                    '<div><div class="cal-sr-name">' + esc(p.name) + '</div><div class="cal-sr-dates">' + dates.join(' · ') + '</div></div></div>';
+            }).join('');
+            Array.prototype.forEach.call(searchRes.querySelectorAll('.cal-sr'), function(row){
+                row.addEventListener('click', function(){
+                    var p = hits[+row.getAttribute('data-i')];
+                    searchInput.value = ''; searchRes.innerHTML = '';
+                    openPerson(p);
+                });
             });
-            cell.appendChild(badges);
-        }
-        return cell;
-    }
-    
-    function showEventsForDate(dateKey) {
-        var events = eventsData[dateKey] || [];
-        var listEl = document.getElementById('eventsList');
-        if (events.length === 0) { listEl.innerHTML = ''; return; }
-        var parts = dateKey.split('-');
-        var html = '<h2 style="margin-bottom: 0.9rem; color: var(--fg); font-size: 1.15rem;">Събития на ' + parts[1] + ' ' + monthNames[parseInt(parts[0]) - 1] + '</h2>';
-        events.forEach(function(event) {
-            html += '<a href="address.html?slug=' + encodeURIComponent(event.slug) + '" class="event-card">';
-            html += '<div class="event-icon">' + (event.type === 'birth' ? '🎂' : '🕯️') + '</div>';
-            html += '<div class="event-content"><div class="event-name">' + event.name + '</div>';
-            html += '<div class="event-date">' + (event.type === 'birth' ? 'Роден' : 'Починал') + ' на ' + event.full_date + '</div>';
-            html += '<div class="event-years">Преди ' + event.years_ago + ' ' + (event.years_ago === 1 ? 'година' : 'години') + '</div></div></a>';
-        });
-        listEl.innerHTML = html;
-        listEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }
-    
-    document.getElementById('prevMonth').addEventListener('click', function() { currentDate.setMonth(currentDate.getMonth() - 1); selectedDate = null; document.getElementById('eventsList').innerHTML = ''; saveCalendarState(); loadEvents(); });
-    document.getElementById('nextMonth').addEventListener('click', function() { currentDate.setMonth(currentDate.getMonth() + 1); selectedDate = null; document.getElementById('eventsList').innerHTML = ''; saveCalendarState(); loadEvents(); });
-    document.getElementById('todayBtn').addEventListener('click', function() { currentDate = new Date(); selectedDate = null; document.getElementById('eventsList').innerHTML = ''; saveCalendarState(); loadEvents(); });
-    
-    document.getElementById('year').textContent = new Date().getFullYear();
-    loadEvents();
-    loadAllPeople();
+        }, 250);
+    });
+    document.addEventListener('click', function(e){ if (!e.target.closest('.cal-search-wrap')) searchRes.innerHTML = ''; });
+
+    // ── Init ──
+    loadAll();
+    load();
 })();
 </script>
 </body>

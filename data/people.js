@@ -12,7 +12,7 @@ window.PEOPLE = [
 			{ "path": "https://upload.wikimedia.org/wikipedia/commons/5/5b/Karlovo_Levski_House.jpg", "caption": "Vasil Levski House-Museum, Karlovo", "alt": "Facade of Vasil Levski House-Museum in Karlovo" }
 		],
 		"sources": [
-			"National Museum of Vasil Levski — Karlovo",
+			"National Museum of Vasil Levski - Karlovo",
 			"https://en.wikipedia.org/wiki/Vasil_Levski"
 		],
 		"tags": ["revolutionary", "19th-century"],
@@ -50,7 +50,7 @@ window.PEOPLE = [
 			{ "path": "https://upload.wikimedia.org/wikipedia/commons/4/46/Sopot_Ivan_Vazov_house.jpg", "caption": "Ivan Vazov House-Museum, Sopot", "alt": "Facade of Ivan Vazov House-Museum in Sopot" }
 		],
 		"sources": [
-			"Ivan Vazov Museum — Sopot",
+			"Ivan Vazov Museum - Sopot",
 			"https://en.wikipedia.org/wiki/Ivan_Vazov"
 		],
 		"tags": ["writer", "19th-century"],

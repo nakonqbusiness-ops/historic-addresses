@@ -27,7 +27,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400;1,600&family=Mulish:wght@300;400;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/styles.css?v=3">
+<link rel="stylesheet" href="assets/css/styles.css?v=5">
 <script defer src="assets/js/theme.js"></script>
 <script defer src="assets/js/transitions.js"></script>
 <script defer src="assets/js/calendar-popup.js"></script>
@@ -132,17 +132,17 @@
 .lb-x:hover{background:rgba(180,40,40,.8)}
 .lb-x svg{display:block;width:18px;height:18px;flex-shrink:0}
 
-/* NAV ARROWS — desktop: fixed left/right of viewport */
+/* NAV ARROWS - desktop: fixed left/right of viewport */
 .lb-nav{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;font-size:1.5rem;width:48px;height:48px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s;outline:none}
 .lb-nav:hover{background:rgba(255,255,255,.22)}
 .lb-nav:disabled{opacity:.2;pointer-events:none}
 #lbPrev{position:fixed;left:1.5rem;top:50%;transform:translateY(-50%)}
 #lbNext{position:fixed;right:1.5rem;top:50%;transform:translateY(-50%)}
 
-/* Counter — fixed bottom center */
+/* Counter - fixed bottom center */
 .lb-ctr{position:fixed;bottom:1.25rem;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.55);color:rgba(255,255,255,.75);font-family:var(--fb);font-size:.72rem;font-weight:700;padding:.3rem .9rem;border-radius:999px;backdrop-filter:blur(6px);pointer-events:none}
 
-/* The row div is invisible on desktop — arrows have escaped it via fixed positioning */
+/* The row div is invisible on desktop - arrows have escaped it via fixed positioning */
 .lb-nav-row{display:contents}
 
 /* MOBILE LIGHTBOX */
@@ -283,7 +283,7 @@ html, body {
     box-shadow: none !important;
 }
 </style>
-    <script defer src="assets/js/account-nav.js?v=12"></script>
+    <script defer src="assets/js/account-nav.js?v=14"></script>
 </head>
 <body>
 <script>
@@ -330,7 +330,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')closeEmailMo
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>Email
       </a>
     </div>
-    <a href="https://buymeacoffee.com/historyaddress.bg" target="_blank" rel="noopener noreferrer" class="footer-donate" aria-label="Подкрепете ни — дарение">
+    <a href="https://buymeacoffee.com/historyaddress.bg" target="_blank" rel="noopener noreferrer" class="footer-donate" aria-label="Подкрепете ни - дарение">
       <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
       Подкрепете ни
     </a>
@@ -398,7 +398,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')closeEmailMo
     } else {
       /* hero */
       var hero=el('div','gh-hero');
-      var hi=el('img'); hi.src=gal[0].path; hi.alt=gal[0].alt||'Сграда — '+p.name; hi.loading='eager'; hi.fetchPriority='high'; hi.decoding='async';
+      var hi=el('img'); hi.src=gal[0].path; hi.alt=gal[0].alt||'Сграда - '+p.name; hi.loading='eager'; hi.fetchPriority='high'; hi.decoding='async';
       hi.onerror=function(){hero.innerHTML='<div class="gh-placeholder" style="flex:1">🏛️</div>';};
       hero.appendChild(hi);
       hero.addEventListener('click',function(){openLb(0);});
@@ -408,7 +408,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')closeEmailMo
         '<div class="gh-overlay">'+
           '<a class="gh-back" href="addresses.html"><span class="arr">←</span> Всички адреси</a>'+
           '<p class="gh-eyebrow">Адресът на историята</p>'+
-          '<h1 class="gh-name">'+esc(p.name||'—')+'</h1>'+
+          '<h1 class="gh-name">'+esc(p.name||'-')+'</h1>'+
           tagsHtml+
         '</div>');
       gh.appendChild(hero);
@@ -443,7 +443,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')closeEmailMo
     titleBlock.innerHTML=
       '<a class="gh-back" href="addresses.html"><span class="arr">←</span> Всички адреси</a>'+
       '<p class="gh-eyebrow">Адресът на историята</p>'+
-      '<h1 class="gh-name">'+(p.name||'—')+'</h1>'+
+      '<h1 class="gh-name">'+(p.name||'-')+'</h1>'+
       mTagsHtml;
     frag.appendChild(titleBlock);
     frag.appendChild(gh);
@@ -583,7 +583,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')closeEmailMo
     var u='https://historyaddress.bg/address.html?slug='+encodeURIComponent(slug);
     var d=p.biography?p.biography.substring(0,155):'Исторически адрес: '+(p.address||'');
     var i=(p.images&&p.images[0]&&p.images[0].path)?'https://historyaddress.bg/'+p.images[0].path:'https://historyaddress.bg/assets/img/HistAdrLogo.png';
-    document.title=p.name+' — Адресът на историята';
+    document.title=p.name+' - Адресът на историята';
     [['meta[name="description"]','content',d],['link[rel="canonical"]','href',u],
      ['meta[property="og:url"]','content',u],['meta[property="og:title"]','content',p.name],
      ['meta[property="og:description"]','content',d],['meta[property="og:image"]','content',i],

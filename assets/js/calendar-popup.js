@@ -53,12 +53,17 @@
 
         var isMobile = window.innerWidth <= 768;
 
+        // On desktop, sit just below the site header instead of overlapping it.
+        // (Mobile keeps its bottom-pinned position untouched.)
+        var headerEl = document.querySelector('.site-header');
+        var belowHeader = (headerEl ? Math.round(headerEl.getBoundingClientRect().bottom) : 68) + 12;
+
         // Container
         var popup = document.createElement('div');
         popup.id = 'calPopup';
         popup.style.cssText = isMobile
             ? 'position:fixed;bottom:15px;left:15px;right:15px;z-index:9999;'
-            : 'position:fixed;top:20px;right:20px;z-index:9999;max-width:340px;width:90%;';
+            : 'position:fixed;top:' + belowHeader + 'px;right:20px;z-index:9999;max-width:340px;width:90%;';
 
         // Card
         var card = document.createElement('div');
