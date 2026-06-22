@@ -77,6 +77,7 @@
             '<div class="nav-user-div"></div>' +
             '<a class="nav-user-item" href="/profile.html#activity"><span class="nui-ico">⭐</span>Моите одобрения</a>' +
             '<a class="nav-user-item" href="/profile.html#achievements"><span class="nui-ico">🏅</span>Постижения и приноси</a>' +
+            '<a class="nav-user-item" href="/profile.html#saved"><span class="nui-ico">📍</span>Запазени локации</a>' +
             (isMod ? '<a class="nav-user-item" href="/admin/moderation.html"><span class="nui-ico">🛡️</span>Модерация</a>' : '') +
             '<a class="nav-user-item" href="/profile.html#settings"><span class="nui-ico">⚙️</span>Настройки</a>' +
             '<div class="nav-user-div"></div>' +

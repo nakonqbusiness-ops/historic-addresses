@@ -29,7 +29,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Mulish:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
-    <link rel="stylesheet" href="assets/css/styles.css?v=5">
+    <link rel="stylesheet" href="assets/css/styles.css?v=6">
     <script defer src="assets/js/theme.js"></script>
     <script defer src="assets/js/transitions.js"></script>
 
@@ -63,6 +63,19 @@
         .pf-badge.muted { background: transparent; color: var(--muted); border-color: var(--border); }
 
         /* ── Tabs ── */
+        /* Horizontal-scroll affordance: edge fades (+ a nudging chevron) appear only
+           when the tab strip overflows, so mobile users discover the off-screen tabs
+           (e.g. "Запазени локации"). Toggled by JS via .scroll-l / .scroll-r. */
+        .pf-tabs-wrap { position: relative; }
+        .pf-tabs-fade {
+            position: absolute; top: 0; bottom: 1px; width: 38px; z-index: 2;
+            pointer-events: none; opacity: 0; transition: opacity 0.25s ease;
+            display: flex; align-items: center; font-weight: 700; color: var(--accent-strong); font-size: 1.05rem;
+        }
+        .pf-tabs-fade.left  { left: 0; justify-content: flex-start; padding-left: 2px; background: linear-gradient(to right, var(--bg) 35%, transparent); }
+        .pf-tabs-fade.right { right: 0; justify-content: flex-end; padding-right: 2px; background: linear-gradient(to left, var(--bg) 35%, transparent); }
+        .pf-tabs-wrap.scroll-l .pf-tabs-fade.left  { opacity: 1; }
+        .pf-tabs-wrap.scroll-r .pf-tabs-fade.right { opacity: 1; }
         .pf-tabs {
             display: flex; gap: 0.25rem; border-bottom: 1px solid var(--border);
             margin: 1.9rem 0 1.6rem; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
@@ -247,7 +260,7 @@
             .pf-name-row .pf-btn { width: 100%; }
         }
     </style>
-    <script defer src="assets/js/account-nav.js?v=14"></script>
+    <script defer src="assets/js/account-nav.js?v=15"></script>
 </head>
 
 <body class="pf-page">
@@ -290,11 +303,15 @@
         </section>
 
         <!-- Tab bar -->
-        <div class="pf-tabs" role="tablist">
-            <button class="pf-tab" data-tab="activity" type="button"><span class="pf-tab-ico">📋</span>Моята активност</button>
-            <button class="pf-tab" data-tab="achievements" type="button"><span class="pf-tab-ico">🏅</span>Постижения и статистика</button>
-            <button class="pf-tab" data-tab="saved" type="button"><span class="pf-tab-ico">📍</span>Запазени локации</button>
-            <button class="pf-tab" data-tab="settings" type="button"><span class="pf-tab-ico">⚙️</span>Настройки</button>
+        <div class="pf-tabs-wrap">
+            <div class="pf-tabs" role="tablist">
+                <button class="pf-tab" data-tab="activity" type="button"><span class="pf-tab-ico">📋</span>Моята активност</button>
+                <button class="pf-tab" data-tab="achievements" type="button"><span class="pf-tab-ico">🏅</span>Постижения и статистика</button>
+                <button class="pf-tab" data-tab="saved" type="button"><span class="pf-tab-ico">📍</span>Запазени локации</button>
+                <button class="pf-tab" data-tab="settings" type="button"><span class="pf-tab-ico">⚙️</span>Настройки</button>
+            </div>
+            <span class="pf-tabs-fade left" aria-hidden="true">‹</span>
+            <span class="pf-tabs-fade right" aria-hidden="true">›</span>
         </div>
 
         <!-- TAB: Моята активност -->
@@ -526,9 +543,32 @@
     var VALID_TABS = ['activity', 'achievements', 'saved', 'settings'];
     function initTabs() {
         var tabs = document.querySelectorAll('.pf-tab');
+        var strip = document.querySelector('.pf-tabs');
+        var wrap = document.querySelector('.pf-tabs-wrap');
+
+        // Show/hide the left/right scroll-affordance fades based on scroll position.
+        function updateHint() {
+            if (!strip || !wrap) return;
+            var max = strip.scrollWidth - strip.clientWidth - 1;
+            wrap.classList.toggle('scroll-l', strip.scrollLeft > 2);
+            wrap.classList.toggle('scroll-r', max > 1 && strip.scrollLeft < max);
+        }
+        if (strip) strip.addEventListener('scroll', updateHint, { passive: true });
+        window.addEventListener('resize', updateHint);
+
+        // Horizontally centre the active tab in the strip (no vertical side effect).
+        function centerActive() {
+            if (!strip) return;
+            var a = strip.querySelector('.pf-tab.active');
+            if (!a) return;
+            strip.scrollLeft = Math.max(0, a.offsetLeft - (strip.clientWidth - a.offsetWidth) / 2);
+            updateHint();
+        }
+
         function activate(name) {
             Array.prototype.forEach.call(tabs, function(t){ t.classList.toggle('active', t.getAttribute('data-tab') === name); });
             VALID_TABS.forEach(function(n){ var p = document.getElementById('tab-' + n); if (p) p.hidden = n !== name; });
+            centerActive();
         }
         Array.prototype.forEach.call(tabs, function(t){
             t.addEventListener('click', function(){
@@ -543,6 +583,8 @@
         }
         window.addEventListener('hashchange', fromHash);
         fromHash();
+        updateHint();
+        setTimeout(function(){ centerActive(); updateHint(); }, 300);   // re-run after fonts/layout settle
     }
 
     // ── Place cards (favorites / visited) ──

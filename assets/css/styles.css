@@ -1458,6 +1458,8 @@ button:not(.theme-toggle):not(.preview-item button):active {
         z-index: auto !important;
         box-shadow: none !important;
     }
+    /* Profile avatar circle: a touch smaller on mobile only. */
+    .nav-user-avatar { width: 26px; height: 26px; font-size: 0.92rem; }
 
     #theme-toggle::before {
         width: 20px !important;
