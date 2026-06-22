@@ -56,7 +56,7 @@
         // On desktop, sit just below the site header instead of overlapping it.
         // (Mobile keeps its bottom-pinned position untouched.)
         var headerEl = document.querySelector('.site-header');
-        var belowHeader = (headerEl ? Math.round(headerEl.getBoundingClientRect().bottom) : 68) + 12;
+        var belowHeader = (headerEl ? Math.round(headerEl.getBoundingClientRect().bottom) : 68) + 6;
 
         // Container
         var popup = document.createElement('div');

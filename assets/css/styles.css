@@ -843,18 +843,26 @@ body.page-exiting {
     color: #1a1410;
     background: var(--accent-strong, #cd853f);
     box-shadow: 0 2px 9px rgba(0, 0, 0, 0.5);
-    z-index: 20;
+    z-index: 8;   /* below the profile dropdown (z 60) */
     -webkit-tap-highlight-color: transparent;
 }
-/* Touch/mobile only - desktop (which has hover) never shows it, even at narrow widths. */
+/* Touch/mobile only - desktop (which has hover) never shows it, even at narrow widths.
+   Right chevron nudges right, left chevron nudges left. */
 @media (hover: none) and (pointer: coarse) {
-    .sh-arrow.show { display: inline-flex; animation: shNudge 1.5s ease-in-out infinite; }
+    .sh-arrow.sh-right.show { display: inline-flex; animation: shNudgeR 1.5s ease-in-out infinite; }
+    .sh-arrow.sh-left.show  { display: inline-flex; animation: shNudgeL 1.5s ease-in-out infinite; }
 }
-@keyframes shNudge {
+@keyframes shNudgeR {
     0%, 100% { transform: translate(-50%, -50%); }
     50%      { transform: translate(calc(-50% + 3px), -50%); }
 }
-@media (prefers-reduced-motion: reduce) { .sh-arrow.show { animation: none; } }
+@keyframes shNudgeL {
+    0%, 100% { transform: translate(-50%, -50%); }
+    50%      { transform: translate(calc(-50% - 3px), -50%); }
+}
+@media (prefers-reduced-motion: reduce) { .sh-arrow.show { animation: none !important; } }
+/* When the profile dropdown is open, never let a scroll arrow show through it. */
+body:has(.nav-user.open) .sh-arrow { display: none !important; }
 
 /* ── Support / Donation button (footer, all pages) ── */
 .footer-donate {

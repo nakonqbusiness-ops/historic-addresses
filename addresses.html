@@ -31,10 +31,10 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Mulish:wght@300;400;600&display=swap" rel="stylesheet">
 
-    <link rel="stylesheet" href="assets/css/styles.css?v=6">
+    <link rel="stylesheet" href="assets/css/styles.css?v=7">
     <script defer src="assets/js/theme.js"></script>
     <script defer src="assets/js/transitions.js"></script>
-    <script defer src="assets/js/calendar-popup.js?v=3.2"></script>
+    <script defer src="assets/js/calendar-popup.js?v=3.3"></script>
 
     <style>
         /* ── Typography tokens ───────────────────────────────── */
@@ -49,7 +49,9 @@
         .addr-page {
             max-width: 1280px;
             margin: 0 auto;
-            padding: 2.5rem 2rem 5rem;
+            /* Extra top room so the top-right count badge clears the floating
+               "На този ден" calendar popup on desktop. */
+            padding: 4rem 2rem 5rem;
         }
 
         /* ── Page header ─────────────────────────────────────── */
@@ -596,7 +598,7 @@
         }
     </style>
     <script defer src="assets/js/account-nav.js?v=15"></script>
-    <script defer src="assets/js/scroll-hint.js?v=2"></script>
+    <script defer src="assets/js/scroll-hint.js?v=3"></script>
 </head>
 
 <body>
