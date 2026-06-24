@@ -439,6 +439,21 @@ function passwordIssue(p) {
     return null;
 }
 
+// GDPR/COPPA age gate: Bulgaria sets the digital-consent age at 14, so accounts are
+// only for users 14+. Returns whole years from a YYYY-MM-DD date of birth, or null if
+// the date is invalid. The DOB itself is NOT stored - we only verify and discard it.
+const MIN_AGE = 14;
+function ageFromDob(dob) {
+    if (typeof dob !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(dob)) return null;
+    const d = new Date(dob + 'T00:00:00Z');
+    if (isNaN(d.getTime())) return null;
+    const now = new Date();
+    let age = now.getUTCFullYear() - d.getUTCFullYear();
+    const m = now.getUTCMonth() - d.getUTCMonth();
+    if (m < 0 || (m === 0 && now.getUTCDate() < d.getUTCDate())) age--;
+    return age;
+}
+
 // ─── Email (Resend) ──────────────────────────────────────────────────────────
 // Configured only if RESEND_API_KEY is present; otherwise email is skipped so the
 // app still runs locally / before the key is set. EMAIL_FROM must use a domain you
@@ -1316,6 +1331,10 @@ app.post('/api/auth/register', rateLimitAuth, async (req, res) => {
     const password = (req.body && req.body.password) || '';
     if (!validEmail(email)) return res.status(400).json({ error: 'Please enter a valid email address' });
     if (isDisposableEmail(email)) return res.status(400).json({ error: 'Моля, използвайте постоянен имейл адрес - временните (10-минутни) пощи не се приемат.' });
+    // Age gate - reject under-14s (DOB verified, then discarded; never stored).
+    const age = ageFromDob((req.body && req.body.birthdate) || '');
+    if (age === null || age > 120) return res.status(400).json({ error: 'Моля, въведете валидна дата на раждане.' });
+    if (age < MIN_AGE) return res.status(400).json({ error: 'Съжаляваме, но трябва да сте на поне 14 години, за да създадете профил.' });
     const issue = passwordIssue(password);
     if (issue) return res.status(400).json({ error: issue });
     try {
