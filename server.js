@@ -223,7 +223,40 @@ const WM_FONT = (() => {
     }
 })();
 
-async function buildWatermark(buf, creator) {
+// ── Watermark configurator ────────────────────────────────────────────────────
+// Admin-editable text / size / opacity / position. Defaults reproduce the previous
+// hardcoded look exactly (so existing watermarks are unchanged until edited).
+const WM_DEFAULTS = { text: '© {name} via Адресът на историята', font_pct: 2.85, opacity: 1, gravity: 'bottom-left' };
+const WM_GRAVITIES = ['bottom-left', 'bottom-center', 'bottom-right', 'top-left', 'top-center', 'top-right', 'center'];
+let wmSettingsCache = null;   // in-memory; refreshed on save so Drive sync stays fast
+
+function normalizeWmSettings(s) {
+    s = s || {};
+    const text = (typeof s.text === 'string' && s.text.trim()) ? s.text.trim().slice(0, 120) : WM_DEFAULTS.text;
+    let font_pct = parseFloat(s.font_pct); if (!isFinite(font_pct)) font_pct = WM_DEFAULTS.font_pct;
+    font_pct = Math.min(10, Math.max(1, font_pct));
+    let opacity = parseFloat(s.opacity); if (!isFinite(opacity)) opacity = WM_DEFAULTS.opacity;
+    opacity = Math.min(1, Math.max(0.1, opacity));
+    const gravity = WM_GRAVITIES.includes(s.gravity) ? s.gravity : WM_DEFAULTS.gravity;
+    return { text, font_pct, opacity, gravity };
+}
+async function getWatermarkSettings() {
+    if (wmSettingsCache) return wmSettingsCache;
+    let raw = {};
+    try { const row = await dbGet("SELECT value FROM settings WHERE key='watermark'"); if (row && row.value) raw = JSON.parse(row.value); } catch {}
+    wmSettingsCache = normalizeWmSettings(raw);
+    return wmSettingsCache;
+}
+// Build the watermark string. {name} → the photographer/creator; with no creator we
+// drop the "{name} via" credit and keep just the brand. Text is rendered to vector
+// glyph paths (never injected as raw SVG markup), so it can't break the SVG.
+function renderWmText(template, creator) {
+    const c = (creator && String(creator).trim().slice(0, 80)) || '';
+    if (c) return template.replace(/\{name\}/g, c);
+    return template.replace(/\{name\}\s*(via\s+)?/gi, '').replace(/\s{2,}/g, ' ').trim() || '© Адресът на историята';
+}
+
+async function buildWatermark(buf, creator, cfgOverride) {
     if (!looksLikeImage(buf)) throw new Error('NOT_IMAGE');
 
     // Honour EXIF orientation up front so width/height are the *displayed* dims.
@@ -237,14 +270,14 @@ async function buildWatermark(buf, creator) {
     // crash or draw tofu boxes.
     if (!WM_FONT) return img.jpeg({ quality: 88 }).toBuffer();
 
-    const name = (creator && String(creator).trim()) || '';
-    const text = name ? `© ${name} via Адресът на историята` : '© Адресът на историята';
+    const cfg  = cfgOverride ? normalizeWmSettings(cfgOverride) : await getWatermarkSettings();
+    const text = renderWmText(cfg.text, creator);
+    const op   = cfg.opacity;
 
-    // Font size scales with width (kept as set). Watermark sits very tight to the
-    // bottom-left corner - a minimal ~1.2% inset from the bottom and left edges.
+    // Font size scales with width (% from settings). A minimal ~1.2% edge inset.
     const marginX = Math.max(2, Math.round(w * 0.012));
     const marginY = Math.max(2, Math.round(h * 0.012));
-    let fontSize  = Math.max(16, Math.round(w * 0.0285));
+    let fontSize  = Math.max(16, Math.round(w * cfg.font_pct / 100));
     const maxTextW = w - marginX * 2;
     // Exact width from real font metrics → shrink to fit if the text is long.
     let textW = WM_FONT.getAdvanceWidth(text, fontSize);
@@ -261,19 +294,28 @@ async function buildWatermark(buf, creator) {
     // Soft drop-shadow: the same outline in black, blurred with sharp, behind the text.
     const shadowSvg =
         `<svg width="${canvasW}" height="${canvasH}" xmlns="http://www.w3.org/2000/svg">` +
-        `<path d="${pathData}" fill="black"/></svg>`;
+        `<path d="${pathData}" fill="rgba(0,0,0,${op})"/></svg>`;
     const shadowBuf = await sharp(Buffer.from(shadowSvg)).blur(blurPx).png().toBuffer();
 
     // Foreground: grey fill + thin dark stroke painted behind the fill (paint-order).
+    // Opacity multiplies every layer's alpha so the whole mark fades as one.
     const textSvg =
         `<svg width="${canvasW}" height="${canvasH}" xmlns="http://www.w3.org/2000/svg">` +
-        `<path d="${pathData}" paint-order="stroke" stroke="rgba(0,0,0,0.85)" ` +
-        `stroke-width="${stroke.toFixed(2)}" stroke-linejoin="round" fill="#d7d5d5"/></svg>`;
+        `<path d="${pathData}" paint-order="stroke" stroke="rgba(0,0,0,${(0.85 * op).toFixed(3)})" ` +
+        `stroke-width="${stroke.toFixed(2)}" stroke-linejoin="round" fill="rgba(215,213,213,${op})"/></svg>`;
 
-    // Position the TEXT tight to the corner: its visual bottom sits ~marginY above the
-    // image bottom, its left ~marginX from the edge.
-    const left  = Math.max(0, marginX - inset);
-    const top   = Math.max(0, Math.round(h - marginY - inset - fontSize * 1.18));
+    // Position the text per the configured gravity. The path is drawn at x=inset inside
+    // the canvas; composite-left/top place that canvas on the image.
+    const vert  = cfg.gravity.indexOf('top') >= 0 ? 'top' : cfg.gravity.indexOf('bottom') >= 0 ? 'bottom' : 'center';
+    const horiz = cfg.gravity.indexOf('left') >= 0 ? 'left' : cfg.gravity.indexOf('right') >= 0 ? 'right' : 'center';
+    let left = horiz === 'left'  ? (marginX - inset)
+             : horiz === 'right' ? (w - marginX - textW - inset)
+             : Math.round((w - textW) / 2) - inset;
+    let top  = vert === 'bottom' ? Math.round(h - marginY - inset - fontSize * 1.18)
+             : vert === 'top'    ? Math.round(marginY - inset + fontSize * 0.12)
+             : Math.round(h / 2 - inset - fontSize * 0.68);
+    left = Math.round(Math.max(0, Math.min(left, Math.max(0, w - canvasW))));   // sharp needs integers
+    top  = Math.round(Math.max(0, Math.min(top,  Math.max(0, h - canvasH))));
     const shOff = Math.max(1, Math.round(fontSize * 0.04));
 
     return img
@@ -913,6 +955,12 @@ function initDB() {
             created_at    TEXT DEFAULT CURRENT_TIMESTAMP
         )`);
         db.run('CREATE INDEX IF NOT EXISTS idx_team_order ON team(display_order, is_published)');
+
+        // ── Generic key→value settings (currently: watermark configurator) ──────────
+        db.run(`CREATE TABLE IF NOT EXISTS settings (
+            key   TEXT PRIMARY KEY,
+            value TEXT
+        )`);
 
         // ── User accounts (RBAC) ──────────────────────────────────────────────
         db.run(`CREATE TABLE IF NOT EXISTS users (
@@ -2170,6 +2218,39 @@ app.post('/api/admin/drive-sync', requireAuth, async (req, res) => {
     } catch (e) {
         console.error('drive-sync error:', e.message);
         res.status(500).json({ error: 'Грешка при импорт от Google Drive.' });
+    }
+});
+
+// ── Watermark configurator (owner only) ───────────────────────────────────────
+app.get('/api/admin/settings/watermark', requireOwner, async (req, res) => {
+    try { res.json(await getWatermarkSettings()); }
+    catch (e) { res.status(500).json({ error: 'Server error' }); }
+});
+app.put('/api/admin/settings/watermark', requireOwner, async (req, res) => {
+    const cfg = normalizeWmSettings(req.body || {});
+    try {
+        await dbRun("INSERT OR REPLACE INTO settings (key, value) VALUES ('watermark', ?)", [JSON.stringify(cfg)]);
+        wmSettingsCache = cfg;   // Drive sync + uploads pick this up immediately
+        res.json(Object.assign({ message: 'Запазено.' }, cfg));
+    } catch (e) {
+        console.error('watermark settings save error:', e.message);
+        res.status(500).json({ error: 'Грешка при запазване.' });
+    }
+});
+// Live preview: watermark a generated SAMPLE image with the POSTED (unsaved) settings.
+// No user image is accepted (no image-bomb surface); returns a JPEG.
+app.post('/api/admin/settings/watermark/preview', requireOwner, async (req, res) => {
+    try {
+        const W = 1000, H = 667;
+        const bg = `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7a6a52"/><stop offset="1" stop-color="#26201a"/></linearGradient></defs><rect width="${W}" height="${H}" fill="url(#g)"/><text x="50%" y="50%" fill="rgba(255,255,255,0.10)" font-size="44" text-anchor="middle" dominant-baseline="middle" font-family="sans-serif">ПРИМЕРНА СНИМКА</text></svg>`;
+        const sample = await sharp(Buffer.from(bg)).jpeg({ quality: 86 }).toBuffer();
+        const creator = sanitizeText((req.body && req.body.creator) || 'Иван Петров', 80) || 'Иван Петров';
+        const out = await buildWatermark(sample, creator, req.body || {});
+        res.set('Cache-Control', 'no-store');
+        res.type('image/jpeg').send(out);
+    } catch (e) {
+        console.error('watermark preview error:', e.message);
+        res.status(500).json({ error: 'preview failed' });
     }
 });
 

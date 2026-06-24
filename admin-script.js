@@ -66,9 +66,11 @@ function showAdminPanel(role, name) {
     if (currentRole === 'editor') {
         document.getElementById('tabPartners').style.display = 'none';
         document.getElementById('tabTeam').style.display = 'none';
+        document.getElementById('tabWatermark').style.display = 'none';   // owner-only
     } else {
         document.getElementById('tabPartners').style.display = '';
         document.getElementById('tabTeam').style.display = '';
+        document.getElementById('tabWatermark').style.display = '';
     }
 
     loadHomes(1);
@@ -238,15 +240,77 @@ async function uploadToR2(file, homeSlug, watermark, photographer) {
     document.getElementById('tabTeam').addEventListener('click', function() {
         showSection('teamSection'); setActiveTab('tabTeam'); loadTeam();
     });
+    document.getElementById('tabWatermark').addEventListener('click', function() {
+        showSection('watermarkSection'); setActiveTab('tabWatermark'); loadWatermarkSettings();
+    });
 
     function showSection(id) {
-        ['homesSection','partnersSection','newsSection','teamSection'].forEach(function(s) {
+        ['homesSection','partnersSection','newsSection','teamSection','watermarkSection'].forEach(function(s) {
             document.getElementById(s).style.display = s === id ? '' : 'none';
         });
     }
     function setActiveTab(id) {
-        ['tabHomes','tabPartners','tabNews','tabTeam'].forEach(function(t) {
+        ['tabHomes','tabPartners','tabNews','tabTeam','tabWatermark'].forEach(function(t) {
             document.getElementById(t).classList.toggle('active', t === id);
+        });
+    }
+
+    // ── Watermark configurator ────────────────────────────────────
+    var WM_URL = apiBase + '/api/admin/settings/watermark';
+    var wmLoaded = false, wmPreviewTimer, wmPreviewUrl = null;
+    function wmCollect() {
+        return {
+            text:     document.getElementById('wm_text').value,
+            font_pct: parseFloat(document.getElementById('wm_font').value),
+            opacity:  parseFloat(document.getElementById('wm_op').value),
+            gravity:  document.getElementById('wm_gravity').value,
+        };
+    }
+    function wmSyncLabels() {
+        document.getElementById('wm_font_val').textContent = parseFloat(document.getElementById('wm_font').value).toFixed(2);
+        document.getElementById('wm_op_val').textContent   = parseFloat(document.getElementById('wm_op').value).toFixed(2);
+    }
+    function refreshWmPreview() {
+        var box = document.querySelector('.wm-preview'); if (box) box.classList.add('loading');
+        var body = wmCollect(); body.creator = 'Иван Петров';
+        fetch(WM_URL + '/preview', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+            .then(function(r) { if (!r.ok) throw new Error(); return r.blob(); })
+            .then(function(blob) {
+                if (wmPreviewUrl) URL.revokeObjectURL(wmPreviewUrl);
+                wmPreviewUrl = URL.createObjectURL(blob);
+                document.getElementById('wmPreviewImg').src = wmPreviewUrl;
+            })
+            .catch(function(){})
+            .then(function(){ if (box) box.classList.remove('loading'); });
+    }
+    function scheduleWmPreview() { clearTimeout(wmPreviewTimer); wmPreviewTimer = setTimeout(refreshWmPreview, 350); }
+    function loadWatermarkSettings() {
+        if (wmLoaded) return; wmLoaded = true;
+        fetch(WM_URL).then(function(r){ return r.ok ? r.json() : null; }).then(function(s) {
+            if (s) {
+                document.getElementById('wm_text').value = s.text || '';
+                document.getElementById('wm_font').value = s.font_pct;
+                document.getElementById('wm_op').value = s.opacity;
+                document.getElementById('wm_gravity').value = s.gravity || 'bottom-left';
+            }
+            wmSyncLabels();
+            refreshWmPreview();
+        }).catch(function(){ wmSyncLabels(); });
+        // live updates
+        ['wm_text','wm_font','wm_op','wm_gravity'].forEach(function(id) {
+            document.getElementById(id).addEventListener('input', function(){ wmSyncLabels(); scheduleWmPreview(); });
+        });
+        document.getElementById('wmSaveBtn').addEventListener('click', function() {
+            var btn = this, st = document.getElementById('wmStatus');
+            btn.disabled = true; st.className = 'drive-status'; st.textContent = 'Запазване…';
+            fetch(WM_URL, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(wmCollect()) })
+                .then(function(r){ return r.json().then(function(d){ return { ok: r.ok, d: d }; }); })
+                .then(function(res){
+                    if (res.ok) { st.className = 'drive-status ok'; st.textContent = '✓ Запазено. Прилага се при следващите качвания и Drive импорт.'; }
+                    else { st.className = 'drive-status err'; st.textContent = (res.d && res.d.error) || 'Грешка при запазване.'; }
+                })
+                .catch(function(){ st.className = 'drive-status err'; st.textContent = 'Грешка при свързване.'; })
+                .then(function(){ btn.disabled = false; });
         });
     }
 

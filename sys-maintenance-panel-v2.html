@@ -114,6 +114,22 @@
         .rel-result .rel-cat { font-size: 0.66rem; opacity: 0.65; text-transform: uppercase; }
         .rel-result-empty { padding: 0.6rem 0.75rem; color: var(--muted, #999); font-size: 0.82rem; }
         .rel-hint { font-size: 0.72rem; color: var(--muted, #998d7a); }
+        /* Watermark configurator */
+        .wm-config { max-width: 1000px; }
+        .wm-title { font-family: 'Cormorant Garamond', Georgia, serif; color: var(--text, #e8dcc8); margin: 0 0 0.3rem; }
+        .wm-sub { color: var(--muted, #998d7a); font-size: 0.9rem; line-height: 1.5; margin: 0 0 1.5rem; }
+        .wm-grid { display: grid; grid-template-columns: minmax(280px, 1fr) minmax(280px, 1.1fr); gap: 1.75rem; align-items: start; }
+        .wm-form { display: flex; flex-direction: column; gap: 1.1rem; }
+        .wm-fld { display: flex; flex-direction: column; gap: 0.4rem; }
+        .wm-fld .label b { color: #cd853f; }
+        .wm-fld input[type=range] { width: 100%; accent-color: #cd853f; cursor: pointer; }
+        .wm-actions { margin-top: 0.4rem; }
+        .wm-preview { position: relative; background: #111; border: 1px solid rgba(205,133,63,0.3); border-radius: 12px; padding: 0.6rem; }
+        .wm-preview .label { display: block; margin-bottom: 0.5rem; }
+        .wm-preview img { width: 100%; height: auto; display: block; border-radius: 8px; background: #1a1a1a; min-height: 160px; }
+        .wm-preview-loading { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; color: var(--muted, #998d7a); font-size: 0.9rem; background: rgba(0,0,0,0.45); border-radius: 12px; }
+        .wm-preview.loading .wm-preview-loading { display: flex; }
+        @media (max-width: 760px) { .wm-grid { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
@@ -155,6 +171,7 @@
     <button id="tabPartners">🤝 Партньори</button>
     <button id="tabNews">📰 Новини</button>
     <button id="tabTeam">👥 Екип</button>
+    <button id="tabWatermark">⚙️ Воден знак</button>
 </div>
 
             <!-- HOMES SECTION -->
@@ -198,6 +215,43 @@
                     <input id="teamSearch" class="input" placeholder="Search team...">
                 </div>
                 <div id="teamList" class="grid"></div>
+            </section>
+
+            <!-- WATERMARK CONFIGURATOR (owner only) -->
+            <section id="watermarkSection" style="display:none;">
+                <div class="wm-config">
+                    <h2 class="wm-title">⚙️ Конфигуратор на водния знак</h2>
+                    <p class="wm-sub">Тези настройки се прилагат динамично при качване на снимки <strong>и при импорт от Google Drive</strong>. „{name}“ се заменя с името на фотографа; без фотограф остава само марката.</p>
+                    <div class="wm-grid">
+                        <div class="wm-form">
+                            <label class="wm-fld"><span class="label">Текст (използвайте {name} за фотографа)</span>
+                                <input id="wm_text" class="field" maxlength="120" placeholder="© {name} via Адресът на историята"></label>
+                            <label class="wm-fld"><span class="label">Размер на шрифта: <b id="wm_font_val">2.85</b>% от ширината</span>
+                                <input id="wm_font" type="range" min="1" max="10" step="0.05" value="2.85"></label>
+                            <label class="wm-fld"><span class="label">Прозрачност: <b id="wm_op_val">1.0</b></span>
+                                <input id="wm_op" type="range" min="0.1" max="1" step="0.05" value="1"></label>
+                            <label class="wm-fld"><span class="label">Позиция</span>
+                                <select id="wm_gravity" class="field">
+                                    <option value="bottom-left">Долу ляво</option>
+                                    <option value="bottom-center">Долу център</option>
+                                    <option value="bottom-right">Долу дясно</option>
+                                    <option value="top-left">Горе ляво</option>
+                                    <option value="top-center">Горе център</option>
+                                    <option value="top-right">Горе дясно</option>
+                                    <option value="center">Център</option>
+                                </select></label>
+                            <div class="wm-actions">
+                                <button type="button" id="wmSaveBtn" class="theme-toggle drive-btn">💾 Запази настройките</button>
+                            </div>
+                            <div id="wmStatus" class="drive-status"></div>
+                        </div>
+                        <div class="wm-preview">
+                            <span class="label">Преглед на живо</span>
+                            <img id="wmPreviewImg" alt="Преглед на водния знак">
+                            <div id="wmPreviewLoading" class="wm-preview-loading">Зареждане…</div>
+                        </div>
+                    </div>
+                </div>
             </section>
         </main>
 
@@ -419,6 +473,6 @@
         </footer>
     </div>
 
-    <script src="admin-script.js?v=5"></script>
+    <script src="admin-script.js?v=6"></script>
 </body>
 </html>
