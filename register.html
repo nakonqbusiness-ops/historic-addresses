@@ -208,15 +208,11 @@
                 <div class="field-error" id="confirmError">Паролите не съвпадат.</div>
             </div>
 
-            <div class="auth-field">
-                <label for="birthdate">Дата на раждане</label>
-                <div class="input-wrap">
-                    <span class="ic"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>
-                    <input id="birthdate" type="date" name="birthdate" autocomplete="bday" required>
-                </div>
-                <div class="field-hint">Платформата е достъпна само за лица на 14 или повече години.</div>
-                <div class="field-error" id="birthdateError"></div>
-            </div>
+            <label class="auth-check">
+                <input type="checkbox" id="ageConfirm" required>
+                <span>Потвърждавам, че съм навършил(а) 14 години.</span>
+            </label>
+            <div class="field-error" id="ageError"></div>
 
             <label class="auth-check">
                 <input type="checkbox" id="newsletter">
@@ -348,25 +344,8 @@
         if (!on && sp) sp.remove();
     }
 
-    // ── Age gate (GDPR/COPPA): no accounts for users under 14 ──
-    var MIN_AGE = 14;
-    var birthdateEl = document.getElementById('birthdate');
-    // Stop obviously-impossible dates in the native picker.
-    (function() {
-        var t = new Date();
-        birthdateEl.max = t.toISOString().slice(0, 10);
-        birthdateEl.min = '1900-01-01';
-    })();
-    function ageFromDob(dob) {
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(dob)) return null;
-        var d = new Date(dob + 'T00:00:00');
-        if (isNaN(d.getTime())) return null;
-        var now = new Date();
-        var age = now.getFullYear() - d.getFullYear();
-        var m = now.getMonth() - d.getMonth();
-        if (m < 0 || (m === 0 && now.getDate() < d.getDate())) age--;
-        return age;
-    }
+    // ── Age gate (GDPR/COPPA): must confirm they are 14+ to register ──
+    var ageConfirmEl = document.getElementById('ageConfirm');
 
     form.addEventListener('submit', function(e) {
         e.preventDefault();
@@ -375,7 +354,6 @@
         var email = emailEl.value.trim();
         var password = pwEl.value;
         var confirm = confirmEl.value;
-        var birthdate = birthdateEl.value;
         var valid = true;
 
         if (!emailOk(email)) { setFieldError(emailEl, document.getElementById('emailError'), 'Моля въведете валиден имейл адрес.'); valid = false; }
@@ -390,11 +368,9 @@
         if (confirm !== password) { setFieldError(confirmEl, document.getElementById('confirmError'), 'Паролите не съвпадат.'); valid = false; }
         else setFieldError(confirmEl, document.getElementById('confirmError'), null);
 
-        var bdErr = document.getElementById('birthdateError');
-        var age = ageFromDob(birthdate);
-        if (!birthdate || age === null || age > 120) { setFieldError(birthdateEl, bdErr, 'Моля, въведете валидна дата на раждане.'); valid = false; }
-        else if (age < MIN_AGE) { setFieldError(birthdateEl, bdErr, 'Съжаляваме, но трябва да сте на поне 14 години, за да създадете профил.'); valid = false; }
-        else setFieldError(birthdateEl, bdErr, null);
+        var ageErr = document.getElementById('ageError');
+        if (!ageConfirmEl.checked) { ageErr.textContent = 'Трябва да потвърдите, че сте на поне 14 години.'; ageErr.classList.add('visible'); valid = false; }
+        else { ageErr.textContent = ''; ageErr.classList.remove('visible'); }
 
         if (!valid) return;
 
@@ -403,7 +379,7 @@
             method: 'POST',
             credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: email, password: password, birthdate: birthdate, newsletter: document.getElementById('newsletter').checked })
+            body: JSON.stringify({ email: email, password: password, age_confirmed: ageConfirmEl.checked, newsletter: document.getElementById('newsletter').checked })
         })
         .then(function(res) {
             return res.json().catch(function() { return {}; }).then(function(data) {
