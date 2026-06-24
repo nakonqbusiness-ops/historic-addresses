@@ -126,6 +126,9 @@
         .auth-btn:active:not(:disabled) { transform: translateY(0); }
         .auth-btn:disabled { opacity: 0.7; cursor: not-allowed; }
         .btn-spinner { width: 15px; height: 15px; border: 2px solid rgba(26,20,16,0.3); border-top-color: #1a1410; border-radius: 50%; animation: spin 0.7s linear infinite; }
+        .reg-success { text-align: center; animation: regFade 0.35s ease both; }
+        .reg-success-ico { font-size: 2.7rem; margin-bottom: 0.5rem; }
+        @keyframes regFade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
         @keyframes spin { to { transform: rotate(360deg); } }
 
         .auth-check { display: flex; align-items: flex-start; gap: 0.6rem; margin: 0 0 1.2rem; cursor: pointer; font-size: 0.85rem; color: var(--muted); line-height: 1.45; }
@@ -272,6 +275,30 @@
 
     var EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     function emailOk(v) { return EMAIL_RE.test(v); }
+    // Quick client-side block of common throwaway providers (the server is the real gate).
+    var DISPOSABLE = ['mailinator.com','guerrillamail.com','sharklasers.com','grr.la','10minutemail.com','10minutemail.net','temp-mail.org','tempmail.com','tempmailo.com','yopmail.com','throwawaymail.com','getnada.com','trashmail.com','maildrop.cc','mailnesia.com','dispostable.com','fakeinbox.com','mohmal.com','emailondeck.com','mailcatch.com','moakt.com','dropmail.me','1secmail.com','tempr.email','discard.email','mintemail.com','fakemail.net','minuteinbox.com','tempinbox.com'];
+    function isDisposable(v) {
+        var at = v.lastIndexOf('@'); if (at < 0) return false;
+        var h = v.slice(at + 1).toLowerCase();
+        if (DISPOSABLE.indexOf(h) >= 0) return true;
+        var parts = h.split('.');
+        for (var i = 1; i < parts.length - 1; i++) { if (DISPOSABLE.indexOf(parts.slice(i).join('.')) >= 0) return true; }
+        return false;
+    }
+    function showRegisterSuccess(email) {
+        var card = document.querySelector('.auth-card');
+        ['#registerForm', '.auth-title', '.auth-sub', '#authError'].forEach(function(sel){ var e = card.querySelector(sel); if (e) e.style.display = 'none'; });
+        var s = document.createElement('div');
+        s.className = 'reg-success';
+        s.innerHTML =
+            '<div class="reg-success-ico">📨</div>' +
+            '<h2 class="auth-title" style="margin-bottom:.5rem">Проверете имейла си</h2>' +
+            '<p class="auth-sub" style="margin-bottom:1rem">Изпратихме връзка за потвърждение на <strong class="reg-email" style="color:var(--accent-strong)"></strong>. Натиснете бутона в имейла, за да активирате профила си напълно.</p>' +
+            '<p style="font-size:.82rem;color:var(--muted);line-height:1.55;margin-bottom:1.4rem">Не виждате имейла? Проверете папка „Спам“. Можете да заявите нова връзка от профила си.</p>' +
+            '<a class="auth-btn" style="text-decoration:none;display:inline-flex;justify-content:center" href="profile.html">Към профила →</a>';
+        s.querySelector('.reg-email').textContent = email;   // textContent → XSS-safe
+        card.appendChild(s);
+    }
     function pwStrength(p) {
         var s = 0;
         if (p.length >= 8) s++;
@@ -321,6 +348,7 @@
         var valid = true;
 
         if (!emailOk(email)) { setFieldError(emailEl, document.getElementById('emailError'), 'Моля въведете валиден имейл адрес.'); valid = false; }
+        else if (isDisposable(email)) { setFieldError(emailEl, document.getElementById('emailError'), 'Моля, използвайте постоянен имейл - временните (10-минутни) пощи не се приемат.'); valid = false; }
         else setFieldError(emailEl, document.getElementById('emailError'), null);
 
         var pwErr = document.getElementById('passwordError');
@@ -346,7 +374,7 @@
             });
         })
         .then(function(r) {
-            if (r.ok) { location.replace('profile.html'); return; }
+            if (r.ok) { showRegisterSuccess(email); return; }
             setLoading(false);
             showError(friendlyError(r.data && r.data.error, r.status));
         })

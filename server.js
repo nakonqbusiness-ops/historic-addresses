@@ -361,6 +361,35 @@ const DUMMY_HASH = bcrypt.hashSync('unused-placeholder-password', BCRYPT_ROUNDS)
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 function validEmail(e) { return typeof e === 'string' && e.length <= 254 && EMAIL_RE.test(e); }
+
+// Known throwaway / 10-minute-mail providers. Registration with one of these is
+// rejected so accounts map to a reachable inbox. Exact host (or parent-domain)
+// match only, so we never false-positive a legitimate address.
+const DISPOSABLE_EMAIL_DOMAINS = new Set([
+    'mailinator.com','guerrillamail.com','guerrillamail.info','guerrillamail.net','guerrillamail.org',
+    'guerrillamail.biz','sharklasers.com','grr.la','spam4.me','pokemail.net','10minutemail.com',
+    '10minutemail.net','temp-mail.org','tempmail.com','tempmailo.com','tempmail.net','tempmail.dev',
+    'tempr.email','tmpmail.org','tmpmail.net','throwawaymail.com','getnada.com','nada.email','trashmail.com',
+    'trashmail.de','trash-mail.com','yopmail.com','yopmail.net','yopmail.fr','maildrop.cc','mailnesia.com',
+    'dispostable.com','fakeinbox.com','mintemail.com','mohmal.com','emailondeck.com','mailcatch.com',
+    'spamgourmet.com','mvrht.net','33mail.com','anonbox.net','discard.email','discardmail.com','mailtemp.info',
+    'fakemail.net','tempinbox.com','easytrashmail.com','jetable.org','mytemp.email','luxusmail.org',
+    'getairmail.com','inboxkitten.com','burnermail.io','emailfake.com','mailpoof.com','moakt.com','linshiyou.com',
+    'cs.email','mail-temp.com','tempemail.co','minuteinbox.com','mailto.plus','dropmail.me','1secmail.com',
+    '1secmail.org','1secmail.net','vjuum.com','laafd.com','txcct.com','rteml.com','dpptd.com','xojxe.com',
+]);
+function isDisposableEmail(email) {
+    const at = String(email || '').lastIndexOf('@');
+    if (at < 0) return false;
+    const host = email.slice(at + 1).toLowerCase();
+    if (DISPOSABLE_EMAIL_DOMAINS.has(host)) return true;
+    // also catch sub-addressed hosts like foo.mailinator.com
+    const parts = host.split('.');
+    for (let i = 1; i < parts.length - 1; i++) {
+        if (DISPOSABLE_EMAIL_DOMAINS.has(parts.slice(i).join('.'))) return true;
+    }
+    return false;
+}
 function passwordIssue(p) {
     if (typeof p !== 'string' || p.length < 8) return 'Password must be at least 8 characters';
     if (p.length > 200) return 'Password is too long';
@@ -429,6 +458,15 @@ function welcomeEmailHtml() {
        ${emailButton(DOMAIN + '/addresses.html', 'Разгледай адресите')}
        <p style="margin:14px 0 0;font-size:13px;line-height:1.6;color:#8b7355;">Благодарим Ви, че пазите историята жива.</p>`;
     return emailLayout(body, 'Добре дошли в Адресът на историята!');
+}
+function verifyEmailHtml(link) {
+    const body =
+      `<h1 style="margin:0 0 14px;font-family:Georgia,serif;font-size:25px;font-weight:700;color:#3a2f1f;">Потвърдете имейла си 📨</h1>
+       <p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:#5a4a33;">Благодарим Ви, че се регистрирахте в <strong style="color:#cd853f;">Адресът на историята</strong>! Остава само да потвърдите имейл адреса си, за да активирате напълно профила си (включително да предлагате нови локации).</p>
+       ${emailButton(link, 'Потвърди имейла')}
+       <p style="margin:8px 0 0;font-size:13px;line-height:1.6;color:#8b7355;">Ако бутонът не работи, копирайте този адрес в браузъра си:<br><a href="${link}" style="color:#cd853f;word-break:break-all;">${link}</a></p>
+       <p style="margin:16px 0 0;font-size:13px;line-height:1.6;color:#8b7355;">Връзката е валидна <strong>24 часа</strong>. Ако не сте се регистрирали, просто игнорирайте този имейл.</p>`;
+    return emailLayout(body, 'Потвърдете имейла си, за да активирате профила');
 }
 function resetEmailHtml(link) {
     const body =
@@ -510,6 +548,29 @@ function requireUser(req, res, next) {
         res.status(401).json({ error: 'Invalid or expired session' });
     }
 }
+// Email-verification gate for write actions. Chain AFTER requireUser. Reads the live
+// flag from the DB (the JWT predates verification, so we can't trust a claim).
+function requireVerified(req, res, next) {
+    dbGet('SELECT email_verified FROM users WHERE id=?', [req.user.sub])
+        .then(u => {
+            if (!u) return res.status(401).json({ error: 'Not authenticated' });
+            if (u.email_verified !== 1) {
+                return res.status(403).json({ error: 'EMAIL_NOT_VERIFIED', message: 'Моля, потвърдете имейл адреса си, за да използвате тази функция.' });
+            }
+            next();
+        })
+        .catch(() => res.status(500).json({ error: 'Server error' }));
+}
+// Mint a fresh verification token, store its hash (24h), and email the link.
+async function issueVerification(userId, email) {
+    const token   = crypto.randomBytes(32).toString('hex');
+    const expires = Date.now() + 24 * 60 * 60 * 1000;
+    await dbRun('UPDATE users SET verify_token_hash=?, verify_token_expires=? WHERE id=?',
+        [sha256hex(token), expires, userId]);
+    const link = `${DOMAIN}/api/auth/verify-email?token=${token}`;
+    return sendEmail({ to: email, subject: 'Потвърдете имейла си - Адресът на историята', html: verifyEmailHtml(link) });
+}
+
 // Role gate, e.g. requireUserRole('owner','admin')
 function requireUserRole(...roles) {
     return (req, res, next) => requireUser(req, res, () => {
@@ -791,6 +852,22 @@ function initDB() {
         // NOTE: idx_homes_category is created in migrateHomes() - only after the
         // `category` column is guaranteed to exist (older DBs add it via ALTER).
 
+        // ── Related places: a self-referencing many-to-many on homes ──────────────
+        // A row (home_id → related_id) is one directional link the admin set on
+        // `home_id`. The detail page shows the UNION of a home's outgoing and incoming
+        // links, so a single stored link surfaces on BOTH places' pages. ON DELETE
+        // CASCADE keeps it clean when a home is removed.
+        db.run(`CREATE TABLE IF NOT EXISTS related_places (
+            home_id    TEXT NOT NULL,
+            related_id TEXT NOT NULL,
+            created_at TEXT,
+            PRIMARY KEY (home_id, related_id),
+            FOREIGN KEY (home_id)    REFERENCES homes(id) ON DELETE CASCADE,
+            FOREIGN KEY (related_id) REFERENCES homes(id) ON DELETE CASCADE
+        )`);
+        db.run('CREATE INDEX IF NOT EXISTS idx_related_home    ON related_places(home_id)');
+        db.run('CREATE INDEX IF NOT EXISTS idx_related_related ON related_places(related_id)');
+
         // Partners
         db.run(`CREATE TABLE IF NOT EXISTS partners (
             id            TEXT PRIMARY KEY,
@@ -857,6 +934,16 @@ function initDB() {
         db.run('ALTER TABLE users ADD COLUMN reset_token_expires INTEGER', () => {});
         db.run('ALTER TABLE users ADD COLUMN newsletter INTEGER DEFAULT 0', () => {});  // email opt-in
         db.run('CREATE INDEX IF NOT EXISTS idx_users_reset ON users(reset_token_hash)', () => {});
+        // ── Email verification ──
+        // The ALTER only succeeds the FIRST time the column is added; in that single
+        // callback we grandfather every PRE-EXISTING account as verified so the new
+        // gate never locks out users who registered before this feature shipped.
+        db.run('ALTER TABLE users ADD COLUMN email_verified INTEGER DEFAULT 0', (err) => {
+            if (!err) db.run('UPDATE users SET email_verified=1', () => {});
+        });
+        db.run('ALTER TABLE users ADD COLUMN verify_token_hash TEXT', () => {});
+        db.run('ALTER TABLE users ADD COLUMN verify_token_expires INTEGER', () => {});
+        db.run('CREATE INDEX IF NOT EXISTS idx_users_verify ON users(verify_token_hash)', () => {});
 
         // ── Per-user activity (favorites / visited) ───────────────────────────
         // address_id references a home id; user_id cascades on user deletion.
@@ -1040,6 +1127,54 @@ function insertHome(h) {
     );
 }
 
+// ── Related places (self-referencing M2M) ─────────────────────────────────────
+// Replace a home's OUTGOING related links. Drops self-links / unknown ids, dedups,
+// caps the count. Call AFTER the home row exists (FK enforcement is ON).
+async function syncRelated(homeId, relatedIds) {
+    await dbRun('DELETE FROM related_places WHERE home_id=?', [homeId]);
+    if (!Array.isArray(relatedIds)) return;
+    const ids = [...new Set(relatedIds.map(x => String(x)).filter(x => x && x !== homeId))].slice(0, 12);
+    if (!ids.length) return;
+    const rows  = await dbAll(`SELECT id FROM homes WHERE id IN (${ids.map(() => '?').join(',')})`, ids);
+    const valid = new Set(rows.map(r => r.id));
+    const now   = new Date().toISOString();
+    for (const rid of ids) {
+        if (valid.has(rid)) await dbRun('INSERT OR IGNORE INTO related_places (home_id,related_id,created_at) VALUES (?,?,?)', [homeId, rid, now]);
+    }
+}
+// Best thumbnail for a related-place card: the place photo first, portrait as fallback.
+function relatedThumb(r) {
+    try { const imgs = JSON.parse(r.images || '[]'); if (imgs[0]) { const t = ensureThumb(imgs[0]); return t.thumb || t.path || null; } } catch {}
+    if (r.portrait_url) return /^https?:\/\/.+\.jpe?g$/i.test(r.portrait_url) ? r.portrait_url.replace(/\.jpe?g$/i, '_thumb.jpg') : r.portrait_url;
+    return null;
+}
+// Union of a home's outgoing + incoming links → published homes only, as preview cards.
+async function getRelatedPlaces(homeId) {
+    const rows = await dbAll(
+        `SELECT h.slug, h.name, h.address, h.category, h.images, h.portrait_url
+         FROM homes h
+         WHERE h.published = 1 AND h.id <> ? AND h.id IN (
+             SELECT related_id FROM related_places WHERE home_id = ?
+             UNION
+             SELECT home_id    FROM related_places WHERE related_id = ?
+         )
+         ORDER BY h.category, h.name
+         LIMIT 12`,
+        [homeId, homeId, homeId]
+    );
+    return rows.map(r => ({
+        slug: r.slug, name: r.name, address: r.address || '',
+        category: r.category || 'home', image: relatedThumb(r),
+    }));
+}
+// The links FROM this home (what the admin editor pre-fills) - with names for chips.
+async function getRelatedEdit(homeId) {
+    return dbAll(
+        `SELECT h.id, h.name, h.category FROM related_places rp
+         JOIN homes h ON h.id = rp.related_id
+         WHERE rp.home_id = ? ORDER BY h.name`, [homeId]);
+}
+
 // Many older homes store images without a `thumb` field, even though the matching
 // <name>_thumb.jpg exists in R2 (created by the thumbnail backfill). Derive it from the
 // path so list cards load the small thumbnail instead of the full-size image.
@@ -1132,6 +1267,7 @@ app.post('/api/auth/register', rateLimitAuth, async (req, res) => {
     const email    = String((req.body && req.body.email) || '').trim().toLowerCase();
     const password = (req.body && req.body.password) || '';
     if (!validEmail(email)) return res.status(400).json({ error: 'Please enter a valid email address' });
+    if (isDisposableEmail(email)) return res.status(400).json({ error: 'Моля, използвайте постоянен имейл адрес - временните (10-минутни) пощи не се приемат.' });
     const issue = passwordIssue(password);
     if (issue) return res.status(400).json({ error: issue });
     try {
@@ -1142,19 +1278,16 @@ app.post('/api/auth/register', rateLimitAuth, async (req, res) => {
         const id  = crypto.randomUUID();
         const now = new Date().toISOString();
         const newsletter = (req.body && (req.body.newsletter === true || req.body.newsletter === 1)) ? 1 : 0;
+        // email_verified starts at 0 → the account is restricted until the link is clicked.
         await dbRun(
-            'INSERT INTO users (id,email,password_hash,role,permissions,newsletter,created_at) VALUES (?,?,?,?,?,?,?)',
+            'INSERT INTO users (id,email,password_hash,role,permissions,newsletter,created_at,email_verified) VALUES (?,?,?,?,?,?,?,0)',
             [id, email, password_hash, 'user', '[]', newsletter, now]
         );
         issueAuthCookie(res, { id, role: 'user' });
-        res.status(201).json({ id, email, role: 'user' });
+        res.status(201).json({ id, email, role: 'user', email_verified: false });
 
-        // Fire-and-forget welcome email - never blocks or fails the registration.
-        sendEmail({
-            to: email,
-            subject: 'Добре дошли в Адресът на историята! 🏛️',
-            html: welcomeEmailHtml(),
-        }).catch(() => {});
+        // Fire-and-forget verification email - never blocks or fails the registration.
+        issueVerification(id, email).catch(() => {});
     } catch (e) {
         console.error('register error:', e.message);
         res.status(500).json({ error: 'Registration failed' });
@@ -1238,6 +1371,42 @@ app.post('/api/auth/reset-password', rateLimitAuth, async (req, res) => {
     }
 });
 
+// Verify email from the link in the registration email. Server-rendered themed page
+// (one click → done), then a button onward to the profile.
+app.get('/api/auth/verify-email', async (req, res) => {
+    const token = String(req.query.token || '').trim();
+    const page = (icon, title, msg, cta) => `<!doctype html><html lang="bg"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Потвърждение на имейл</title><link rel="stylesheet" href="/assets/css/styles.css?v=7"><style>body{display:flex;min-height:92vh;align-items:center;justify-content:center;font-family:'Mulish',sans-serif;text-align:center;padding:2rem;background:var(--bg)}.v-card{max-width:440px;background:var(--card);border:1px solid var(--border);border-radius:18px;padding:2.4rem 2rem;box-shadow:var(--shadow)}.v-ico{font-size:2.6rem;margin-bottom:0.6rem}.v-card h1{font-family:'Cormorant Garamond',serif;color:var(--fg);font-size:1.7rem;margin:0 0 0.5rem}.v-card p{color:var(--muted);line-height:1.6;margin:0 0 1.4rem}.v-btn{display:inline-block;padding:0.8rem 1.6rem;border-radius:10px;background:linear-gradient(135deg,#cd853f,#daa520);color:#1a1410;font-weight:700;text-decoration:none}</style></head><body><div class="v-card"><div class="v-ico">${icon}</div><h1>${title}</h1><p>${msg}</p>${cta}</div></body></html>`;
+    const ok   = page('✅', 'Имейлът е потвърден!', 'Профилът Ви вече е напълно активен. Благодарим Ви!', '<a class="v-btn" href="/profile.html">Към профила</a>');
+    const bad  = page('⚠️', 'Невалидна или изтекла връзка', 'Връзката за потвърждение е невалидна или е изтекла. Влезте в профила си и заявете нова от банера за потвърждение.', '<a class="v-btn" href="/login.html">Вход</a>');
+    if (!token || token.length < 32) return res.status(400).send(bad);
+    try {
+        const user = await dbGet('SELECT id, email, email_verified, verify_token_expires FROM users WHERE verify_token_hash=?', [sha256hex(token)]);
+        if (!user || !user.verify_token_expires || user.verify_token_expires < Date.now()) return res.status(400).send(bad);
+        if (user.email_verified === 1) return res.send(ok);
+        await dbRun('UPDATE users SET email_verified=1, verify_token_hash=NULL, verify_token_expires=NULL WHERE id=?', [user.id]);
+        // Now that they're verified, the welcome email is timely.
+        sendEmail({ to: user.email, subject: 'Добре дошли в Адресът на историята! 🏛️', html: welcomeEmailHtml() }).catch(() => {});
+        res.send(ok);
+    } catch (e) {
+        console.error('verify-email error:', e.message);
+        res.status(500).send(bad);
+    }
+});
+
+// Resend the verification email (logged-in users who haven't verified yet).
+app.post('/api/auth/resend-verification', requireUser, rateLimitAuth, async (req, res) => {
+    try {
+        const user = await dbGet('SELECT email, email_verified FROM users WHERE id=?', [req.user.sub]);
+        if (!user) return res.status(404).json({ error: 'User not found' });
+        if (user.email_verified === 1) return res.json({ message: 'Имейлът Ви вече е потвърден.', already: true });
+        await issueVerification(req.user.sub, user.email);
+        res.json({ message: 'Изпратихме нова връзка за потвърждение на имейла Ви.' });
+    } catch (e) {
+        console.error('resend-verification error:', e.message);
+        res.status(500).json({ error: 'Възникна грешка. Опитайте отново.' });
+    }
+});
+
 // One-click newsletter unsubscribe from the email link (token-verified, no login).
 app.get('/api/newsletter/unsubscribe', async (req, res) => {
     const id = String(req.query.u || '');
@@ -1280,15 +1449,15 @@ app.post('/api/auth/change-password', requireUser, rateLimitAuth, async (req, re
 
 // Cheap "am I logged in?" check for the frontend.
 app.get('/api/auth/me', requireUser, async (req, res) => {
-    const user = await dbGet('SELECT id,email,role,display_name FROM users WHERE id=?', [req.user.sub]);
+    const user = await dbGet('SELECT id,email,role,display_name,email_verified FROM users WHERE id=?', [req.user.sub]);
     if (!user) return res.status(401).json({ error: 'Not authenticated' });
-    res.json(user);
+    res.json({ id: user.id, email: user.email, role: user.role, display_name: user.display_name, email_verified: user.email_verified === 1 });
 });
 
 // Profile: the user's data + their favorite and visited addresses.
 app.get('/api/user/profile', requireUser, async (req, res) => {
     try {
-        const user = await dbGet('SELECT id,email,role,permissions,display_name,newsletter,created_at FROM users WHERE id=?', [req.user.sub]);
+        const user = await dbGet('SELECT id,email,role,permissions,display_name,newsletter,created_at,email_verified FROM users WHERE id=?', [req.user.sub]);
         if (!user) return res.status(404).json({ error: 'User not found' });
 
         const rows = await dbAll(
@@ -1352,6 +1521,7 @@ app.get('/api/user/profile', requireUser, async (req, res) => {
             email:         user.email,
             display_name:  user.display_name || null,
             newsletter:    user.newsletter === 1,
+            email_verified: user.email_verified === 1,
             role:          user.role,
             permissions:   (() => { try { return JSON.parse(user.permissions || '[]'); } catch { return []; } })(),
             created_at:    user.created_at,
@@ -1548,7 +1718,7 @@ async function deleteR2(url) {
 }
 
 // Submit a suggestion (logged-in users). Accepts text fields + up to MAX_PHOTOS images.
-app.post('/api/suggest', requireUser, rateLimitSuggest, acceptPhotos('images'), async (req, res) => {
+app.post('/api/suggest', requireUser, requireVerified, rateLimitSuggest, acceptPhotos('images'), async (req, res) => {
     try {
         const b = req.body || {};
         const title = sanitizeText(b.title, 200);
@@ -1602,7 +1772,7 @@ app.post('/api/suggest', requireUser, rateLimitSuggest, acceptPhotos('images'), 
 // Correct & resubmit a submission that a moderator sent back ('rejected'). Only the
 // owner may edit, and only while it's in the 'rejected' state. Updates the text
 // fields, optionally replaces the photos, clears the note and re-queues it (pending).
-app.put('/api/suggest/:id', requireUser, rateLimitSuggest, acceptPhotos('images'), async (req, res) => {
+app.put('/api/suggest/:id', requireUser, requireVerified, rateLimitSuggest, acceptPhotos('images'), async (req, res) => {
     try {
         const row = await dbGet('SELECT * FROM pending_addresses WHERE id=?', [req.params.id]);
         if (!row) return res.status(404).json({ error: 'Предложението не е намерено' });
@@ -2099,6 +2269,8 @@ app.get('/api/homes/:slug', async (req, res) => {
         const row = await dbGet('SELECT * FROM homes WHERE slug=? OR id=?', [req.params.slug, req.params.slug]);
         if (!row) return res.status(404).json({ error: 'Home not found' });
         const data = rowToHome(row);
+        data.related      = await getRelatedPlaces(row.id);   // preview cards (both directions)
+        data.related_edit = await getRelatedEdit(row.id);     // outgoing links w/ names (admin editor)
         cache.set(key, data, 60);
         res.json(data);
     } catch (e) {
@@ -2115,6 +2287,8 @@ app.post('/api/homes', requireAuth, async (req, res) => {
     h.created_at = h.updated_at = new Date().toISOString();
     try {
         insertHome(h);
+        // Queued after the home INSERT (sqlite serialises), so the FK target exists.
+        await syncRelated(h.id, h.related_ids);
         cache.clear();
         res.status(201).json({ message: 'Home created', id: h.id, slug: h.slug });
     } catch (e) {
@@ -2146,6 +2320,7 @@ app.put('/api/homes/:id', requireAuth, async (req, res) => {
             ]
         );
         if (!result.changes) return res.status(404).json({ error: 'Home not found' });
+        if (h.related_ids !== undefined) await syncRelated(req.params.id, h.related_ids);
         cache.clear();
         res.json({ message: 'Home updated' });
     } catch (e) {

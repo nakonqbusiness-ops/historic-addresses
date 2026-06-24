@@ -95,6 +95,25 @@
         .drive-status { margin-top: 0.5rem; font-size: 0.82rem; color: var(--muted); min-height: 1em; white-space: pre-wrap; }
         .drive-status.ok { color: #8bc78e; }
         .drive-status.err { color: #e98c8c; }
+        /* Related-places picker */
+        .rel-field { display: flex; flex-direction: column; gap: 0.5rem; }
+        .rel-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+        .rel-chips:empty { display: none; }
+        .rel-chip { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.3rem 0.5rem 0.3rem 0.7rem; background: rgba(205,133,63,0.15); border: 1px solid rgba(205,133,63,0.4); border-radius: 999px; font-size: 0.82rem; color: #e8dcc8; }
+        .rel-chip b { font-weight: 600; }
+        .rel-chip .rel-cat { font-size: 0.66rem; opacity: 0.7; text-transform: uppercase; letter-spacing: 0.03em; }
+        .rel-chip button { background: none; border: none; color: #cd853f; cursor: pointer; font-size: 1rem; line-height: 1; padding: 0 0.1rem; }
+        .rel-chip button:hover { color: #e98c8c; }
+        .rel-search-wrap { position: relative; }
+        .rel-results { position: absolute; left: 0; right: 0; top: calc(100% + 2px); z-index: 30; background: #1f1a14; border: 1px solid rgba(205,133,63,0.3); border-radius: 8px; box-shadow: 0 14px 34px rgba(0,0,0,0.5); overflow: hidden; max-height: 240px; overflow-y: auto; }
+        .rel-results:empty { display: none; }
+        .rel-result { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; padding: 0.55rem 0.75rem; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.06); }
+        .rel-result:last-child { border-bottom: none; }
+        .rel-result:hover { background: rgba(205,133,63,0.12); }
+        .rel-result.added { opacity: 0.5; cursor: default; }
+        .rel-result .rel-cat { font-size: 0.66rem; opacity: 0.65; text-transform: uppercase; }
+        .rel-result-empty { padding: 0.6rem 0.75rem; color: var(--muted, #999); font-size: 0.82rem; }
+        .rel-hint { font-size: 0.72rem; color: var(--muted, #998d7a); }
     </style>
 </head>
 <body>
@@ -272,6 +291,15 @@
                             <label><span class="label">Photo date</span><input id="f_date" class="field" placeholder="YYYY-MM-DD"></label>
                             <label class="full"><span class="label">Sources (semicolon ; separated)</span><textarea id="f_sources" class="field textarea"></textarea></label>
                             <label class="full"><span class="label">Tags (comma , separated)</span><input id="f_tags" class="field" placeholder="poet, 19th-century"></label>
+                            <div class="full rel-field">
+                                <span class="label">Свързани обекти (Related places)</span>
+                                <div class="rel-chips" id="f_rel_chips"></div>
+                                <div class="rel-search-wrap">
+                                    <input id="f_rel_search" class="field" type="text" placeholder="Търсене на обект за свързване…" autocomplete="off">
+                                    <div class="rel-results" id="f_rel_results"></div>
+                                </div>
+                                <span class="rel-hint">Връзките са двупосочни - ще се покажат и на двете страници.</span>
+                            </div>
                         </div>
                     </div>
                     <div class="actions">
@@ -391,6 +419,6 @@
         </footer>
     </div>
 
-    <script src="admin-script.js?v=4"></script>
+    <script src="admin-script.js?v=5"></script>
 </body>
 </html>

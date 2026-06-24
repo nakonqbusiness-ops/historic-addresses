@@ -162,6 +162,66 @@ async function uploadToR2(file, homeSlug, watermark, photographer) {
     var searchTimeout;
     var imageSources = [];
     var imageThumbs = {};   // maps full image URL -> thumbnail URL
+
+    // ── Related-places picker ──────────────────────────────────────────────────
+    var relatedSelected = [];   // [{id,name,category}] - this home's outgoing related links
+    var CATLBL = { home: 'Дом', monument: 'Паметник', events: 'Събитие' };
+    var relSearchTimer, relInit = false;
+
+    function renderRelChips() {
+        var box = document.getElementById('f_rel_chips');
+        if (!box) return;
+        box.innerHTML = '';
+        relatedSelected.forEach(function(r) {
+            var chip = document.createElement('span'); chip.className = 'rel-chip';
+            var nm = document.createElement('b'); nm.textContent = r.name || r.id;
+            var cat = document.createElement('span'); cat.className = 'rel-cat'; cat.textContent = CATLBL[r.category] || '';
+            var x = document.createElement('button'); x.type = 'button'; x.innerHTML = '&times;'; x.title = 'Премахни';
+            x.addEventListener('click', function() { relatedSelected = relatedSelected.filter(function(s){ return s.id !== r.id; }); renderRelChips(); });
+            chip.appendChild(nm); if (cat.textContent) chip.appendChild(cat); chip.appendChild(x);
+            box.appendChild(chip);
+        });
+    }
+    function relAdd(item) {
+        if (relatedSelected.some(function(s){ return s.id === item.id; })) return;
+        if (relatedSelected.length >= 12) { alert('Максимум 12 свързани обекта.'); return; }
+        relatedSelected.push({ id: item.id, name: item.name, category: item.category });
+        renderRelChips();
+    }
+    function initRelatedPicker() {
+        if (relInit) return; relInit = true;
+        var input = document.getElementById('f_rel_search');
+        var results = document.getElementById('f_rel_results');
+        if (!input || !results) return;
+        input.addEventListener('input', function() {
+            clearTimeout(relSearchTimer);
+            var q = input.value.trim();
+            if (q.length < 2) { results.innerHTML = ''; return; }
+            relSearchTimer = setTimeout(function() {
+                fetch(API_URL + '?all=true&limit=8&search=' + encodeURIComponent(q))
+                    .then(function(r){ return r.json(); })
+                    .then(function(resp) {
+                        var list = (resp && resp.data) || resp || [];
+                        var curId = (document.getElementById('f_id') || {}).value || '';
+                        var curSlug = document.getElementById('f_slug').value;
+                        results.innerHTML = '';
+                        var shown = list.filter(function(h){ return h.id !== curId && h.slug !== curSlug; }).slice(0, 8);
+                        if (!shown.length) { results.innerHTML = '<div class="rel-result-empty">Няма резултати</div>'; return; }
+                        shown.forEach(function(h) {
+                            var added = relatedSelected.some(function(s){ return s.id === h.id; });
+                            var row = document.createElement('div'); row.className = 'rel-result' + (added ? ' added' : '');
+                            var nm = document.createElement('span'); nm.textContent = h.name;
+                            var cat = document.createElement('span'); cat.className = 'rel-cat'; cat.textContent = CATLBL[h.category] || '';
+                            row.appendChild(nm); row.appendChild(cat);
+                            if (!added) row.addEventListener('click', function() { relAdd(h); input.value = ''; results.innerHTML = ''; input.focus(); });
+                            results.appendChild(row);
+                        });
+                    })
+                    .catch(function(){ results.innerHTML = '<div class="rel-result-empty">Грешка при търсене</div>'; });
+            }, 250);
+        });
+        document.addEventListener('click', function(e) { if (!e.target.closest('.rel-search-wrap')) results.innerHTML = ''; });
+    }
     var portraitPreviewEl = document.getElementById('portraitPreview');
     var fPortraitEl = document.getElementById('f_portrait');
 
@@ -350,6 +410,12 @@ async function uploadToR2(file, homeSlug, watermark, photographer) {
         document.getElementById('f_date').value = p.photo_date || '';
         document.getElementById('f_sources').value = (p.sources || []).join('; ');
         document.getElementById('f_tags').value = (p.tags || []).join(', ');
+        // Related places: prefill this home's outgoing links and reset the search box.
+        initRelatedPicker();
+        relatedSelected = (p.related_edit || []).map(function(r){ return { id: r.id, name: r.name, category: r.category }; });
+        renderRelChips();
+        var relS = document.getElementById('f_rel_search'); if (relS) relS.value = '';
+        var relR = document.getElementById('f_rel_results'); if (relR) relR.innerHTML = '';
         document.getElementById('f_published').checked = (typeof p.published === 'boolean') ? p.published : true;
         // Clear photographer field and status when opening a form
         var pEl = document.getElementById('photographerName');
@@ -396,6 +462,7 @@ async function uploadToR2(file, homeSlug, watermark, photographer) {
         if (!p.created_at) p.created_at = now;
         p.updated_at = now;
         p.published = !!document.getElementById('f_published').checked;
+        p.related_ids = relatedSelected.map(function(r){ return r.id; });   // self-ref M2M links
         return p;
     }
 
