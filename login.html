@@ -122,7 +122,7 @@
         .auth-alt a { color: var(--accent-strong); font-weight: 600; text-decoration: none; }
         .auth-alt a:hover { text-decoration: underline; }
     </style>
-    <script defer src="assets/js/account-nav.js?v=15"></script>
+    <script defer src="assets/js/account-nav.js?v=17"></script>
 </head>
 
 <body class="auth-page">
@@ -183,8 +183,23 @@
             </button>
         </form>
 
-        <p class="auth-alt" style="margin-top:1rem;"><a href="forgot-password.html">Забравена парола?</a></p>
-        <p class="auth-alt">Нямате акаунт? <a href="register.html">Регистрирайте се</a></p>
+        <form id="twofaForm" novalidate style="display:none">
+            <div class="auth-field">
+                <label for="twofaCode">Двуфакторен код</label>
+                <div class="input-wrap">
+                    <span class="ic"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
+                    <input id="twofaCode" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="6-цифрен код" maxlength="14" required>
+                </div>
+                <p class="auth-alt" style="margin:.5rem 0 0;font-size:.82rem;">Въведете кода от приложението за автентикация или <strong>резервен код</strong>.</p>
+            </div>
+            <button type="submit" class="auth-btn" id="twofaBtn">
+                <span id="twofaBtnLabel">Потвърди</span>
+            </button>
+            <p class="auth-alt" style="margin-top:.8rem;"><a href="#" id="twofaBack">← Назад към вход</a></p>
+        </form>
+
+        <p class="auth-alt" style="margin-top:1rem;" id="loginLinks"><a href="forgot-password.html">Забравена парола?</a></p>
+        <p class="auth-alt" id="registerLink">Нямате акаунт? <a href="register.html">Регистрирайте се</a></p>
     </div>
 </main>
 
@@ -255,6 +270,44 @@
         if (!on && sp) sp.remove();
     }
 
+    // ── Two-factor step ──
+    var twofaForm  = document.getElementById('twofaForm');
+    var twofaCode  = document.getElementById('twofaCode');
+    var twofaBtn   = document.getElementById('twofaBtn');
+    var twofaLabel = document.getElementById('twofaBtnLabel');
+    var loginLinks = document.getElementById('loginLinks');
+    var registerLink = document.getElementById('registerLink');
+    var pendingToken = null;
+
+    function showTwofa(pending) {
+        pendingToken = pending;
+        setLoading(false);
+        form.style.display = 'none';
+        loginLinks.style.display = 'none';
+        registerLink.style.display = 'none';
+        twofaForm.style.display = '';
+        clearError();
+        setTimeout(function() { twofaCode.focus(); }, 30);
+    }
+    function backToLogin() {
+        pendingToken = null;
+        twofaForm.style.display = 'none';
+        form.style.display = '';
+        loginLinks.style.display = '';
+        registerLink.style.display = '';
+        twofaCode.value = '';
+        clearError();
+    }
+    function setTwofaLoading(on) {
+        twofaBtn.disabled = on;
+        twofaLabel.textContent = on ? 'Проверка…' : 'Потвърди';
+        var sp = twofaBtn.querySelector('.btn-spinner');
+        if (on && !sp) { sp = document.createElement('span'); sp.className = 'btn-spinner'; twofaBtn.insertBefore(sp, twofaLabel); }
+        if (!on && sp) sp.remove();
+    }
+
+    document.getElementById('twofaBack').addEventListener('click', function(e) { e.preventDefault(); backToLogin(); });
+
     form.addEventListener('submit', function(e) {
         e.preventDefault();
         clearError();
@@ -275,6 +328,8 @@
             });
         })
         .then(function(r) {
+            if (r.ok && r.data && r.data.twofa_required) { showTwofa(r.data.pending); return; }
+            if (r.ok && r.data && r.data.enroll_2fa_required) { location.replace('profile.html#twofa'); return; }
             if (r.ok) { location.replace('profile.html'); return; }
             setLoading(false);
             showError(friendlyError(r.data && r.data.error, r.status));
@@ -282,6 +337,35 @@
         .catch(function() {
             setLoading(false);
             showError('Възникна грешка при свързване. Проверете интернет връзката си.');
+        });
+    });
+
+    twofaForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        clearError();
+        var code = twofaCode.value.trim();
+        if (!code) { showError('Моля въведете кода.'); return; }
+        setTwofaLoading(true);
+        fetch('/api/auth/2fa-login', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pending: pendingToken, code: code })
+        })
+        .then(function(res) {
+            return res.json().catch(function() { return {}; }).then(function(data) {
+                return { ok: res.ok, status: res.status, data: data };
+            });
+        })
+        .then(function(r) {
+            if (r.ok) { location.replace('profile.html'); return; }
+            setTwofaLoading(false);
+            if (r.status === 401 && r.data && /изтече/.test(r.data.error || '')) { showError(r.data.error); setTimeout(backToLogin, 1500); return; }
+            showError((r.data && r.data.error) || 'Невалиден код.');
+        })
+        .catch(function() {
+            setTwofaLoading(false);
+            showError('Възникна грешка при свързване.');
         });
     });
 })();

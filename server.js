@@ -15,6 +15,8 @@ const compression  = require('compression');
 const opentype     = require('opentype.js');
 const { Resend }   = require('resend');
 const { google }   = require('googleapis');
+const { authenticator } = require('otplib');
+const QRCode       = require('qrcode');
 const { S3Client, PutObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
 
 // ─── Config ──────────────────────────────────────────────────────────────────
@@ -329,53 +331,12 @@ async function buildWatermark(buf, creator, cfgOverride) {
 
 function randomSuffix(n = 6) { return Math.random().toString(36).substring(2, 2 + n); }
 
-// ─── Admin auth ────────────────────────────────────────────────────────────────
-// Password → role map (SHA-256 hex of the password). The raw password is sent
-// once to /api/login over HTTPS; the server verifies it here and returns a signed
-// token. Every mutating API route then requires that token in an X-Admin-Token
-// header - so the panel is no longer just hidden on the client, it is enforced.
-const ADMIN_ACCOUNTS = {
-    '135a21d2896b3b414a72f31aa2ada261c499b0740bc747b731dcfbd4315619ec': { role: 'owner',  name: 'Георги'  },
-    'f31f00416e795e7c9f539624a907f8dd0e7a363d58a2a406e8f73f1702ab6826': { role: 'editor', name: 'Божидар' },
-};
-
-const ADMIN_SECRET = process.env.ADMIN_SECRET || crypto.randomBytes(32).toString('hex');
-if (!process.env.ADMIN_SECRET) {
-    console.warn('⚠️  ADMIN_SECRET not set - using a random per-boot secret. Set it in env so admin logins survive restarts.');
-}
-
-const sha256hex   = s => crypto.createHash('sha256').update(String(s)).digest('hex');
-const b64url      = b => Buffer.from(b).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-const b64urlDecode = s => Buffer.from(s.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString();
-
-function signToken(payloadObj) {
-    const payload = b64url(JSON.stringify(payloadObj));
-    const sig     = b64url(crypto.createHmac('sha256', ADMIN_SECRET).update(payload).digest());
-    return payload + '.' + sig;
-}
-function verifyToken(token) {
-    if (!token || token.indexOf('.') === -1) return null;
-    const [payload, sig] = token.split('.');
-    const expected = b64url(crypto.createHmac('sha256', ADMIN_SECRET).update(payload).digest());
-    const a = Buffer.from(sig), b = Buffer.from(expected);
-    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
-    try { return JSON.parse(b64urlDecode(payload)); } catch { return null; }
-}
-function readToken(req) {
-    return req.headers['x-admin-token'] || (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
-}
-function requireAuth(req, res, next) {
-    const data = verifyToken(readToken(req));
-    if (!data) return res.status(401).json({ error: 'Unauthorized' });
-    req.admin = data;
-    next();
-}
-function requireOwner(req, res, next) {
-    requireAuth(req, res, () => {
-        if (req.admin.role !== 'owner') return res.status(403).json({ error: 'Forbidden - owner only' });
-        next();
-    });
-}
+// ─── Hashing helper ────────────────────────────────────────────────────────────
+// NB: the legacy hardcoded-password admin auth (ADMIN_ACCOUNTS + X-Admin-Token HMAC)
+// was removed 2026-06-25. All content management now runs on the user-account RBAC
+// (requireRole) — see the OWNER/ADMIN dashboard. sha256hex stays: it is used by the
+// email-verification, password-reset and 2FA-backup-code flows.
+const sha256hex = s => crypto.createHash('sha256').update(String(s)).digest('hex');
 
 // ─── User accounts (public profiles + RBAC) ─────────────────────────────────────
 // Separate from the admin token above: these are end-user logins using a JWT
@@ -603,6 +564,20 @@ function requireVerified(req, res, next) {
         })
         .catch(() => res.status(500).json({ error: 'Server error' }));
 }
+// Block banned / timed-out users from write actions. Chain AFTER requireUser.
+function requireNotBanned(req, res, next) {
+    dbGet('SELECT banned_until FROM users WHERE id=?', [req.user.sub])
+        .then(u => {
+            if (u && isBanned(u.banned_until)) {
+                const perm = Number(u.banned_until) > Date.now() + 50 * 365 * 24 * 3600 * 1000;
+                return res.status(403).json({ error: 'ACCOUNT_BANNED', message: perm
+                    ? 'Профилът Ви е блокиран и не може да добавя съдържание.'
+                    : 'Профилът Ви е временно ограничен. Моля, опитайте по-късно.' });
+            }
+            next();
+        })
+        .catch(() => res.status(500).json({ error: 'Server error' }));
+}
 // Mint a fresh verification token, store its hash (24h), and email the link.
 async function issueVerification(userId, email) {
     const token   = crypto.randomBytes(32).toString('hex');
@@ -639,11 +614,14 @@ function requireUserPermission(perm) {
 function requireModerator(req, res, next) {
     requireUser(req, res, async () => {
         try {
-            const row = await dbGet('SELECT role, permissions FROM users WHERE id=?', [req.user.sub]);
+            const row = await dbGet('SELECT role, permissions, totp_enabled FROM users WHERE id=?', [req.user.sub]);
             if (!row) return res.status(401).json({ error: 'Not authenticated' });
             let perms = []; try { perms = JSON.parse(row.permissions || '[]'); } catch {}
-            if (row.role === 'owner' || row.role === 'moderator' || perms.includes('approve:photos')) {
+            if (row.role === 'owner' || row.role === 'admin' || row.role === 'moderator' || perms.includes('approve:photos')) {
                 req.user.role = row.role;
+                if (roleRequires2fa(row.role) && !row.totp_enabled) {
+                    return res.status(403).json({ error: 'TWOFA_REQUIRED', message: 'Двуфакторната автентикация е задължителна за екипа. Активирайте я в настройките на профила си.' });
+                }
                 return next();
             }
             return res.status(403).json({ error: 'Forbidden - moderators only' });
@@ -663,6 +641,103 @@ function requireOwnerUser(req, res, next) {
         } catch (e) { res.status(500).json({ error: 'Server error' }); }
     });
 }
+
+// ── Role hierarchy: user < moderator < admin < owner ──────────────────────────
+const ROLE_RANK = { user: 0, moderator: 1, admin: 2, owner: 3 };
+function roleRank(r) { return ROLE_RANK[r] || 0; }
+// Gate by minimum role. Re-reads the live role from the DB (the JWT only carries the
+// role at issue time) and attaches it as req.user.role.
+function requireRole(minRole) {
+    const min = ROLE_RANK[minRole] || 0;
+    return (req, res, next) => requireUser(req, res, async () => {
+        try {
+            const row = await dbGet('SELECT role, totp_enabled FROM users WHERE id=?', [req.user.sub]);
+            if (!row) return res.status(401).json({ error: 'Not authenticated' });
+            req.user.role = row.role;
+            if (roleRank(row.role) < min) return res.status(403).json({ error: 'Forbidden' });
+            if (roleRequires2fa(row.role) && !row.totp_enabled) {
+                return res.status(403).json({ error: 'TWOFA_REQUIRED', message: 'Двуфакторната автентикация е задължителна за екипа. Активирайте я в настройките на профила си.' });
+            }
+            next();
+        } catch (e) { res.status(500).json({ error: 'Server error' }); }
+    });
+}
+// True if `banned_until` is in the future.
+function isBanned(bannedUntil) { return !!bannedUntil && Number(bannedUntil) > Date.now(); }
+// Sentinel epoch for a permanent ban (year 9999) — well past the 50-year "permanent" cutoff.
+const PERMANENT_BAN = 253370764800000;
+
+// ── TOTP 2FA helpers ──────────────────────────────────────────────────────────
+authenticator.options = { window: 2 };   // tolerate ±2 steps (±60 s) of clock drift → fewer false "invalid code"
+
+// Encrypt the TOTP secret at rest with a DEDICATED, STABLE key (TOTP_ENC_KEY env).
+// Crucially this is NOT derived from JWT_SECRET: rotating the session secret — or
+// running without one in dev — must never make stored 2FA secrets undecryptable and
+// lock everyone out. If TOTP_ENC_KEY is not configured we store the secret as plain
+// text (still gated by DB access) so 2FA keeps working across restarts. Set
+// TOTP_ENC_KEY in production to get encryption at rest.
+const TOTP_ENC_KEY = process.env.TOTP_ENC_KEY
+    ? crypto.createHash('sha256').update(String(process.env.TOTP_ENC_KEY)).digest()
+    : null;
+const TOTP_ENC_PREFIX = 'enc:';   // marks an encrypted value; base32 secrets never start with this
+function encryptSecret(plain) {
+    if (!TOTP_ENC_KEY) return String(plain);            // no stable key → store plaintext
+    const iv  = crypto.randomBytes(12);
+    const c   = crypto.createCipheriv('aes-256-gcm', TOTP_ENC_KEY, iv);
+    const enc = Buffer.concat([c.update(String(plain), 'utf8'), c.final()]);
+    return TOTP_ENC_PREFIX + [iv.toString('base64'), c.getAuthTag().toString('base64'), enc.toString('base64')].join('.');
+}
+function decryptSecret(blob) {
+    if (blob == null) return null;
+    const s = String(blob);
+    if (s.indexOf(TOTP_ENC_PREFIX) !== 0) return s;     // stored plaintext
+    if (!TOTP_ENC_KEY) return null;                     // encrypted but key missing
+    try {
+        const [iv, tag, enc] = s.slice(TOTP_ENC_PREFIX.length).split('.');
+        const d = crypto.createDecipheriv('aes-256-gcm', TOTP_ENC_KEY, Buffer.from(iv, 'base64'));
+        d.setAuthTag(Buffer.from(tag, 'base64'));
+        return Buffer.concat([d.update(Buffer.from(enc, 'base64')), d.final()]).toString('utf8');
+    } catch { return null; }
+}
+// Staff (moderator and up) MUST have 2FA; regular users opt in.
+function roleRequires2fa(role) { return roleRank(role) >= ROLE_RANK.moderator; }
+// Normalise a backup code for hashing/compare (strip formatting, upper-case).
+function normBackup(c) { return String(c).toUpperCase().replace(/[^A-Z0-9]/g, ''); }
+// Make N one-time recovery codes: human-readable for display, sha256-hashed for storage.
+function makeBackupCodes(n) {
+    const plain = [], hashes = [];
+    for (let i = 0; i < n; i++) {
+        const raw = crypto.randomBytes(5).toString('hex').toUpperCase();   // 10 hex chars
+        plain.push(raw.slice(0, 5) + '-' + raw.slice(5));
+        hashes.push(sha256hex(raw));
+    }
+    return { plain, hashes };
+}
+// Verify a backup code against the stored hash list; on success returns the list
+// with that single code consumed (removed).
+function verifyConsumeBackup(hashesJson, code) {
+    let arr = []; try { arr = JSON.parse(hashesJson || '[]'); } catch {}
+    const idx = arr.indexOf(sha256hex(normBackup(code)));
+    if (idx === -1) return { ok: false, remaining: hashesJson };
+    arr.splice(idx, 1);
+    return { ok: true, remaining: JSON.stringify(arr) };
+}
+// Check a submitted 2FA code against a user's TOTP secret OR their backup codes.
+// Returns { ok, backupRemaining|null } — backupRemaining set only when a backup code was used.
+function check2faCode(user, code) {
+    const trimmed = String(code || '').trim();
+    if (!trimmed) return { ok: false, backupRemaining: null };
+    const secret = decryptSecret(user.totp_secret);
+    if (secret && /^\d{6}$/.test(trimmed) && authenticator.verify({ token: trimmed, secret })) {
+        return { ok: true, backupRemaining: null };
+    }
+    const b = verifyConsumeBackup(user.totp_backup_codes, trimmed);
+    if (b.ok) return { ok: true, backupRemaining: b.remaining };
+    return { ok: false, backupRemaining: null };
+}
+// Short-lived token proving the password step passed, pending the 2FA code.
+function sign2faPending(userId) { return jwt.sign({ p2fa: userId }, JWT_SECRET, { expiresIn: '5m' }); }
+function verify2faPending(token) { try { return jwt.verify(token, JWT_SECRET).p2fa || null; } catch { return null; } }
 
 // ─── Cyrillic → Latin slug helpers (for crowdsourced titles) ─────────────────────
 const TRANSLIT = {
@@ -702,6 +777,20 @@ function sanitizeText(s, max = 5000) {
 function clientIp(req) {
     return (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
 }
+// Normalise an IP for storage/compare: trim + drop the IPv4-mapped-IPv6 prefix so a
+// banned "1.2.3.4" also matches "::ffff:1.2.3.4".
+function normIp(ip) { return String(ip || '').trim().toLowerCase().replace(/^::ffff:/, ''); }
+// Accept a plain IPv4 or IPv6 literal (loose but enough to reject junk input).
+function isValidIp(ip) {
+    const s = normIp(ip);
+    if (!s || s.length > 45) return false;
+    const v4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
+    if (v4.test(s)) return s.split('.').every(o => Number(o) <= 255);
+    return /^[0-9a-f:]+$/.test(s) && s.indexOf(':') !== -1;   // basic IPv6 shape
+}
+// IP blacklist: owner-managed permanent bans, held in memory for a zero-DB-hit check
+// on every request and mirrored to the `ip_blacklist` table for persistence.
+const ipBlacklist = new Set();
 
 // Reusable in-memory rate limiter (per key, sliding fixed-window).
 function makeRateLimiter({ windowMs, max, key, message }) {
@@ -762,33 +851,43 @@ app.use((_req, res, next) => {
     next();
 });
 
+// ── IP blacklist gate ──────────────────────────────────────────────────────────
+// Owner-banned IPs are refused everything (pages and API) with a 403. In-memory Set
+// lookup, so it adds no latency for normal traffic.
+app.use((req, res, next) => {
+    if (ipBlacklist.size && ipBlacklist.has(normIp(clientIp(req)))) {
+        return res.status(403).type('text/plain').send('403 Forbidden');
+    }
+    next();
+});
+
 // ── Maintenance mode ──────────────────────────────────────────────────────────
 // When MAINTENANCE_MODE=true the public gets a branded 503 page. We still allow:
 // the page's own assets, the favicon, the login page + auth API (so an owner can
 // sign in), and /api/health (so the host's health check doesn't restart us). A
 // logged-in owner bypasses everything and keeps using the live site.
-function isOwnerCookie(req) {
+// Cookie role check (owner, or admin+) used by the maintenance bypass. Reads the
+// signed user-JWT cookie; never trusts a client claim.
+function cookieRoleAtLeast(req, minRole) {
     try {
         const t = req.cookies && req.cookies[AUTH_COOKIE];
-        return !!t && jwt.verify(t, JWT_SECRET).role === 'owner';
+        if (!t) return false;
+        const role = jwt.verify(t, JWT_SECRET).role;
+        return (ROLE_RANK[role] || 0) >= (ROLE_RANK[minRole] || 0);
     } catch { return false; }
 }
-// The system-maintenance panel signs in with the admin HMAC token (separate from the
-// user cookie). Any request carrying a valid one bypasses maintenance so the owner can
-// keep managing content while the public sees the maintenance page.
-function isAdminToken(req) { try { return !!verifyToken(readToken(req)); } catch { return false; } }
 
 // Files / endpoints the maintenance gate always lets through: the maintenance page,
-// the login page + auth APIs, the health check, AND the admin panel itself (its page,
-// its script, and the admin login endpoint) so it can be opened during maintenance.
+// the login page + auth APIs, the health check, AND the OWNER/ADMIN dashboard (its
+// page + script) so staff can manage content while the public sees the 503 page.
 const MAINT_ALLOW = new Set([
     '/maintenance.html', '/login.html', '/favicon.ico', '/api/health',
-    '/sys-maintenance-panel-v2.html', '/admin-script.js', '/api/login', '/api/me',
+    '/admin/dashboard.html', '/admin/dashboard.js',
 ]);
 app.use((req, res, next) => {
     if (process.env.MAINTENANCE_MODE !== 'true') return next();
     if (req.path.startsWith('/assets/') || MAINT_ALLOW.has(req.path)) return next();
-    if (isOwnerCookie(req) || isAdminToken(req)) return next();   // owner / admin keep full access
+    if (cookieRoleAtLeast(req, 'admin')) return next();           // staff keep full access
     if (req.path.startsWith('/api/auth/')) return next();         // allow the user login flow
     if (req.path.startsWith('/api/')) {
         return res.status(503).json({ error: 'Сайтът е в техническа поддръжка. Опитайте по-късно.' });
@@ -884,6 +983,7 @@ function initDB() {
             portrait_url TEXT,
             birth_date  TEXT,
             death_date  TEXT,
+            date_label  TEXT,
             category    TEXT DEFAULT 'home',
             name_lower  TEXT,
             credited_to TEXT
@@ -956,6 +1056,18 @@ function initDB() {
         )`);
         db.run('CREATE INDEX IF NOT EXISTS idx_team_order ON team(display_order, is_published)');
 
+        // ── IP blacklist (owner-managed permanent bans) ──
+        db.run(`CREATE TABLE IF NOT EXISTS ip_blacklist (
+            ip          TEXT PRIMARY KEY,
+            reason      TEXT,
+            created_by  TEXT,
+            created_at  TEXT NOT NULL
+        )`, () => {
+            db.all('SELECT ip FROM ip_blacklist', (err, rows) => {
+                if (!err && rows) rows.forEach(r => ipBlacklist.add(normIp(r.ip)));
+            });
+        });
+
         // ── Generic key→value settings (currently: watermark configurator) ──────────
         db.run(`CREATE TABLE IF NOT EXISTS settings (
             key   TEXT PRIMARY KEY,
@@ -992,6 +1104,15 @@ function initDB() {
         db.run('ALTER TABLE users ADD COLUMN verify_token_hash TEXT', () => {});
         db.run('ALTER TABLE users ADD COLUMN verify_token_expires INTEGER', () => {});
         db.run('CREATE INDEX IF NOT EXISTS idx_users_verify ON users(verify_token_hash)', () => {});
+        // ── RBAC: account ban / timeout (ms epoch; 0 = active, >now = blocked until) ──
+        db.run('ALTER TABLE users ADD COLUMN banned_until INTEGER DEFAULT 0', () => {});
+        // ── TOTP 2FA ──
+        // totp_secret holds the AES-GCM-encrypted base32 secret (pending or active).
+        // totp_enabled flips to 1 only after the user verifies a first code.
+        // totp_backup_codes is a JSON array of sha256 hashes of one-time recovery codes.
+        db.run('ALTER TABLE users ADD COLUMN totp_secret TEXT', () => {});
+        db.run('ALTER TABLE users ADD COLUMN totp_enabled INTEGER DEFAULT 0', () => {});
+        db.run('ALTER TABLE users ADD COLUMN totp_backup_codes TEXT', () => {});
 
         // ── Per-user activity (favorites / visited) ───────────────────────────
         // address_id references a home id; user_id cascades on user deletion.
@@ -1041,6 +1162,21 @@ function initDB() {
         // We overload the existing 'rejected' status with this flag to avoid changing the
         // status CHECK constraint: rejected+denied=0 → "for correction", denied=1 → "denied".
         db.run('ALTER TABLE pending_addresses ADD COLUMN denied INTEGER DEFAULT 0', () => {});
+        // Admins can hide a *processed* submission from the moderation history (without
+        // deleting it) to declutter the approved/rejected lists.
+        db.run('ALTER TABLE pending_addresses ADD COLUMN hidden_from_history INTEGER DEFAULT 0', () => {});
+
+        // ── Internal moderator feedback (moderators → admins/owners) ──────────────
+        // Threaded notes on a pending submission. NOT shown to the submitter.
+        db.run(`CREATE TABLE IF NOT EXISTS submission_feedback (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            submission_id TEXT NOT NULL,
+            author_id     TEXT,
+            author_name   TEXT,
+            comment       TEXT NOT NULL,
+            created_at    TEXT NOT NULL
+        )`);
+        db.run('CREATE INDEX IF NOT EXISTS idx_feedback_sub ON submission_feedback(submission_id, created_at)');
 
         // Migrations: add columns that older DBs may be missing
         migrateHomes();
@@ -1053,8 +1189,11 @@ function migrateHomes() {
         const have = new Set(cols.map(c => c.name));
         const needed = [
             { name: 'portrait_url', type: 'TEXT' },
-            { name: 'birth_date',   type: 'TEXT' },
-            { name: 'death_date',   type: 'TEXT' },
+            { name: 'birth_date',   type: 'TEXT' },   // stores date_start
+            { name: 'death_date',   type: 'TEXT' },   // stores date_end
+            // Custom date descriptor (e.g. "Построена през", "Години на живот"). When
+            // present the UI shows it instead of the default person "Роден/Починал".
+            { name: 'date_label',   type: 'TEXT' },
             // New: location category. Existing rows are backfilled to 'home'
             // automatically by SQLite via the column DEFAULT.
             { name: 'category',     type: "TEXT DEFAULT 'home'" },
@@ -1156,10 +1295,13 @@ function normCategory(c) {
 function insertHome(h) {
     const c   = h.coordinates || {};
     const now = new Date().toISOString();
+    // Accept the generic date_start/date_end (falling back to the legacy birth/death keys).
+    const dStart = (h.date_start != null ? h.date_start : h.birth_date) || null;
+    const dEnd   = (h.date_end   != null ? h.date_end   : h.death_date) || null;
     db.run(`INSERT OR REPLACE INTO homes
         (id,slug,name,name_lower,biography,address,lat,lng,images,photo_date,
-         sources,tags,published,created_at,updated_at,portrait_url,birth_date,death_date,category,credited_to)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+         sources,tags,published,created_at,updated_at,portrait_url,birth_date,death_date,date_label,category,credited_to)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
         [
             h.id || h.slug, h.slug, h.name, (h.name || '').toLowerCase(), h.biography, h.address,
             c.lat || null, c.lng || null,
@@ -1169,7 +1311,7 @@ function insertHome(h) {
             JSON.stringify(h.tags    || []),
             h.published !== false ? 1 : 0,
             h.created_at || now, h.updated_at || now,
-            h.portrait_url || null, h.birth_date || null, h.death_date || null,
+            h.portrait_url || null, dStart, dEnd, (h.date_label ? String(h.date_label).trim().slice(0, 80) : null),
             normCategory(h.category), h.credited_to || null,
         ]
     );
@@ -1275,7 +1417,12 @@ function rowToHome(row, listMode = false) {
         created_at:  row.created_at,
         updated_at:  row.updated_at,
         portrait_url: row.portrait_url,
-        birth_date:  row.birth_date,
+        // Generic, flexible dates. date_start/date_end are stored in the legacy
+        // birth_date/death_date columns; date_label customises how they're shown.
+        date_start:  row.birth_date,
+        date_end:    row.death_date,
+        date_label:  row.date_label || null,
+        birth_date:  row.birth_date,   // kept for backward compatibility
         death_date:  row.death_date,
         category:    row.category || 'home',
         credited_to: row.credited_to || null,
@@ -1294,19 +1441,6 @@ function dbRun(sql, params = []) {
 }
 
 // ─── Routes ──────────────────────────────────────────────────────────────────
-
-// ── Auth ────────────────────────────────────────────────────────────────────
-app.post('/api/login', (req, res) => {
-    const account = ADMIN_ACCOUNTS[sha256hex((req.body && req.body.password) || '')];
-    if (!account) return res.status(401).json({ error: 'Invalid password' });
-    const token = signToken({ role: account.role, name: account.name, iat: Date.now() });
-    res.json({ token, role: account.role, name: account.name });
-});
-app.get('/api/me', (req, res) => {
-    const data = verifyToken(readToken(req));
-    if (!data) return res.status(401).json({ error: 'Unauthorized' });
-    res.json({ role: data.role, name: data.name });
-});
 
 // ── User auth & profile ───────────────────────────────────────────────────────
 
@@ -1351,15 +1485,43 @@ app.post('/api/auth/login', rateLimitAuth, async (req, res) => {
     const email    = String((req.body && req.body.email) || '').trim().toLowerCase();
     const password = (req.body && req.body.password) || '';
     try {
-        const user = await dbGet('SELECT id,email,password_hash,role FROM users WHERE email=?', [email]);
+        const user = await dbGet('SELECT id,email,password_hash,role,totp_enabled FROM users WHERE email=?', [email]);
         // Always run a compare to keep timing uniform whether or not the email exists.
         const ok = await bcrypt.compare(password, user ? user.password_hash : DUMMY_HASH);
         if (!user || !ok) return res.status(401).json({ error: 'Invalid email or password' });
 
+        // 2FA: when enabled, the password step alone does NOT grant a session. We hand
+        // back a short-lived pending token; the client must clear the TOTP step next.
+        if (user.totp_enabled) {
+            return res.json({ twofa_required: true, pending: sign2faPending(user.id) });
+        }
+        issueAuthCookie(res, { id: user.id, role: user.role });
+        // Staff without 2FA can sign in but must enrol before using staff tools.
+        res.json({ id: user.id, email: user.email, role: user.role, enroll_2fa_required: roleRequires2fa(user.role) });
+    } catch (e) {
+        console.error('login error:', e.message);
+        res.status(500).json({ error: 'Login failed' });
+    }
+});
+
+// 2FA login step: exchange the pending token + a TOTP (or backup) code for a session.
+app.post('/api/auth/2fa-login', rateLimitAuth, async (req, res) => {
+    const pending = (req.body && req.body.pending) || '';
+    const code    = (req.body && req.body.code) || '';
+    const userId  = verify2faPending(pending);
+    if (!userId) return res.status(401).json({ error: 'Сесията изтече. Влезте отново.' });
+    try {
+        const user = await dbGet('SELECT id,email,role,totp_enabled,totp_secret,totp_backup_codes FROM users WHERE id=?', [userId]);
+        if (!user || !user.totp_enabled) return res.status(400).json({ error: 'Двуфакторната автентикация не е активна.' });
+        const r = check2faCode(user, code);
+        if (!r.ok) return res.status(401).json({ error: 'Невалиден код.' });
+        if (r.backupRemaining !== null) {
+            await dbRun('UPDATE users SET totp_backup_codes=? WHERE id=?', [r.backupRemaining, user.id]);
+        }
         issueAuthCookie(res, { id: user.id, role: user.role });
         res.json({ id: user.id, email: user.email, role: user.role });
     } catch (e) {
-        console.error('login error:', e.message);
+        console.error('2fa-login error:', e.message);
         res.status(500).json({ error: 'Login failed' });
     }
 });
@@ -1501,9 +1663,94 @@ app.post('/api/auth/change-password', requireUser, rateLimitAuth, async (req, re
 
 // Cheap "am I logged in?" check for the frontend.
 app.get('/api/auth/me', requireUser, async (req, res) => {
-    const user = await dbGet('SELECT id,email,role,display_name,email_verified FROM users WHERE id=?', [req.user.sub]);
+    const user = await dbGet('SELECT id,email,role,display_name,email_verified,totp_enabled FROM users WHERE id=?', [req.user.sub]);
     if (!user) return res.status(401).json({ error: 'Not authenticated' });
-    res.json({ id: user.id, email: user.email, role: user.role, display_name: user.display_name, email_verified: user.email_verified === 1 });
+    res.json({
+        id: user.id, email: user.email, role: user.role, display_name: user.display_name,
+        email_verified: user.email_verified === 1,
+        totp_enabled: user.totp_enabled === 1,
+        totp_required: roleRequires2fa(user.role),   // staff must enrol
+    });
+});
+
+// ── TOTP 2FA management ────────────────────────────────────────────────────────
+// Begin enrolment: generate a secret (stored, not yet active) + return the otpauth
+// URI and a QR data-URL for the authenticator app. Re-callable until enabled.
+app.post('/api/2fa/setup', requireUser, async (req, res) => {
+    try {
+        const user = await dbGet('SELECT email, totp_enabled FROM users WHERE id=?', [req.user.sub]);
+        if (!user) return res.status(401).json({ error: 'Not authenticated' });
+        if (user.totp_enabled) return res.status(400).json({ error: 'Двуфакторната автентикация вече е активна.' });
+        const secret = authenticator.generateSecret();
+        await dbRun('UPDATE users SET totp_secret=? WHERE id=?', [encryptSecret(secret), req.user.sub]);
+        const otpauth = authenticator.keyuri(user.email, 'Адресът на историята', secret);
+        const qr = await QRCode.toDataURL(otpauth, { margin: 1, width: 220 });
+        res.json({ secret, otpauth, qr });
+    } catch (e) {
+        console.error('2fa setup error:', e.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Confirm enrolment with a first valid code → activate 2FA and hand back backup codes
+// (shown exactly once).
+app.post('/api/2fa/enable', rateLimitAuth, requireUser, async (req, res) => {
+    const code = String((req.body && req.body.code) || '').trim();
+    try {
+        const user = await dbGet('SELECT totp_secret, totp_enabled FROM users WHERE id=?', [req.user.sub]);
+        if (!user) return res.status(401).json({ error: 'Not authenticated' });
+        if (user.totp_enabled) return res.status(400).json({ error: 'Вече е активна.' });
+        const secret = decryptSecret(user.totp_secret);
+        if (!secret) return res.status(400).json({ error: 'Започнете настройката отначало.' });
+        if (!/^\d{6}$/.test(code) || !authenticator.verify({ token: code, secret })) {
+            return res.status(400).json({ error: 'Невалиден код. Опитайте отново.' });
+        }
+        const { plain, hashes } = makeBackupCodes(10);
+        await dbRun('UPDATE users SET totp_enabled=1, totp_backup_codes=? WHERE id=?', [JSON.stringify(hashes), req.user.sub]);
+        res.json({ enabled: true, backup_codes: plain });
+    } catch (e) {
+        console.error('2fa enable error:', e.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Disable 2FA after re-auth (current TOTP/backup code OR account password). Staff may
+// NOT disable — 2FA is mandatory for them.
+app.post('/api/2fa/disable', rateLimitAuth, requireUser, async (req, res) => {
+    const code     = (req.body && req.body.code) || '';
+    const password = (req.body && req.body.password) || '';
+    try {
+        const user = await dbGet('SELECT role, password_hash, totp_enabled, totp_secret, totp_backup_codes FROM users WHERE id=?', [req.user.sub]);
+        if (!user) return res.status(401).json({ error: 'Not authenticated' });
+        if (!user.totp_enabled) return res.status(400).json({ error: 'Не е активна.' });
+        if (roleRequires2fa(user.role)) {
+            return res.status(403).json({ error: 'Двуфакторната автентикация е задължителна за екипа и не може да бъде изключена.' });
+        }
+        const byCode = code && check2faCode(user, code).ok;
+        const byPass = password && await bcrypt.compare(password, user.password_hash);
+        if (!byCode && !byPass) return res.status(401).json({ error: 'Невалиден код или парола.' });
+        await dbRun('UPDATE users SET totp_enabled=0, totp_secret=NULL, totp_backup_codes=NULL WHERE id=?', [req.user.sub]);
+        res.json({ disabled: true });
+    } catch (e) {
+        console.error('2fa disable error:', e.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Regenerate backup codes (invalidates the old set) after a valid current code.
+app.post('/api/2fa/backup-codes', rateLimitAuth, requireUser, async (req, res) => {
+    const code = String((req.body && req.body.code) || '').trim();
+    try {
+        const user = await dbGet('SELECT totp_enabled, totp_secret, totp_backup_codes FROM users WHERE id=?', [req.user.sub]);
+        if (!user || !user.totp_enabled) return res.status(400).json({ error: 'Двуфакторната автентикация не е активна.' });
+        if (!check2faCode(user, code).ok) return res.status(401).json({ error: 'Невалиден код.' });
+        const { plain, hashes } = makeBackupCodes(10);
+        await dbRun('UPDATE users SET totp_backup_codes=? WHERE id=?', [JSON.stringify(hashes), req.user.sub]);
+        res.json({ backup_codes: plain });
+    } catch (e) {
+        console.error('2fa backup error:', e.message);
+        res.status(500).json({ error: 'Server error' });
+    }
 });
 
 // Profile: the user's data + their favorite and visited addresses.
@@ -1663,12 +1910,20 @@ app.get('/api/user/export', requireUser, async (req, res) => {
 // published in `homes` (it is no longer personal data once curated and live).
 app.post('/api/user/delete', requireUser, async (req, res) => {
     const password = (req.body && req.body.password) || '';
+    const code     = (req.body && req.body.code) || '';
     try {
-        const user = await dbGet('SELECT id, password_hash FROM users WHERE id=?', [req.user.sub]);
+        const user = await dbGet('SELECT id, password_hash, totp_enabled, totp_secret, totp_backup_codes FROM users WHERE id=?', [req.user.sub]);
         if (!user) return res.status(404).json({ error: 'User not found' });
 
         const ok = await bcrypt.compare(password, user.password_hash);
         if (!ok) return res.status(401).json({ error: 'Грешна парола' });
+
+        // Critical action: when 2FA is on, also require a valid code.
+        if (user.totp_enabled) {
+            const r = check2faCode(user, code);
+            if (!r.ok) return res.status(401).json({ error: 'TWOFA_REQUIRED', message: 'Въведете код от приложението за автентикация.' });
+            if (r.backupRemaining !== null) await dbRun('UPDATE users SET totp_backup_codes=? WHERE id=?', [r.backupRemaining, user.id]);
+        }
 
         const pend = await dbAll(
             "SELECT image_path FROM pending_addresses WHERE user_id=? AND status='pending'",
@@ -1770,7 +2025,7 @@ async function deleteR2(url) {
 }
 
 // Submit a suggestion (logged-in users). Accepts text fields + up to MAX_PHOTOS images.
-app.post('/api/suggest', requireUser, requireVerified, rateLimitSuggest, acceptPhotos('images'), async (req, res) => {
+app.post('/api/suggest', requireUser, requireVerified, requireNotBanned, rateLimitSuggest, acceptPhotos('images'), async (req, res) => {
     try {
         const b = req.body || {};
         const title = sanitizeText(b.title, 200);
@@ -1824,7 +2079,7 @@ app.post('/api/suggest', requireUser, requireVerified, rateLimitSuggest, acceptP
 // Correct & resubmit a submission that a moderator sent back ('rejected'). Only the
 // owner may edit, and only while it's in the 'rejected' state. Updates the text
 // fields, optionally replaces the photos, clears the note and re-queues it (pending).
-app.put('/api/suggest/:id', requireUser, requireVerified, rateLimitSuggest, acceptPhotos('images'), async (req, res) => {
+app.put('/api/suggest/:id', requireUser, requireVerified, requireNotBanned, rateLimitSuggest, acceptPhotos('images'), async (req, res) => {
     try {
         const row = await dbGet('SELECT * FROM pending_addresses WHERE id=?', [req.params.id]);
         if (!row) return res.status(404).json({ error: 'Предложението не е намерено' });
@@ -1901,15 +2156,27 @@ app.get('/api/pending-image/:id', requireUser, async (req, res) => {
 
 // Moderation queue (moderators/owners).
 app.get('/api/admin/pending', requireModerator, async (req, res) => {
-    const status = ['pending', 'approved', 'rejected'].includes(req.query.status) ? req.query.status : 'pending';
+    const status   = ['pending', 'approved', 'rejected'].includes(req.query.status) ? req.query.status : 'pending';
+    const isAdmin  = roleRank(req.user.role) >= ROLE_RANK.admin;   // moderators can't see emails
+    const wantHidden = isAdmin && req.query.hidden === 'true';      // admin-only "hidden history" view
     try {
         const rows = await dbAll(
             `SELECT p.id,p.title,p.description,p.city,p.address,p.lat,p.lng,p.category,p.image_path,
-                    p.status,p.created_at,p.result_slug,p.owns_image,p.author_name, u.email AS user_email
+                    p.status,p.created_at,p.result_slug,p.owns_image,p.author_name,p.denied,p.moderation_note,
+                    p.hidden_from_history, u.email AS user_email
              FROM pending_addresses p JOIN users u ON u.id = p.user_id
-             WHERE p.status = ? ORDER BY p.created_at ASC LIMIT 500`,
-            [status]
+             WHERE p.status = ? AND p.hidden_from_history = ? ORDER BY p.created_at ASC LIMIT 500`,
+            [status, wantHidden ? 1 : 0]
         );
+        // One query for all feedback on the listed submissions, grouped by submission id.
+        const ids = rows.map(r => r.id);
+        const fbBy = {};
+        if (ids.length) {
+            const fb = await dbAll(
+                `SELECT submission_id, author_name, comment, created_at FROM submission_feedback
+                 WHERE submission_id IN (${ids.map(() => '?').join(',')}) ORDER BY created_at ASC`, ids);
+            for (const f of fb) (fbBy[f.submission_id] = fbBy[f.submission_id] || []).push({ author: f.author_name || 'Модератор', comment: f.comment, created_at: f.created_at });
+        }
         res.json(rows.map(r => {
             const imgs = parsePendingImages(r.image_path);  // array of R2 URLs (legacy paths excluded)
             const images = imgs.map((u, i) => ({
@@ -1919,9 +2186,13 @@ app.get('/api/admin/pending', requireModerator, async (req, res) => {
                 id: r.id, title: r.title, description: r.description || '',
                 city: r.city || '', address: r.address || '',
                 lat: r.lat, lng: r.lng, category: r.category || 'home',
-                status: r.status, created_at: r.created_at,
-                user_email: r.user_email, slug: r.result_slug || null,
+                status: r.status, denied: !!r.denied, created_at: r.created_at,
+                moderation_note: r.moderation_note || '',
+                user_email: isAdmin ? r.user_email : null,        // moderators never see private emails
+                slug: r.result_slug || null,
                 owns_image: !!r.owns_image, author_name: r.author_name || '',
+                hidden_from_history: !!r.hidden_from_history,
+                feedback: fbBy[r.id] || [],
                 images: images,
                 image: images[0] ? images[0].url : null,         // first photo (for the card)
                 image_thumb: images[0] ? images[0].thumb : null,
@@ -1933,9 +2204,62 @@ app.get('/api/admin/pending', requireModerator, async (req, res) => {
     }
 });
 
-// Approve or reject a submission. Moderators may edit fields, keep/remove the
+// Internal moderator feedback on a PENDING submission (moderator+; not shown to the
+// submitter). Admins/owners read these before approving/rejecting.
+app.post('/api/admin/feedback/:id', requireModerator, async (req, res) => {
+    const comment = sanitizeText((req.body && req.body.comment) || '', 1000);
+    if (!comment) return res.status(400).json({ error: 'Бележката не може да е празна.' });
+    try {
+        const sub = await dbGet('SELECT id, status FROM pending_addresses WHERE id=?', [req.params.id]);
+        if (!sub) return res.status(404).json({ error: 'Предложението не е намерено' });
+        if (sub.status !== 'pending') return res.status(409).json({ error: 'Бележки се добавят само към чакащи предложения.' });
+        const me = await dbGet('SELECT display_name, email FROM users WHERE id=?', [req.user.sub]);
+        const author = (me && (me.display_name || me.email)) || 'Модератор';
+        const now = new Date().toISOString();
+        await dbRun('INSERT INTO submission_feedback (submission_id,author_id,author_name,comment,created_at) VALUES (?,?,?,?,?)',
+            [sub.id, req.user.sub, author, comment, now]);
+        res.status(201).json({ author, comment, created_at: now });
+    } catch (e) {
+        console.error('feedback error:', e.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Hide a PROCESSED submission from the moderation history (admin+). Reversible.
+app.post('/api/admin/submission/:id/hide', requireRole('admin'), async (req, res) => {
+    const hide = !(req.body && req.body.unhide === true);
+    try {
+        const row = await dbGet('SELECT id, status FROM pending_addresses WHERE id=?', [req.params.id]);
+        if (!row) return res.status(404).json({ error: 'Submission not found' });
+        if (row.status === 'pending') return res.status(409).json({ error: 'Само обработени предложения могат да се скриват.' });
+        await dbRun('UPDATE pending_addresses SET hidden_from_history=? WHERE id=?', [hide ? 1 : 0, row.id]);
+        res.json({ id: row.id, hidden_from_history: hide });
+    } catch (e) {
+        console.error('hide submission error:', e.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Permanently delete a submission's record + its R2 pending photos + feedback (admin+).
+// Frees storage. Does NOT touch the live home that may have been published from it.
+app.delete('/api/admin/submission/:id', requireRole('admin'), async (req, res) => {
+    try {
+        const row = await dbGet('SELECT id, image_path FROM pending_addresses WHERE id=?', [req.params.id]);
+        if (!row) return res.status(404).json({ error: 'Submission not found' });
+        for (const u of parsePendingImages(row.image_path)) { await deleteR2(u); await deleteR2(pendingThumbUrl(u)); }
+        await dbRun('DELETE FROM submission_feedback WHERE submission_id=?', [row.id]);
+        await dbRun('DELETE FROM pending_addresses WHERE id=?', [row.id]);
+        res.json({ id: row.id, deleted: true });
+    } catch (e) {
+        console.error('delete submission error:', e.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Approve / reject / return a submission. ADMIN+ only - moderators are read-only and
+// can only leave internal feedback (above). Admins may edit fields, keep/remove the
 // submitter's photos, add their own, and set tags / sources / dates.
-app.post('/api/admin/moderate/:id', requireModerator, acceptPhotos('images'), async (req, res) => {
+app.post('/api/admin/moderate/:id', requireRole('admin'), acceptPhotos('images'), async (req, res) => {
     const b = req.body || {};
     const action = b.action || '';
     if (['approve', 'reject', 'deny'].indexOf(action) < 0) {
@@ -1987,8 +2311,9 @@ app.post('/api/admin/moderate/:id', requireModerator, acceptPhotos('images'), as
         // Dates: moderator picks 2 dates (person/building) or 1 (event) in the UI;
         // we accept whatever YYYY-MM-DD values arrive.
         const cleanDate = d => { d = String(d || '').trim(); return /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : null; };
-        const birth_date = cleanDate(b.birth_date);
-        const death_date = cleanDate(b.death_date);
+        const birth_date = cleanDate(b.date_start != null ? b.date_start : b.birth_date);
+        const death_date = cleanDate(b.date_end   != null ? b.date_end   : b.death_date);
+        const date_label = sanitizeText(b.date_label || '', 60) || null;
 
         const slug = await uniqueHomeSlug(slugifyTitle(title));
 
@@ -2031,12 +2356,12 @@ app.post('/api/admin/moderate/:id', requireModerator, acceptPhotos('images'), as
         await dbRun(
             `INSERT INTO homes
                 (id,slug,name,name_lower,biography,address,lat,lng,images,photo_date,
-                 sources,tags,published,created_at,updated_at,portrait_url,birth_date,death_date,category,credited_to)
-             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+                 sources,tags,published,created_at,updated_at,portrait_url,birth_date,death_date,date_label,category,credited_to)
+             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
             [slug, slug, title, (title || '').toLowerCase(), description,
              (addressStr || city) || null, lat, lng,
              JSON.stringify(images), null, JSON.stringify(sources), JSON.stringify(tags),
-             1, now, now, null, birth_date, death_date, category, credit]
+             1, now, now, null, birth_date, death_date, date_label, category, credit]
         );
         await dbRun("UPDATE pending_addresses SET status='approved', reviewed_at=?, reviewed_by=?, result_slug=? WHERE id=?",
             [now, req.user.sub, slug, row.id]);
@@ -2061,18 +2386,22 @@ app.post('/api/admin/moderate/:id', requireModerator, acceptPhotos('images'), as
 });
 
 // ── User / role management (owner only) ───────────────────────────────────────
-app.get('/api/admin/users', requireOwnerUser, async (req, res) => {
+// ── User management ──────────────────────────────────────────────────────────
+// Visible to admins+ (admins see emails/profiles; moderators have no access here).
+app.get('/api/admin/users', requireRole('admin'), async (req, res) => {
     try {
         const rows = await dbAll(
-            `SELECT u.id, u.email, u.role, u.created_at,
+            `SELECT u.id, u.email, u.role, u.display_name, u.created_at, u.banned_until,
                     (SELECT COUNT(*) FROM pending_addresses p WHERE p.user_id = u.id) AS submissions
              FROM users u ORDER BY
-                CASE u.role WHEN 'owner' THEN 0 WHEN 'moderator' THEN 1 ELSE 2 END, u.created_at ASC
+                CASE u.role WHEN 'owner' THEN 0 WHEN 'admin' THEN 1 WHEN 'moderator' THEN 2 ELSE 3 END, u.created_at ASC
              LIMIT 2000`
         );
         res.json(rows.map(r => ({
-            id: r.id, email: r.email, role: r.role, created_at: r.created_at,
-            submissions: r.submissions, self: r.id === req.user.sub,
+            id: r.id, email: r.email, role: r.role, display_name: r.display_name || null,
+            created_at: r.created_at, submissions: r.submissions,
+            banned_until: Number(r.banned_until) || 0, banned: isBanned(r.banned_until),
+            self: r.id === req.user.sub,
         })));
     } catch (e) {
         console.error('users list error:', e.message);
@@ -2080,21 +2409,159 @@ app.get('/api/admin/users', requireOwnerUser, async (req, res) => {
     }
 });
 
-app.put('/api/admin/users/:id/role', requireOwnerUser, async (req, res) => {
+// Change a user's role. Admins may only grant/revoke Moderator (on users/moderators);
+// only Owners may grant/revoke Admin or Owner, or touch an existing admin/owner.
+app.put('/api/admin/users/:id/role', requireRole('admin'), async (req, res) => {
     const role = (req.body && req.body.role) || '';
-    if (!['user', 'moderator', 'owner'].includes(role)) {
+    if (!['user', 'moderator', 'admin', 'owner'].includes(role)) {
         return res.status(400).json({ error: 'Невалидна роля' });
     }
-    // Guard against self-lockout: an owner can't change their own role.
     if (req.params.id === req.user.sub) {
         return res.status(400).json({ error: 'Не можете да променяте собствената си роля' });
     }
+    const actorRank = roleRank(req.user.role);
     try {
-        const r = await dbRun('UPDATE users SET role=? WHERE id=?', [role, req.params.id]);
-        if (!r.changes) return res.status(404).json({ error: 'Потребителят не е намерен' });
-        res.json({ id: req.params.id, role });
+        const target = await dbGet('SELECT id, role FROM users WHERE id=?', [req.params.id]);
+        if (!target) return res.status(404).json({ error: 'Потребителят не е намерен' });
+        // Non-owners (admins) may only manage moderators/users and never reach admin+.
+        if (actorRank < ROLE_RANK.owner) {
+            if (roleRank(target.role) >= ROLE_RANK.admin) {
+                return res.status(403).json({ error: 'Само собственик може да променя администратори.' });
+            }
+            if (roleRank(role) >= ROLE_RANK.admin) {
+                return res.status(403).json({ error: 'Само собственик може да назначава администратори.' });
+            }
+        }
+        await dbRun('UPDATE users SET role=? WHERE id=?', [role, target.id]);
+        res.json({ id: target.id, role });
     } catch (e) {
         console.error('role update error:', e.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Rename a user (owner only).
+app.put('/api/admin/users/:id/display-name', requireRole('owner'), async (req, res) => {
+    const name = sanitizeText((req.body && req.body.display_name) || '', 60);
+    try {
+        const r = await dbRun('UPDATE users SET display_name=? WHERE id=?', [name || null, req.params.id]);
+        if (!r.changes) return res.status(404).json({ error: 'Потребителят не е намерен' });
+        res.json({ id: req.params.id, display_name: name || null });
+    } catch (e) {
+        console.error('display-name update error:', e.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Ban / timeout a user, or lift it (owner only). Blocks them from submitting content.
+//   body: { unban:true } | { permanent:true } | { days:N }
+app.post('/api/admin/users/:id/ban', requireRole('owner'), async (req, res) => {
+    if (req.params.id === req.user.sub) {
+        return res.status(400).json({ error: 'Не можете да блокирате себе си.' });
+    }
+    const b = req.body || {};
+    let until;
+    if (b.unban === true) until = 0;
+    else if (b.permanent === true) until = PERMANENT_BAN;
+    else {
+        const days = Number(b.days);
+        if (!days || days <= 0) return res.status(400).json({ error: 'Невалиден период.' });
+        until = Date.now() + days * 24 * 3600 * 1000;
+    }
+    try {
+        const target = await dbGet('SELECT id, role FROM users WHERE id=?', [req.params.id]);
+        if (!target) return res.status(404).json({ error: 'Потребителят не е намерен' });
+        if (target.role === 'owner') return res.status(403).json({ error: 'Не можете да блокирате собственик.' });
+        await dbRun('UPDATE users SET banned_until=? WHERE id=?', [until, target.id]);
+        res.json({ id: target.id, banned_until: until, banned: isBanned(until) });
+    } catch (e) {
+        console.error('ban error:', e.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Reset (disable) a user's 2FA — owner recovery for a locked-out staff member who lost
+// their authenticator AND backup codes. They will be prompted to re-enrol on next use.
+app.post('/api/admin/users/:id/reset-2fa', requireRole('owner'), async (req, res) => {
+    if (req.params.id === req.user.sub) {
+        return res.status(400).json({ error: 'Управлявайте собствената си 2FA от настройките.' });
+    }
+    try {
+        const target = await dbGet('SELECT id FROM users WHERE id=?', [req.params.id]);
+        if (!target) return res.status(404).json({ error: 'Потребителят не е намерен' });
+        await dbRun('UPDATE users SET totp_enabled=0, totp_secret=NULL, totp_backup_codes=NULL WHERE id=?', [target.id]);
+        res.json({ id: target.id, reset: true });
+    } catch (e) {
+        console.error('reset-2fa error:', e.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Permanently delete a user account (owner only, re-auth with the owner's password).
+// Cascades remove their activity + pending submissions; we also free their R2 images.
+// Published `homes` remain (curated site content, no longer personal data).
+app.delete('/api/admin/users/:id', requireRole('owner'), async (req, res) => {
+    const password = (req.body && req.body.password) || '';
+    if (req.params.id === req.user.sub) {
+        return res.status(400).json({ error: 'Изтрийте собствения си профил от настройките.' });
+    }
+    try {
+        const me = await dbGet('SELECT password_hash FROM users WHERE id=?', [req.user.sub]);
+        if (!me) return res.status(401).json({ error: 'Not authenticated' });
+        const ok = await bcrypt.compare(password, me.password_hash);
+        if (!ok) return res.status(401).json({ error: 'Грешна парола' });
+
+        const target = await dbGet('SELECT id, role FROM users WHERE id=?', [req.params.id]);
+        if (!target) return res.status(404).json({ error: 'Потребителят не е намерен' });
+        if (target.role === 'owner') return res.status(403).json({ error: 'Не можете да изтриете собственик.' });
+
+        const pend = await dbAll('SELECT image_path FROM pending_addresses WHERE user_id=?', [target.id]);
+        for (const row of pend) {
+            for (const url of parsePendingImages(row.image_path)) { await deleteR2(url); await deleteR2(pendingThumbUrl(url)); }
+        }
+        await dbRun('DELETE FROM users WHERE id=?', [target.id]);  // cascades to activity + pending
+        res.json({ id: target.id, deleted: true });
+    } catch (e) {
+        console.error('user delete error:', e.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// ── IP blacklist (owner only) ──────────────────────────────────────────────────
+app.get('/api/admin/ip-blacklist', requireRole('owner'), async (_req, res) => {
+    try {
+        const rows = await dbAll('SELECT ip, reason, created_by, created_at FROM ip_blacklist ORDER BY created_at DESC');
+        res.json(rows);
+    } catch (e) {
+        console.error('ip-blacklist list error:', e.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+app.post('/api/admin/ip-blacklist', requireRole('owner'), async (req, res) => {
+    const ip = normIp((req.body && req.body.ip) || '');
+    const reason = sanitizeText((req.body && req.body.reason) || '', 200);
+    if (!isValidIp(ip)) return res.status(400).json({ error: 'Невалиден IP адрес.' });
+    if (normIp(clientIp(req)) === ip) return res.status(400).json({ error: 'Не можете да блокирате собствения си IP адрес.' });
+    try {
+        const me = await dbGet('SELECT email, display_name FROM users WHERE id=?', [req.user.sub]);
+        const by = (me && (me.display_name || me.email)) || 'owner';
+        await dbRun('INSERT OR REPLACE INTO ip_blacklist (ip, reason, created_by, created_at) VALUES (?,?,?,?)',
+            [ip, reason || null, by, new Date().toISOString()]);
+        ipBlacklist.add(ip);
+        res.status(201).json({ ip, reason: reason || null, created_by: by });
+    } catch (e) {
+        console.error('ip-blacklist add error:', e.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+app.delete('/api/admin/ip-blacklist/:ip', requireRole('owner'), async (req, res) => {
+    const ip = normIp(req.params.ip);
+    try {
+        await dbRun('DELETE FROM ip_blacklist WHERE ip=?', [ip]);
+        ipBlacklist.delete(ip);
+        res.json({ ip, removed: true });
+    } catch (e) {
+        console.error('ip-blacklist remove error:', e.message);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -2128,7 +2595,7 @@ app.get('/sitemap.xml', async (_req, res) => {
 });
 
 // ── Upload ────────────────────────────────────────────────────────────────────
-app.post('/api/upload', requireAuth, upload.single('image'), async (req, res) => {
+app.post('/api/upload', requireRole('admin'), upload.single('image'), async (req, res) => {
     if (!req.file) return res.status(400).json({ error: 'No image file provided' });
     try {
         const photographer = req.body.photographer || '';
@@ -2181,7 +2648,7 @@ app.post('/api/upload', requireAuth, upload.single('image'), async (req, res) =>
 // Imports every image from a shared Drive folder into R2 (optionally watermarked).
 // Files are streamed into memory and processed in small concurrent batches to bound
 // memory and avoid timeouts. Returns the resulting R2 URLs for the panel to attach.
-app.post('/api/admin/drive-sync', requireAuth, async (req, res) => {
+app.post('/api/admin/drive-sync', requireRole('admin'), async (req, res) => {
     const folderId = parseDriveFolderId(req.body && req.body.folderUrl);
     if (!folderId) return res.status(400).json({ error: 'Невалиден линк към Google Drive папка.' });
     if (!process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
@@ -2226,11 +2693,11 @@ app.post('/api/admin/drive-sync', requireAuth, async (req, res) => {
 });
 
 // ── Watermark configurator (owner only) ───────────────────────────────────────
-app.get('/api/admin/settings/watermark', requireOwner, async (req, res) => {
+app.get('/api/admin/settings/watermark', requireRole('admin'), async (req, res) => {
     try { res.json(await getWatermarkSettings()); }
     catch (e) { res.status(500).json({ error: 'Server error' }); }
 });
-app.put('/api/admin/settings/watermark', requireOwner, async (req, res) => {
+app.put('/api/admin/settings/watermark', requireRole('admin'), async (req, res) => {
     const cfg = normalizeWmSettings(req.body || {});
     try {
         await dbRun("INSERT OR REPLACE INTO settings (key, value) VALUES ('watermark', ?)", [JSON.stringify(cfg)]);
@@ -2243,7 +2710,7 @@ app.put('/api/admin/settings/watermark', requireOwner, async (req, res) => {
 });
 // Live preview: watermark a generated SAMPLE image with the POSTED (unsaved) settings.
 // No user image is accepted (no image-bomb surface); returns a JPEG.
-app.post('/api/admin/settings/watermark/preview', requireOwner, async (req, res) => {
+app.post('/api/admin/settings/watermark/preview', requireRole('admin'), async (req, res) => {
     try {
         const W = 1000, H = 667;
         const bg = `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7a6a52"/><stop offset="1" stop-color="#26201a"/></linearGradient></defs><rect width="${W}" height="${H}" fill="url(#g)"/><text x="50%" y="50%" fill="rgba(255,255,255,0.10)" font-size="44" text-anchor="middle" dominant-baseline="middle" font-family="sans-serif">ПРИМЕРНА СНИМКА</text></svg>`;
@@ -2364,7 +2831,7 @@ app.get('/api/homes/:slug', async (req, res) => {
     }
 });
 
-app.post('/api/homes', requireAuth, async (req, res) => {
+app.post('/api/homes', requireRole('admin'), async (req, res) => {
     const h = req.body;
     if (!h.name) return res.status(400).json({ error: 'Name is required' });
     if (!h.slug) h.slug = h.name.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/(^-|-$)/g, '');
@@ -2382,13 +2849,15 @@ app.post('/api/homes', requireAuth, async (req, res) => {
     }
 });
 
-app.put('/api/homes/:id', requireAuth, async (req, res) => {
+app.put('/api/homes/:id', requireRole('admin'), async (req, res) => {
     const h = { ...req.body, updated_at: new Date().toISOString() };
     const c = h.coordinates || {};
     try {
+        const dStart = (h.date_start != null ? h.date_start : h.birth_date) || null;
+        const dEnd   = (h.date_end   != null ? h.date_end   : h.death_date) || null;
         const result = await dbRun(`UPDATE homes SET
             slug=?,name=?,name_lower=?,biography=?,address=?,lat=?,lng=?,images=?,photo_date=?,
-            sources=?,tags=?,published=?,updated_at=?,portrait_url=?,birth_date=?,death_date=?,category=?,
+            sources=?,tags=?,published=?,updated_at=?,portrait_url=?,birth_date=?,death_date=?,date_label=?,category=?,
             credited_to=COALESCE(?,credited_to)
             WHERE id=?`,
             [
@@ -2398,7 +2867,7 @@ app.put('/api/homes/:id', requireAuth, async (req, res) => {
                 JSON.stringify(h.sources || []),
                 JSON.stringify(h.tags    || []),
                 h.published !== false ? 1 : 0,
-                h.updated_at, h.portrait_url || null, h.birth_date || null, h.death_date || null,
+                h.updated_at, h.portrait_url || null, dStart, dEnd, (h.date_label ? String(h.date_label).trim().slice(0, 80) : null),
                 normCategory(h.category),
                 (h.credited_to !== undefined ? (h.credited_to || null) : null),
                 req.params.id,
@@ -2414,7 +2883,7 @@ app.put('/api/homes/:id', requireAuth, async (req, res) => {
     }
 });
 
-app.delete('/api/homes/:id', requireAuth, async (req, res) => {
+app.delete('/api/homes/:id', requireRole('admin'), async (req, res) => {
     try {
         await dbRun('DELETE FROM homes WHERE id=?', [req.params.id]);
         cache.clear();
@@ -2478,7 +2947,7 @@ app.get('/api/partners/:id', async (req, res) => {
     }
 });
 
-app.post('/api/partners', requireOwner, async (req, res) => {
+app.post('/api/partners', requireRole('owner'), async (req, res) => {
     const p = req.body;
     if (!p.name) return res.status(400).json({ error: 'Name is required' });
     const id  = p.id || p.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
@@ -2497,7 +2966,7 @@ app.post('/api/partners', requireOwner, async (req, res) => {
     }
 });
 
-app.put('/api/partners/:id', requireOwner, async (req, res) => {
+app.put('/api/partners/:id', requireRole('owner'), async (req, res) => {
     const p   = req.body;
     const now = new Date().toISOString();
     try {
@@ -2514,7 +2983,7 @@ app.put('/api/partners/:id', requireOwner, async (req, res) => {
     }
 });
 
-app.delete('/api/partners/:id', requireOwner, async (req, res) => {
+app.delete('/api/partners/:id', requireRole('owner'), async (req, res) => {
     try {
         await dbRun('DELETE FROM partners WHERE id=?', [req.params.id]);
         res.json({ message: 'Partner deleted' });
@@ -2564,7 +3033,7 @@ app.get('/api/news/:ref', async (req, res) => {
     }
 });
 
-app.post('/api/news', requireAuth, async (req, res) => {
+app.post('/api/news', requireRole('owner'), async (req, res) => {
     const { title, slug, content, excerpt, cover_image, published_date, author, is_published, link } = req.body;
     if (!title || !slug || !content) return res.status(400).json({ error: 'title, slug and content are required' });
     const cleanLink = isHttpUrl(link) ? String(link).trim() : null;
@@ -2591,7 +3060,7 @@ app.post('/api/news', requireAuth, async (req, res) => {
     }
 });
 
-app.put('/api/news/:id', requireAuth, async (req, res) => {
+app.put('/api/news/:id', requireRole('owner'), async (req, res) => {
     const { title, slug, content, excerpt, cover_image, published_date, author, is_published, link } = req.body;
     const cleanLink = isHttpUrl(link) ? String(link).trim() : null;
     try {
@@ -2607,7 +3076,7 @@ app.put('/api/news/:id', requireAuth, async (req, res) => {
     }
 });
 
-app.delete('/api/news/:id', requireAuth, async (req, res) => {
+app.delete('/api/news/:id', requireRole('owner'), async (req, res) => {
     try {
         await dbRun('DELETE FROM news WHERE id=?', [req.params.id]);
         cache.clear();
@@ -2628,7 +3097,7 @@ app.get('/api/calendar', async (req, res) => {
 
     try {
         const rows = await dbAll(
-            `SELECT name,slug,birth_date,death_date,images,category,portrait_url FROM homes WHERE published=1
+            `SELECT name,slug,birth_date,death_date,date_label,images,category,portrait_url FROM homes WHERE published=1
              AND (strftime('%m',birth_date)=? OR strftime('%m',death_date)=?)`,
             [month, month]
         );
@@ -2642,7 +3111,7 @@ app.get('/api/calendar', async (req, res) => {
                 const day  = String(date.getDate()).padStart(2,'0');
                 const k    = `${month}-${day}`;
                 if (!events[k]) events[k] = [];
-                events[k].push({ name: r.name, slug: r.slug, type, full_date: d, years_ago: year - date.getFullYear(), image, birth_date: r.birth_date, death_date: r.death_date, category: r.category || 'home' });
+                events[k].push({ name: r.name, slug: r.slug, type, full_date: d, years_ago: year - date.getFullYear(), image, birth_date: r.birth_date, death_date: r.death_date, date_label: r.date_label || null, category: r.category || 'home' });
             }
         }
         cache.set(key, events, 300);
@@ -2663,7 +3132,7 @@ app.get('/api/calendar/today', async (req, res) => {
 
     try {
         const rows = await dbAll(
-            `SELECT name,slug,birth_date,death_date,images,category,portrait_url FROM homes WHERE published=1
+            `SELECT name,slug,birth_date,death_date,date_label,images,category,portrait_url FROM homes WHERE published=1
              AND (strftime('%m-%d',birth_date)=? OR strftime('%m-%d',death_date)=?)`,
             [monthDay, monthDay]
         );
@@ -2672,7 +3141,7 @@ app.get('/api/calendar/today', async (req, res) => {
             const image = calPic(r.portrait_url, r.images);
             for (const [field, type] of [['birth_date','birth'],['death_date','death']]) {
                 if (r[field] && r[field].substring(5) === monthDay) {
-                    events.push({ name: r.name, slug: r.slug, type, full_date: r[field], years_ago: viewYear - new Date(r[field]).getFullYear(), image, birth_date: r.birth_date, death_date: r.death_date, category: r.category || 'home' });
+                    events.push({ name: r.name, slug: r.slug, type, full_date: r[field], years_ago: viewYear - new Date(r[field]).getFullYear(), image, birth_date: r.birth_date, death_date: r.death_date, date_label: r.date_label || null, category: r.category || 'home' });
                 }
             }
         }
@@ -2690,10 +3159,11 @@ app.get('/api/calendar/all', async (_req, res) => {
     if (hit) return res.json(hit);
     try {
         const rows = await dbAll(
-            'SELECT name,slug,birth_date,death_date,portrait_url,images FROM homes WHERE published=1 AND (birth_date IS NOT NULL OR death_date IS NOT NULL)'
+            'SELECT name,slug,birth_date,death_date,date_label,portrait_url,images FROM homes WHERE published=1 AND (birth_date IS NOT NULL OR death_date IS NOT NULL)'
         );
         const out = rows.map(r => ({
             name: r.name, slug: r.slug, birth_date: r.birth_date, death_date: r.death_date,
+            date_start: r.birth_date, date_end: r.death_date, date_label: r.date_label || null,
             image: calPic(r.portrait_url, r.images),
         }));
         cache.set(key, out, 1800);
@@ -2729,7 +3199,7 @@ app.get('/api/team/:id', async (req, res) => {
     }
 });
 
-app.post('/api/team', requireOwner, async (req, res) => {
+app.post('/api/team', requireRole('owner'), async (req, res) => {
     const { name, role, bio, photo, display_order } = req.body;
     if (!name) return res.status(400).json({ error: 'Name is required' });
     try {
@@ -2745,7 +3215,7 @@ app.post('/api/team', requireOwner, async (req, res) => {
     }
 });
 
-app.put('/api/team/:id', requireOwner, async (req, res) => {
+app.put('/api/team/:id', requireRole('owner'), async (req, res) => {
     const { name, role, bio, photo, display_order, is_published } = req.body;
     try {
         const r = await dbRun(
@@ -2760,7 +3230,7 @@ app.put('/api/team/:id', requireOwner, async (req, res) => {
     }
 });
 
-app.delete('/api/team/:id', requireOwner, async (req, res) => {
+app.delete('/api/team/:id', requireRole('owner'), async (req, res) => {
     try {
         const r = await dbRun('DELETE FROM team WHERE id=?', [req.params.id]);
         cache.clear();

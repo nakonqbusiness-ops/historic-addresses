@@ -51,7 +51,13 @@
         var name    = (me.display_name && me.display_name.trim()) || me.email || 'Профил';
         var initial = (name.trim().charAt(0) || '?').toUpperCase();
         var role    = roleLabel(me.role) || 'Потребител';
-        var isMod   = me.role === 'owner' || me.role === 'moderator';
+        var isMod   = me.role === 'owner' || me.role === 'admin' || me.role === 'moderator';
+        var isAdmin = me.role === 'owner' || me.role === 'admin';
+        // Staff must have 2FA; if they don't yet, point the staff links straight at the
+        // 2FA enrol section so they land exactly where they need to act.
+        var needs2fa  = !!me.totp_required && !me.totp_enabled;
+        var dashHref  = needs2fa ? '/profile.html#twofa' : '/admin/dashboard.html';
+        var modHref   = needs2fa ? '/profile.html#twofa' : '/admin/moderation.html';
 
         var wrap = document.createElement('div');
         wrap.className = 'nav-user';
@@ -78,7 +84,8 @@
             '<a class="nav-user-item" href="/profile.html#activity"><span class="nui-ico">⭐</span>Моите одобрения</a>' +
             '<a class="nav-user-item" href="/profile.html#achievements"><span class="nui-ico">🏅</span>Постижения и приноси</a>' +
             '<a class="nav-user-item" href="/profile.html#saved"><span class="nui-ico">📍</span>Запазени локации</a>' +
-            (isMod ? '<a class="nav-user-item" href="/admin/moderation.html"><span class="nui-ico">🛡️</span>Модерация</a>' : '') +
+            (isAdmin ? '<a class="nav-user-item" href="' + dashHref + '"><span class="nui-ico">🏛️</span>Управление</a>' : '') +
+            (isMod ? '<a class="nav-user-item" href="' + modHref + '"><span class="nui-ico">🛡️</span>Модерация</a>' : '') +
             '<a class="nav-user-item" href="/profile.html#settings"><span class="nui-ico">⚙️</span>Настройки</a>' +
             '<div class="nav-user-div"></div>' +
             '<div class="nav-user-theme"><span><span class="nui-ico">🌓</span>Светъл / Тъмен режим</span><span class="nav-user-theme-slot"></span></div>' +

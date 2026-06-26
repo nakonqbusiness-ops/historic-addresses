@@ -174,6 +174,25 @@
         .pf-nl-status { font-size: 0.8rem; color: var(--muted); margin-left: 0.2rem; }
         .pf-nl-status.ok { color: #8bc78e; }
 
+        /* ── 2FA ── */
+        #pf2faSetting.pf-flash { animation: pfFlash 2.6s ease; }
+        @keyframes pfFlash {
+            0%, 100% { box-shadow: var(--shadow-soft); border-color: var(--border); }
+            12% { box-shadow: 0 0 0 3px rgba(205,133,63,0.55); border-color: var(--accent-strong); }
+            60% { box-shadow: 0 0 0 3px rgba(205,133,63,0.25); border-color: var(--accent-strong); }
+        }
+        .pf-2fa-status { font-size: 0.9rem; margin-bottom: 0.9rem; }
+        .pf-2fa-status.pf-2fa-warn { padding: 0.6rem 0.8rem; border: 1px solid rgba(201,80,80,0.5); background: rgba(201,80,80,0.08); border-radius: 10px; }
+        .pf-2fa-on  { color: #8bc78e; font-weight: 700; }
+        .pf-2fa-off { color: var(--muted); font-weight: 700; }
+        .pf-2fa-actions { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+        .pf-2fa-box { margin-top: 1rem; padding: 1.1rem; border: 1px dashed var(--border); border-radius: 12px; background: rgba(0,0,0,0.12); }
+        .pf-2fa-qr { display: block; width: 200px; height: 200px; max-width: 100%; border-radius: 10px; background: #fff; padding: 8px; margin: 0.3rem 0 0.6rem; }
+        .pf-2fa-secret { display: inline-block; font-family: monospace; font-size: 0.95rem; letter-spacing: 0.06em; color: var(--accent-strong); background: rgba(205,133,63,0.1); padding: 0.15rem 0.5rem; border-radius: 6px; word-break: break-all; }
+        .pf-2fa-codes { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem; margin-top: 0.7rem; }
+        .pf-2fa-code { font-family: monospace; font-size: 0.95rem; letter-spacing: 0.05em; text-align: center; padding: 0.45rem; background: rgba(0,0,0,0.25); border: 1px solid var(--border); border-radius: 8px; color: var(--fg); }
+        @media (max-width: 480px) { .pf-2fa-codes { grid-template-columns: 1fr; } }
+
         .pf-btn {
             display: inline-flex; align-items: center; justify-content: center; gap: 0.45rem;
             padding: 0.72rem 1.3rem; border-radius: 10px; cursor: pointer;
@@ -272,7 +291,7 @@
             .pf-name-row .pf-btn { width: 100%; }
         }
     </style>
-    <script defer src="assets/js/account-nav.js?v=15"></script>
+    <script defer src="assets/js/account-nav.js?v=17"></script>
 </head>
 
 <body class="pf-page">
@@ -442,6 +461,36 @@
                 </form>
             </div>
 
+            <div class="pf-setting" id="pf2faSetting">
+                <label class="pf-setting-label">Двуфакторна автентикация (2FA)</label>
+                <p class="pf-setting-hint">Допълнителен слой сигурност. При вход ще се изисква код от приложение за автентикация (Google Authenticator, Authy, Microsoft Authenticator и др.). За екипа (модератори, администратори, собственик) 2FA е <strong>задължителна</strong>.</p>
+                <div id="tfaStatus" class="pf-2fa-status"></div>
+                <div class="pf-2fa-actions">
+                    <button id="tfaEnableBtn" class="pf-btn pf-btn-gold" type="button" hidden>🔒 Активирай 2FA</button>
+                    <button id="tfaRegenBtn" class="pf-btn pf-btn-ghost" type="button" hidden>🔁 Нови резервни кодове</button>
+                    <button id="tfaDisableBtn" class="pf-btn pf-btn-danger" type="button" hidden>Изключи 2FA</button>
+                </div>
+
+                <div id="tfaSetup" class="pf-2fa-box" hidden>
+                    <p class="pf-setting-hint"><strong>1.</strong> Сканирайте QR кода с приложението за автентикация:</p>
+                    <img id="tfaQr" class="pf-2fa-qr" alt="QR код за двуфакторна автентикация">
+                    <p class="pf-setting-hint">Или въведете ръчно този ключ: <code id="tfaSecret" class="pf-2fa-secret"></code></p>
+                    <p class="pf-setting-hint"><strong>2.</strong> Въведете 6-цифрения код от приложението:</p>
+                    <div class="pf-name-row">
+                        <input id="tfaCode" class="pf-input" type="text" inputmode="numeric" maxlength="6" placeholder="6-цифрен код" autocomplete="one-time-code">
+                        <button id="tfaConfirm" class="pf-btn pf-btn-gold" type="button">Потвърди</button>
+                    </div>
+                    <p id="tfaSetupMsg" class="pf-pw-msg" hidden></p>
+                    <button id="tfaSetupCancel" class="pf-btn pf-btn-ghost" type="button" style="margin-top:.6rem">Отказ</button>
+                </div>
+
+                <div id="tfaBackup" class="pf-2fa-box" hidden>
+                    <p class="pf-setting-hint"><strong>Запазете тези резервни кодове на сигурно място.</strong> Всеки код може да се използва само веднъж, ако нямате достъп до приложението. Показват се само сега.</p>
+                    <div id="tfaBackupList" class="pf-2fa-codes"></div>
+                    <button id="tfaBackupDone" class="pf-btn pf-btn-gold" type="button" style="margin-top:.6rem">Готово, запазих ги</button>
+                </div>
+            </div>
+
             <div class="pf-setting">
                 <label class="pf-setting-label">Вашите данни</label>
                 <p class="pf-setting-hint">Изтеглете копие на всички данни, които съхраняваме за Вас - профил, любими, посетени и предложения (GDPR).</p>
@@ -508,6 +557,7 @@
         <h3 id="delModalTitle" class="pf-modal-title">Изтриване на профила</h3>
         <p class="pf-modal-text">Това действие е необратимо. Въведете паролата си, за да потвърдите изтриването.</p>
         <input id="delPassword" class="pf-input" type="password" placeholder="Вашата парола" autocomplete="current-password">
+        <input id="delCode" class="pf-input" type="text" inputmode="numeric" maxlength="14" placeholder="Код за 2FA" autocomplete="one-time-code" style="margin-top:.6rem" hidden>
         <p id="delError" class="pf-modal-error" hidden></p>
         <div class="pf-modal-actions">
             <button id="delCancel" class="pf-btn pf-btn-ghost" type="button">Отказ</button>
@@ -600,8 +650,19 @@
                 try { history.replaceState(null, '', '#' + n); } catch(e) {}
             });
         });
+        function highlight2fa() {
+            var el = document.getElementById('pf2faSetting');
+            if (!el) return;
+            setTimeout(function(){
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                el.classList.add('pf-flash');
+                setTimeout(function(){ el.classList.remove('pf-flash'); }, 2800);
+            }, 140);
+        }
         function fromHash() {
             var h = (location.hash || '').replace('#', '');
+            // Deep-link straight to 2FA enrolment (used when staff need to enable it).
+            if (h === 'twofa' || h === 'enable-2fa') { activate('settings'); highlight2fa(); return; }
             activate(VALID_TABS.indexOf(h) >= 0 ? h : 'activity');
         }
         window.addEventListener('hashchange', fromHash);
@@ -1000,11 +1061,13 @@
 
     // ── Delete account ──
     var delModal = document.getElementById('delModal'), delPassword = document.getElementById('delPassword'),
+        delCode = document.getElementById('delCode'),
         delError = document.getElementById('delError'), delConfirm = document.getElementById('delConfirm');
     function closeDel() { delModal.hidden = true; }
     function showDelError(m) { delError.textContent = m; delError.hidden = false; }
     document.getElementById('pfDelete').addEventListener('click', function() {
-        delPassword.value = ''; delError.hidden = true; delConfirm.disabled = false; delModal.hidden = false;
+        delPassword.value = ''; delCode.value = ''; delError.hidden = true; delConfirm.disabled = false; delModal.hidden = false;
+        delCode.hidden = !has2fa;   // critical action: require a 2FA code when enabled
         setTimeout(function() { delPassword.focus(); }, 50);
     });
     document.getElementById('delCancel').addEventListener('click', closeDel);
@@ -1014,11 +1077,12 @@
     delConfirm.addEventListener('click', function() {
         var pw = delPassword.value;
         if (!pw) { showDelError('Въведете паролата си.'); return; }
+        if (has2fa && !delCode.value.trim()) { showDelError('Въведете кода за 2FA.'); return; }
         delConfirm.disabled = true; delError.hidden = true;
         fetch('/api/user/delete', {
             method: 'POST', credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ password: pw })
+            body: JSON.stringify({ password: pw, code: delCode.value.trim() })
         })
         .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, d: d }; }); })
         .then(function(res) {
@@ -1027,6 +1091,109 @@
         })
         .catch(function() { showDelError('Грешка при изтриване. Опитайте отново.'); delConfirm.disabled = false; });
     });
+
+    // ── Two-factor authentication (2FA) ──
+    var has2fa = false;
+    (function tfaInit() {
+        var statusEl   = document.getElementById('tfaStatus');
+        var enableBtn  = document.getElementById('tfaEnableBtn');
+        var regenBtn   = document.getElementById('tfaRegenBtn');
+        var disableBtn = document.getElementById('tfaDisableBtn');
+        var setupBox   = document.getElementById('tfaSetup');
+        var backupBox  = document.getElementById('tfaBackup');
+        var qrImg      = document.getElementById('tfaQr');
+        var secretEl   = document.getElementById('tfaSecret');
+        var codeInput  = document.getElementById('tfaCode');
+        var confirmBtn = document.getElementById('tfaConfirm');
+        var setupMsg   = document.getElementById('tfaSetupMsg');
+        var setupCancel= document.getElementById('tfaSetupCancel');
+        var backupList = document.getElementById('tfaBackupList');
+        var backupDone = document.getElementById('tfaBackupDone');
+        var required   = false;
+
+        function render(enabled) {
+            has2fa = enabled;
+            setupBox.hidden = true; backupBox.hidden = true;
+            statusEl.classList.toggle('pf-2fa-warn', !enabled && required);
+            if (enabled) {
+                statusEl.innerHTML = '<span class="pf-2fa-on">✓ Активна</span>' + (required ? ' · задължителна за Вашата роля' : '');
+                enableBtn.hidden = true; regenBtn.hidden = false; disableBtn.hidden = required;
+            } else {
+                statusEl.innerHTML = '<span class="pf-2fa-off">○ Неактивна</span>' + (required ? ' · <strong>задължителна за Вашата роля — активирайте я</strong>' : '');
+                enableBtn.hidden = false; regenBtn.hidden = true; disableBtn.hidden = true;
+            }
+        }
+
+        fetch('/api/auth/me', { credentials: 'include' })
+            .then(function(r){ return r.ok ? r.json() : null; })
+            .then(function(me){ if (!me) return; required = !!me.totp_required; render(!!me.totp_enabled); })
+            .catch(function(){});
+
+        function showSetupMsg(m, ok){ setupMsg.textContent = m; setupMsg.className = 'pf-pw-msg ' + (ok ? 'ok' : 'err'); setupMsg.hidden = false; }
+        function showBackup(codes){
+            backupList.innerHTML = '';
+            (codes || []).forEach(function(c){ var s = document.createElement('span'); s.className = 'pf-2fa-code'; s.textContent = c; backupList.appendChild(s); });
+            backupBox.hidden = false;
+        }
+
+        enableBtn.addEventListener('click', function(){
+            enableBtn.disabled = true;
+            fetch('/api/2fa/setup', { method: 'POST', credentials: 'include' })
+                .then(function(r){ return r.json().catch(function(){ return {}; }).then(function(d){ return { ok: r.ok, d: d }; }); })
+                .then(function(r){
+                    enableBtn.disabled = false;
+                    if (!r.ok) { toast((r.d && r.d.error) || 'Грешка.'); return; }
+                    qrImg.src = r.d.qr; secretEl.textContent = r.d.secret;
+                    setupMsg.hidden = true; codeInput.value = ''; setupBox.hidden = false;
+                    setTimeout(function(){ codeInput.focus(); }, 30);
+                })
+                .catch(function(){ enableBtn.disabled = false; toast('Грешка при свързване.'); });
+        });
+        setupCancel.addEventListener('click', function(){ setupBox.hidden = true; });
+        confirmBtn.addEventListener('click', function(){
+            var code = codeInput.value.trim();
+            if (!/^\d{6}$/.test(code)) { showSetupMsg('Въведете 6-цифрения код.', false); return; }
+            confirmBtn.disabled = true;
+            fetch('/api/2fa/enable', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: code }) })
+                .then(function(r){ return r.json().catch(function(){ return {}; }).then(function(d){ return { ok: r.ok, d: d }; }); })
+                .then(function(r){
+                    confirmBtn.disabled = false;
+                    if (!r.ok) { showSetupMsg((r.d && r.d.error) || 'Невалиден код.', false); return; }
+                    render(true); showBackup(r.d.backup_codes);
+                    toast('2FA е активирана.', { duration: 2200 });
+                })
+                .catch(function(){ confirmBtn.disabled = false; showSetupMsg('Грешка при свързване.', false); });
+        });
+        codeInput.addEventListener('keydown', function(e){ if (e.key === 'Enter') confirmBtn.click(); });
+        backupDone.addEventListener('click', function(){ backupBox.hidden = true; });
+
+        disableBtn.addEventListener('click', function(){
+            var code = prompt('Въведете текущ код от приложението (или резервен код), за да изключите 2FA:');
+            if (code === null) return; code = code.trim(); if (!code) return;
+            disableBtn.disabled = true;
+            fetch('/api/2fa/disable', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: code }) })
+                .then(function(r){ return r.json().catch(function(){ return {}; }).then(function(d){ return { ok: r.ok, d: d }; }); })
+                .then(function(r){
+                    disableBtn.disabled = false;
+                    if (!r.ok) { toast((r.d && r.d.error) || 'Грешка.'); return; }
+                    render(false); toast('2FA е изключена.', { duration: 2000 });
+                })
+                .catch(function(){ disableBtn.disabled = false; toast('Грешка при свързване.'); });
+        });
+        regenBtn.addEventListener('click', function(){
+            var code = prompt('Въведете текущ код от приложението, за да генерирате нови резервни кодове:');
+            if (code === null) return; code = code.trim(); if (!code) return;
+            regenBtn.disabled = true;
+            fetch('/api/2fa/backup-codes', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: code }) })
+                .then(function(r){ return r.json().catch(function(){ return {}; }).then(function(d){ return { ok: r.ok, d: d }; }); })
+                .then(function(r){
+                    regenBtn.disabled = false;
+                    if (!r.ok) { toast((r.d && r.d.error) || 'Грешка.'); return; }
+                    showBackup(r.d.backup_codes); toast('Нови резервни кодове.', { duration: 2000 });
+                })
+                .catch(function(){ regenBtn.disabled = false; toast('Грешка при свързване.'); });
+        });
+    })();
 
     // ── Resend verification email ──
     var resendBtn = document.getElementById('pfResend');

@@ -173,7 +173,7 @@
             .cal-dot { width: 8px; height: 8px; }
         }
     </style>
-    <script defer src="assets/js/account-nav.js?v=15"></script>
+    <script defer src="assets/js/account-nav.js?v=17"></script>
 </head>
 <body class="cal-page">
 <header class="site-header">
@@ -405,8 +405,9 @@ function handleEmailClick(event) {
     }
 
     function evCard(ev) {
-        var verb = ev.type === 'birth' ? 'Роден(а)' : 'Починал(а)';
-        var icon = ev.type === 'birth' ? '🎂' : '🕯️';
+        // A custom date_label (e.g. "Построена през") overrides the default Роден/Починал.
+        var verb = ev.date_label ? esc(ev.date_label) : (ev.type === 'birth' ? 'Роден(а)' : 'Починал(а)');
+        var icon = ev.date_label ? '📅' : (ev.type === 'birth' ? '🎂' : '🕯️');
         var lifespan = (ev.birth_date && ev.death_date) ? ' · ' + yr(ev.birth_date) + '–' + yr(ev.death_date) : '';
         return '<a class="cal-ev" href="address.html?slug=' + encodeURIComponent(ev.slug) + '">' +
             photoHtml(ev, 'cal-ev-photo') +
@@ -475,9 +476,14 @@ function handleEmailClick(event) {
         state.selected = String(dt.getDate()).padStart(2, '0');
         document.getElementById('eventsList').innerHTML = '';
         load();
+        var ds = p.date_start || p.birth_date, de = p.date_end || p.death_date;
         var dates = [];
-        if (p.birth_date) dates.push('🎂 роден(а) ' + yr(p.birth_date) + ' г.');
-        if (p.death_date) dates.push('🕯️ починал(а) ' + yr(p.death_date) + ' г.');
+        if (p.date_label) {
+            dates.push('📅 ' + esc(p.date_label) + ' ' + yr(ds) + (de ? '–' + yr(de) : '') + ' г.');
+        } else {
+            if (p.birth_date) dates.push('🎂 роден(а) ' + yr(p.birth_date) + ' г.');
+            if (p.death_date) dates.push('🕯️ починал(а) ' + yr(p.death_date) + ' г.');
+        }
         var box = document.getElementById('personBox');
         box.innerHTML = '<div class="cal-person">' +
             photoHtml({ name: p.name, image: p.image }, 'cal-person-photo') +
@@ -505,9 +511,14 @@ function handleEmailClick(event) {
             var hits = allPeople.filter(function(p){ var n = p.name.toLowerCase(); return words.every(function(w){ return n.indexOf(w) > -1; }); }).slice(0, 6);
             if (!hits.length) { searchRes.innerHTML = '<div class="cal-sr-empty">Няма резултати</div>'; return; }
             searchRes.innerHTML = hits.map(function(p, i){
+                var ds = p.date_start || p.birth_date, de = p.date_end || p.death_date;
                 var dates = [];
-                if (p.birth_date) dates.push('🎂 ' + yr(p.birth_date));
-                if (p.death_date) dates.push('🕯️ ' + yr(p.death_date));
+                if (p.date_label) {
+                    dates.push('📅 ' + yr(ds) + (de ? '–' + yr(de) : ''));
+                } else {
+                    if (p.birth_date) dates.push('🎂 ' + yr(p.birth_date));
+                    if (p.death_date) dates.push('🕯️ ' + yr(p.death_date));
+                }
                 var ini = esc(initial(p.name));
                 var photo = p.image
                     ? '<img class="cal-sr-photo" src="' + esc(p.image) + '" alt="" loading="lazy" data-ini="' + ini + '" onerror="calImgErr(this)">'

@@ -23,379 +23,54 @@
         })();
     </script>
 
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&family=Lora:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap" rel="stylesheet">
+
     <link rel="stylesheet" href="assets/css/styles.css?v=7">
     <script defer src="assets/js/theme.js"></script>
     <script src="assets/js/transitions.js"></script>
     <script defer src="assets/js/calendar-popup.js?v=3.3"></script>
-    <script defer src="assets/js/account-nav.js?v=15"></script>
+    <script defer src="assets/js/account-nav.js?v=17"></script>
 
     <style>
-        /* ─── Layout ─────────────────────────────────────────── */
-        .about-wrapper {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 3rem 2rem 5rem;
+        /* Redesigned About page — palette scoped to .about-wrap so it never clashes
+           with the global styles.css variables used by the shared header/footer. */
+        .about-wrap{
+            --bg:#1a1410; --bg2:#120d09; --ink:#f3ebdb; --ink2:#c2ac8c; --muted:#a89378;
+            --gold:#cd853f; --gold-soft:#daa520; --line:rgba(139,115,85,0.30); --chip:rgba(205,133,63,0.13);
+            background:var(--bg); color:var(--ink2);
+            font-family:"Lora",Georgia,"Times New Roman",serif; overflow-x:hidden;
+            -webkit-font-smoothing:antialiased;
         }
+        [data-theme="light"] .about-wrap{
+            --bg:#f5f1e8; --bg2:#ece1cd; --ink:#3a2f1f; --ink2:#5a4a34; --muted:#8b7355;
+            --gold:#b06a1e; --gold-soft:#b8860b; --line:rgba(139,115,85,0.30); --chip:rgba(205,133,63,0.13);
+        }
+        .about-wrap ::selection{ background:rgba(205,133,63,0.30); color:#fff5e6; }
+        @keyframes abFloat{ 0%{transform:translateY(0) rotate(-6deg);} 100%{transform:translateY(-22px) rotate(-6deg);} }
+        @keyframes abCue{ 0%{opacity:.15;transform:translateY(0);} 50%{opacity:.8;} 100%{opacity:.15;transform:translateY(10px);} }
+        @keyframes abMarquee{ from{transform:translateX(0);} to{transform:translateX(-50%);} }
+        @keyframes abModal{ from{opacity:0;transform:translateY(16px) scale(.97);} to{opacity:1;transform:none;} }
 
-        /* ─── Hero ───────────────────────────────────────────── */
-        .about-hero {
-            text-align: center;
-            padding: 3rem 0 4rem;
-            border-bottom: 1px solid var(--border);
-            margin-bottom: 4rem;
-        }
-        .about-logo {
-            width: 140px; height: auto;
-            margin-bottom: 1.5rem;
-            filter: drop-shadow(0 8px 16px rgba(0,0,0,0.3));
-        }
-        .hero-title {
-            font-family: "Baskerville", "Garamond", Georgia, serif;
-            font-size: clamp(2rem, 5vw, 3rem);
-            font-weight: 600;
-            margin: 0 0 1rem;
-            background: linear-gradient(135deg, var(--accent-strong) 0%, #e0c98a 50%, var(--accent-strong) 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-        .hero-subtitle {
-            font-size: 1.2rem;
-            color: var(--muted);
-            max-width: 700px;
-            margin: 0 auto;
-            line-height: 1.6;
-        }
+        /* hover effects (can't be inline) */
+        .ab-link-gold{ transition:color .25s ease; }
+        .ab-link-gold:hover{ color:var(--ink) !important; }
+        .ab-btn{ transition:border-color .25s ease, background .25s ease, filter .25s ease; }
+        .ab-btn:hover{ border-color:var(--gold) !important; background:var(--chip) !important; }
+        .ab-btn-solid:hover{ filter:brightness(1.07); }
+        .ab-marquee-track:hover{ animation-play-state:paused; }
 
-        /* ─── Shared ─────────────────────────────────────────── */
-        .section-title {
-            font-family: "Baskerville", serif;
-            font-size: 2rem;
-            color: var(--accent-strong);
-            margin: 0 0 1.5rem;
-            display: flex;
-            align-items: center;
-            gap: 12px;
+        @media (max-width:820px){
+            .ab-mission-grid{ grid-template-columns:1fr !important; gap:18px !important; }
+            .ab-mission-row{ grid-template-columns:1fr !important; }
+            .ab-mission-row .ab-mission-photo{ order:-1 !important; }
         }
-
-        /* ─── Mission ────────────────────────────────────────── */
-        .mission-section {
-            background: var(--card);
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            padding: 3rem;
-            margin-bottom: 4rem;
-            box-shadow: var(--shadow-soft);
-            position: relative;
-            overflow: hidden;
-        }
-        .mission-section::before {
-            content: '';
-            position: absolute;
-            top: 0; left: 0;
-            width: 4px; height: 100%;
-            background: var(--accent-gradient);
-        }
-        .mission-text { font-size: 1.15rem; line-height: 1.8; color: var(--fg); }
-        .mission-text p { margin-bottom: 1.5rem; }
-        .mission-text p:last-child { margin-bottom: 0; }
-        .mission-text strong { color: var(--accent-strong); font-weight: 600; }
-
-        /* ─── Values ─────────────────────────────────────────── */
-        .values-section { margin-bottom: 4rem; }
-        .values-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 1.5rem;
-            margin-top: 2rem;
-        }
-        .value-card {
-            background: var(--card);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 2rem;
-            text-align: center;
-        }
-        .value-icon { font-size: 2.5rem; margin-bottom: 1rem; }
-        .value-title { font-size: 1.2rem; font-weight: 700; margin-bottom: 0.5rem; color: var(--fg); }
-        .value-text { font-size: 0.95rem; color: var(--muted); line-height: 1.6; }
-
-        /* ─── Team ───────────────────────────────────────────── */
-        .leadership-section { margin-bottom: 4rem; }
-        .team-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            flex-wrap: wrap;
-            gap: 0.75rem;
-            margin-bottom: 2rem;
-        }
-        .team-header .section-title { margin: 0; }
-        .member-count-badge {
-            font-size: 0.82rem;
-            font-weight: 700;
-            color: var(--accent-strong);
-            background: rgba(205,133,63,0.12);
-            border: 1px solid rgba(205,133,63,0.25);
-            padding: 0.25rem 0.8rem;
-            border-radius: 999px;
-        }
-        .team-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-            gap: 1.5rem;
-        }
-        .team-overflow-wrap { grid-column: 1 / -1; }
-        .team-overflow {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-            gap: 1.5rem;
-            max-height: 0;
-            overflow: hidden;
-            opacity: 0;
-            transition: max-height 0.55s ease, opacity 0.4s ease;
-        }
-        .team-overflow.open { max-height: 4000px; opacity: 1; }
-        .team-member {
-            background: var(--card);
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            padding: 1.75rem 1.5rem;
-            text-align: center;
-            transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
-            box-shadow: var(--shadow-soft);
-        }
-        .team-member:hover {
-            transform: translateY(-5px);
-            box-shadow: var(--shadow);
-            border-color: var(--accent-strong);
-        }
-        .member-photo {
-            width: 88px; height: 88px;
-            border-radius: 50%;
-            margin: 0 auto 1.25rem;
-            border: 3px solid var(--accent-strong);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-            background: var(--border);
-            display: flex; align-items: center; justify-content: center;
-            font-size: 2rem;
-            overflow: hidden;
-        }
-        .member-photo img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
-        .member-name { font-size: 1.05rem; font-weight: 700; color: var(--fg); margin: 0 0 0.3rem; }
-        .member-role {
-            font-size: 0.78rem; color: var(--accent-strong);
-            font-weight: 600; text-transform: uppercase;
-            letter-spacing: 0.6px; margin: 0 0 0.85rem;
-        }
-        .member-bio { font-size: 0.87rem; line-height: 1.55; color: var(--muted); }
-        .team-show-more {
-            display: none;
-            margin: 1.75rem auto 0;
-            background: transparent;
-            border: 1px solid var(--accent-strong);
-            color: var(--accent-strong);
-            padding: 0.6rem 1.75rem;
-            border-radius: 999px;
-            font-size: 0.92rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.25s;
-        }
-        .team-show-more:hover { background: var(--accent-strong); color: #fff; }
-        .team-actions { text-align: center; }
-
-        /* ─── Partners ───────────────────────────────────────── */
-        .partners-section { margin-bottom: 4rem; }
-        .partners-section-header {
-            display: flex;
-            align-items: baseline;
-            justify-content: space-between;
-            flex-wrap: wrap;
-            gap: 0.75rem;
-            margin-bottom: 2rem;
-        }
-        .partners-section-header .section-title { margin: 0; }
-        .partners-all-link {
-            color: var(--accent-strong);
-            font-weight: 600;
-            text-decoration: none;
-            font-size: 0.95rem;
-            white-space: nowrap;
-            transition: opacity 0.2s;
-        }
-        .partners-all-link:hover { opacity: 0.7; }
-        .partners-preview-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 1.5rem;
-        }
-        .pcard {
-            background: var(--card);
-            border: 1px solid var(--border);
-            border-radius: 14px;
-            padding: 1.5rem;
-            display: flex;
-            flex-direction: column;
-            gap: 0.9rem;
-            transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
-            box-shadow: var(--shadow-soft);
-            position: relative;
-            overflow: hidden;
-        }
-        .pcard:hover { transform: translateY(-4px); box-shadow: var(--shadow); border-color: var(--accent-strong); }
-        .pcard::before {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; right: 0;
-            height: 3px;
-            background: var(--accent-gradient, var(--accent-strong));
-            transform: scaleX(0);
-            transform-origin: left;
-            transition: transform 0.35s ease;
-        }
-        .pcard:hover::before { transform: scaleX(1); }
-        .pcard-header { display: flex; align-items: center; gap: 1rem; }
-        .pcard-logo-wrap {
-            width: 60px; height: 60px;
-            flex-shrink: 0;
-            border-radius: 10px;
-            background: rgba(205,133,63,0.09);
-            border: 1px solid var(--border);
-            display: flex; align-items: center; justify-content: center;
-            font-size: 1.8rem;
-            overflow: hidden;
-        }
-        .pcard-logo-wrap img { width: 100%; height: 100%; object-fit: contain; padding: 6px; }
-        .pcard-name { font-size: 1.05rem; font-weight: 700; color: var(--fg); line-height: 1.3; }
-        .pcard-desc {
-            font-size: 0.88rem; color: var(--muted); line-height: 1.55; flex: 1;
-            display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
-        }
-        .pcard-links { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: auto; }
-        .pcard-link {
-            display: inline-flex; align-items: center; gap: 0.35rem;
-            padding: 0.38rem 0.9rem; border-radius: 6px;
-            background: rgba(205,133,63,0.1); color: var(--accent-strong);
-            text-decoration: none; font-size: 0.82rem; font-weight: 600;
-            border: 1px solid rgba(205,133,63,0.2); transition: all 0.2s; white-space: nowrap;
-        }
-        .pcard-link:hover { background: var(--accent-strong); color: #fff; border-color: var(--accent-strong); }
-        .partners-empty {
-            grid-column: 1 / -1;
-            display: flex; flex-direction: column; align-items: center;
-            gap: 0.75rem; padding: 3.5rem 1.5rem;
-            border: 2px dashed var(--border); border-radius: 14px;
-            text-align: center; color: var(--muted);
-        }
-        .partners-empty-icon { font-size: 2.5rem; opacity: 0.45; }
-        .partners-empty-text { font-size: 0.95rem; max-width: 320px; line-height: 1.55; }
-        .partners-more-bar {
-            display: none;
-            margin-top: 1.5rem; padding: 1rem 1.5rem;
-            background: var(--card); border: 1px solid var(--border);
-            border-radius: 12px; text-align: center;
-            font-size: 0.93rem; color: var(--muted);
-        }
-        .partners-more-bar a { color: var(--accent-strong); font-weight: 700; text-decoration: none; margin-left: 0.35rem; }
-        .partners-more-bar a:hover { text-decoration: underline; }
-
-        /* ─── Contact ────────────────────────────────────────── */
-        .contact-section {
-            background: var(--card);
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            padding: 3rem;
-            text-align: center;
-            box-sizing: border-box;
-        }
-        .contact-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 1rem;
-            margin-top: 2rem;
-            box-sizing: border-box;
-        }
-        .contact-item {
-            padding: 1.5rem;
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            text-decoration: none;
-            color: var(--fg);
-            display: flex; align-items: center; justify-content: center;
-            gap: 12px;
-            transition: all 0.3s ease;
-            font-weight: 600;
-            box-sizing: border-box;
-            min-width: 0;
-        }
-        .contact-item:hover {
-            border-color: var(--accent-strong);
-            background: rgba(205,133,63,0.1);
-            transform: translateY(-2px);
-        }
-        .contact-icon { font-size: 1.5rem; flex-shrink: 0; }
-
-        /* Donation contact card - gold-tinted to stand out as the support CTA */
-        .contact-donate { border-color: rgba(205,133,63,0.55); background: rgba(205,133,63,0.1); font-weight: 700; }
-        .contact-donate:hover { border-color: var(--accent-strong); background: rgba(205,133,63,0.2); }
-
-        /* label switching - mobile shows short label, desktop shows full */
-        .contact-label-mobile { display: none; }
-        .contact-label-desktop { display: inline; }
-
-        /* ─── Responsive ─────────────────────────────────────── */
-        @media (max-width: 768px) {
-            /* Wrapper */
-            .about-wrapper { padding: 1.25rem 1rem 2rem; }
-
-            /* Hero */
-            .about-hero { padding: 1.5rem 0 2rem; margin-bottom: 1.75rem; }
-            .about-logo { width: 90px; margin-bottom: 1rem; }
-            .hero-subtitle { font-size: 1rem; }
-
-            /* Section spacing */
-            .mission-section  { padding: 1.5rem 1.25rem; margin-bottom: 1.75rem; }
-            .values-section   { margin-bottom: 1.75rem; }
-            .leadership-section { margin-bottom: 1.75rem; }
-            .partners-section { margin-bottom: 1.75rem; }
-            .section-title    { font-size: 1.5rem; }
-
-            /* Values 2×2 */
-            .values-grid { grid-template-columns: 1fr 1fr; gap: 0.85rem; }
-            .value-card  { padding: 1.25rem 0.85rem; }
-            .value-icon  { font-size: 1.8rem; margin-bottom: 0.5rem; }
-            .value-title { font-size: 1rem; }
-            .value-text  { font-size: 0.83rem; }
-
-            /* Team: single column */
-            .team-grid,
-            .team-overflow { grid-template-columns: 1fr; gap: 0.85rem; }
-            .team-member   { padding: 1.5rem; }
-
-            /* Partners: single column */
-            .partners-preview-grid { grid-template-columns: 1fr; gap: 0.85rem; }
-
-            /* Contact: two equal side-by-side boxes, icon+label stacked */
-            .contact-section { padding: 1.5rem 1rem; }
-            .contact-grid {
-                grid-template-columns: repeat(3, 1fr);
-                gap: 0.6rem;
-                margin-top: 1rem;
-            }
-            .contact-item {
-                padding: 1rem 0.4rem;
-                flex-direction: column;
-                gap: 0.4rem;
-                font-size: 0.8rem;
-            }
-            .contact-icon { font-size: 1.4rem; }
-            .contact-label-desktop { display: none; }
-            .contact-label-mobile  { display: inline; }
-        }
-
-        @media (max-width: 360px) {
-            .values-grid { grid-template-columns: 1fr; }
+        @media (max-width:760px){
+            .ab-team-row{ grid-template-columns:1fr !important; text-align:center; }
+            .ab-team-row > div{ order:0 !important; justify-content:center !important; }
+            .ab-team-row > div:nth-child(2){ display:none !important; }
+            .ab-team-row p{ margin-left:auto !important; margin-right:auto !important; }
         }
     </style>
 </head>
@@ -417,103 +92,189 @@
 <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode"></button>
 </header>
 
-<main class="about-wrapper">
+<main class="about-wrap">
 
-    <!-- Hero -->
-    <section class="about-hero">
-        <img src="assets/img/HistAdrLogoOrig.png" alt="Адресът на историята" class="about-logo">
-        <h1 class="hero-title">За „Адресът на историята"</h1>
-        <p class="hero-subtitle">
-            Дигитален архив, съхраняващ паметта за домовете и личностите, които са оформили България.
-        </p>
-    </section>
-
-    <!-- Mission -->
-    <section class="mission-section">
-        <h2 class="section-title">🎯 Нашата мисия</h2>
-        <div class="mission-text">
-            <p>Ние сме група възпитаници на <strong>Първа английска езикова гимназия</strong>, обединени от любовта към България и желанието да съхраним спомена за нашите забележителни личности.</p>
-            <p>Нашата неправителствена организация цели да документира адресите на домовете на хора, които с делата, таланта и идеите си са оставили следа в българската история и култура. Всеки адрес и всяка история, която публикуваме, е малък мост между миналото и настоящето.</p>
-            <p>С този сайт искаме не само да запазим паметта за великите българи, но и да вдъхновим нашите връстници да се гордеят със своето наследство и да се стремят към лични постижения. Вярваме, че знанието за миналото е основа за силна и осъзната нация.</p>
-        </div>
-    </section>
-
-    <!-- Values -->
-    <section class="values-section">
-        <h2 class="section-title">💎 Нашите Ценности</h2>
-        <div class="values-grid">
-            <div class="value-card">
-                <div class="value-icon">📚</div>
-                <div class="value-title">Образование</div>
-                <p class="value-text">Споделяме знания за българската история по достъпен и интересен начин.</p>
+    <!-- ======== HERO ======== -->
+    <section style="position:relative;overflow:hidden;padding:clamp(56px,8vw,110px) clamp(20px,5vw,80px) clamp(48px,7vw,96px);">
+        <img src="assets/img/HistAdrLogoOrig.png" alt="" aria-hidden="true" style="position:absolute;bottom:-8%;left:-5%;width:min(460px,40vw);opacity:0.05;pointer-events:none;animation:abFloat 9s ease-in-out infinite alternate;z-index:0;">
+        <div style="position:relative;z-index:1;max-width:1240px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,0.95fr);gap:clamp(32px,5vw,80px);align-items:center;" class="ab-mission-grid">
+            <div>
+                <div style="display:flex;align-items:center;gap:16px;margin-bottom:clamp(24px,3vw,40px);">
+                    <span style="width:48px;height:1px;background:var(--gold);display:inline-block;"></span>
+                    <span style="font-size:13px;letter-spacing:0.30em;text-transform:uppercase;color:var(--gold);font-weight:500;">Дигитален архив на паметта</span>
+                </div>
+                <h1 style="font-family:'Playfair Display',serif;font-weight:500;font-size:clamp(2.8rem,7.5vw,6.8rem);line-height:0.98;letter-spacing:-0.015em;color:var(--ink);margin:0;">
+                    <span style="display:block;">Всеки адрес</span>
+                    <span style="display:block;">пази една</span>
+                    <span style="display:block;"><em style="font-style:italic;font-weight:500;color:var(--gold);">история</em>.</span>
+                </h1>
+                <p style="margin:clamp(28px,4vw,44px) 0 0;max-width:44ch;font-size:clamp(1.05rem,1.5vw,1.3rem);line-height:1.6;color:var(--ink2);">
+                    Дигитален архив за домовете и хората, оформили България.
+                </p>
             </div>
-            <div class="value-card">
-                <div class="value-icon">🏛️</div>
-                <div class="value-title">Наследство</div>
-                <p class="value-text">Съхраняваме паметта за архитектурното и културното богатство на България.</p>
-            </div>
-            <div class="value-card">
-                <div class="value-icon">🌱</div>
-                <div class="value-title">Вдъхновение</div>
-                <p class="value-text">Мотивираме младите хора да се гордеят с българската идентичност.</p>
-            </div>
-            <div class="value-card">
-                <div class="value-icon">🤝</div>
-                <div class="value-title">Общност</div>
-                <p class="value-text">Изграждаме мрежа от хора, които се грижат за културното наследство.</p>
+            <div data-reveal="right" style="position:relative;">
+                <img src="assets/img/hero-portrait.jpg" alt="Из архива на проекта" style="display:block;width:100%;height:clamp(380px,48vw,540px);object-fit:cover;border-radius:4px;border:1px solid var(--line);">
+                <span style="position:absolute;left:0;bottom:-28px;font-size:12px;letter-spacing:0.16em;text-transform:uppercase;color:var(--muted);">из архива</span>
             </div>
         </div>
+        <button id="abScrollCue" type="button" aria-label="Разгледай надолу" style="position:relative;z-index:1;display:flex;align-items:center;gap:14px;max-width:1240px;margin:clamp(40px,5vw,72px) auto 0;background:transparent;border:0;padding:6px 0;cursor:pointer;width:100%;">
+            <span style="display:inline-block;width:1px;height:40px;background:linear-gradient(var(--gold),transparent);animation:abCue 2.2s ease-in-out infinite;"></span>
+            <span class="ab-link-gold" style="font-size:12px;letter-spacing:0.22em;text-transform:uppercase;color:var(--muted);">Разгледай</span>
+        </button>
     </section>
 
-    <!-- Team -->
-    <section class="leadership-section">
-        <div class="team-header">
-            <h2 class="section-title">👥 Нашият Екип</h2>
-            <span class="member-count-badge" id="memberCount" style="display:none;"></span>
+    <!-- ======== MARQUEE ======== -->
+    <div style="overflow:hidden;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:clamp(18px,2.4vw,30px) 0;background:var(--bg2);">
+        <div class="ab-marquee-track" style="display:flex;width:max-content;animation:abMarquee 32s linear infinite;" id="abMarquee">
+            <!-- filled by JS (two identical halves) -->
         </div>
-        <div class="team-grid" id="teamGrid"></div>
-        <div class="team-actions">
-            <button class="team-show-more" id="teamShowMore" onclick="toggleMoreMembers()">Виж всички членове</button>
+    </div>
+
+    <!-- ======== MISSION ======== -->
+    <section id="mission" style="padding:clamp(70px,10vw,130px) clamp(20px,5vw,80px);">
+        <div style="max-width:1240px;margin:0 auto;">
+            <div class="ab-mission-grid" style="display:grid;grid-template-columns:minmax(0,0.7fr) minmax(0,1.6fr);gap:clamp(32px,5vw,90px);align-items:start;">
+                <div data-reveal="left" style="display:flex;align-items:center;gap:14px;">
+                    <span style="width:36px;height:1px;background:var(--gold);"></span>
+                    <span style="font-size:13px;letter-spacing:0.28em;text-transform:uppercase;color:var(--gold);font-weight:500;">Нашата мисия</span>
+                </div>
+                <p data-reveal="up" style="font-family:'Playfair Display',serif;font-weight:500;font-size:clamp(1.7rem,3.6vw,3.2rem);line-height:1.18;letter-spacing:-0.01em;color:var(--ink);margin:0;">
+                    Документираме адресите на хората, оставили <em style="font-style:italic;color:var(--gold);">следа</em> в българската история и култура.
+                </p>
+            </div>
+
+            <div class="ab-mission-row" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:clamp(28px,5vw,72px);align-items:center;margin-top:clamp(48px,7vw,96px);">
+                <div data-reveal="left">
+                    <span style="font-family:'Playfair Display',serif;font-size:1.1rem;color:var(--gold);letter-spacing:0.1em;">01</span>
+                    <p style="margin:14px 0 0;font-size:clamp(1.05rem,1.4vw,1.25rem);line-height:1.8;color:var(--ink2);">
+                        Ние сме група възпитаници на <strong style="color:var(--gold);font-weight:700;">Първа английска езикова гимназия</strong>, обединени от любовта към България и желанието да съхраним спомена за нашите забележителни личности.
+                    </p>
+                </div>
+                <div class="ab-mission-photo" data-reveal="right" style="position:relative;">
+                    <img src="assets/img/mission-img-1.jpg" alt="" loading="lazy" style="display:block;width:100%;height:clamp(320px,34vw,460px);object-fit:cover;border-radius:4px;border:1px solid var(--line);">
+                </div>
+            </div>
+
+            <div class="ab-mission-row" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:clamp(28px,5vw,72px);align-items:center;margin-top:clamp(40px,6vw,80px);">
+                <div class="ab-mission-photo" data-reveal="left" style="position:relative;">
+                    <img src="assets/img/mission-img-2.jpg" alt="" loading="lazy" style="display:block;width:100%;height:clamp(300px,32vw,440px);object-fit:cover;border-radius:4px;border:1px solid var(--line);">
+                </div>
+                <div data-reveal="right" style="display:grid;gap:clamp(18px,2.4vw,26px);">
+                    <div>
+                        <span style="font-family:'Playfair Display',serif;font-size:1.1rem;color:var(--gold);letter-spacing:0.1em;">02</span>
+                        <p style="margin:14px 0 0;font-size:clamp(1.02rem,1.3vw,1.15rem);line-height:1.8;color:var(--ink2);">
+                            Нашата неправителствена организация документира адресите на домовете на хора, които с делата, таланта и идеите си оставиха следа в българската история и култура. Всеки адрес е малък мост между миналото и настоящето - покана да погледнем сградите край нас с други очи.
+                        </p>
+                    </div>
+                    <p style="margin:0;font-size:clamp(1.02rem,1.3vw,1.15rem);line-height:1.8;color:var(--ink2);">
+                        Искаме не само да запазим паметта за великите българи, но и да вдъхновим връстниците си да се гордеят с наследството си. Вярваме, че знанието за миналото е основа за силна и осъзната нация.
+                    </p>
+                </div>
+            </div>
         </div>
     </section>
 
-    <!-- Partners -->
-    <section class="partners-section">
-        <div class="partners-section-header">
-            <h2 class="section-title">✨ Нашите Партньори</h2>
-            <a href="partners.html" class="partners-all-link">Виж всички →</a>
-        </div>
-        <div class="partners-preview-grid" id="partnersGrid"></div>
-        <div class="partners-more-bar" id="partnersMoreBar">
-            Показани 3 от <strong id="partnersTotalCount"></strong> партньора. -
-            <a href="partners.html">Виж всички →</a>
+    <!-- ======== VALUES ======== -->
+    <section style="padding:clamp(70px,10vw,130px) clamp(20px,5vw,80px);border-top:1px solid var(--line);background:var(--bg2);">
+        <div style="max-width:1240px;margin:0 auto;">
+            <div data-reveal="up" style="margin-bottom:clamp(40px,5vw,68px);">
+                <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px;">
+                    <span style="width:36px;height:1px;background:var(--gold);"></span>
+                    <span style="font-size:13px;letter-spacing:0.28em;text-transform:uppercase;color:var(--gold);font-weight:500;">В какво вярваме</span>
+                </div>
+                <h2 style="font-family:'Playfair Display',serif;font-weight:500;font-size:clamp(2rem,4vw,3.4rem);line-height:1.05;letter-spacing:-0.01em;color:var(--ink);margin:0;">Нашите ценности</h2>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:clamp(28px,3vw,48px);">
+                <div data-reveal="up" style="display:flex;flex-direction:column;gap:16px;padding-top:22px;border-top:1px solid var(--gold);">
+                    <span style="font-family:'Playfair Display',serif;font-size:clamp(2.4rem,3.4vw,3.4rem);color:var(--gold);font-weight:400;line-height:1;">01</span>
+                    <h3 style="font-family:'Playfair Display',serif;font-weight:500;font-size:1.5rem;line-height:1.1;color:var(--ink);margin:0;">Образование</h3>
+                    <p style="margin:0;font-size:1rem;line-height:1.65;color:var(--muted);">Знание за историята по достъпен начин.</p>
+                </div>
+                <div data-reveal="up" style="display:flex;flex-direction:column;gap:16px;padding-top:22px;border-top:1px solid var(--gold);">
+                    <span style="font-family:'Playfair Display',serif;font-size:clamp(2.4rem,3.4vw,3.4rem);color:var(--gold);font-weight:400;line-height:1;">02</span>
+                    <h3 style="font-family:'Playfair Display',serif;font-weight:500;font-size:1.5rem;line-height:1.1;color:var(--ink);margin:0;">Наследство</h3>
+                    <p style="margin:0;font-size:1rem;line-height:1.65;color:var(--muted);">Памет за архитектурното богатство на България.</p>
+                </div>
+                <div data-reveal="up" style="display:flex;flex-direction:column;gap:16px;padding-top:22px;border-top:1px solid var(--gold);">
+                    <span style="font-family:'Playfair Display',serif;font-size:clamp(2.4rem,3.4vw,3.4rem);color:var(--gold);font-weight:400;line-height:1;">03</span>
+                    <h3 style="font-family:'Playfair Display',serif;font-weight:500;font-size:1.5rem;line-height:1.1;color:var(--ink);margin:0;">Вдъхновение</h3>
+                    <p style="margin:0;font-size:1rem;line-height:1.65;color:var(--muted);">Гордост от българската идентичност.</p>
+                </div>
+                <div data-reveal="up" style="display:flex;flex-direction:column;gap:16px;padding-top:22px;border-top:1px solid var(--gold);">
+                    <span style="font-family:'Playfair Display',serif;font-size:clamp(2.4rem,3.4vw,3.4rem);color:var(--gold);font-weight:400;line-height:1;">04</span>
+                    <h3 style="font-family:'Playfair Display',serif;font-weight:500;font-size:1.5rem;line-height:1.1;color:var(--ink);margin:0;">Общност</h3>
+                    <p style="margin:0;font-size:1rem;line-height:1.65;color:var(--muted);">Мрежа от хора, грижещи се за наследството.</p>
+                </div>
+            </div>
         </div>
     </section>
 
-    <!-- Contact -->
-    <section class="contact-section">
-        <h2 class="section-title" style="justify-content:center;">📧 Свържете се с нас</h2>
-        <p style="color:var(--muted);margin-bottom:2rem;">
-            Имате информация за споделяне или искате да подкрепите проекта?
-        </p>
-        <div class="contact-grid">
-            <a href="mailto:historyaddressbg@gmail.com" class="contact-item" onclick="handleEmailClick(event)">
-                <span class="contact-icon">📧</span>
-                <span class="contact-label-desktop">historyaddressbg@gmail.com</span>
-                <span class="contact-label-mobile">Email</span>
-            </a>
-            <a href="https://www.instagram.com/historyaddress.bg/" target="_blank" class="contact-item">
-                <span class="contact-icon">📷</span>
-                <span class="contact-label-desktop">@historyaddress.bg</span>
-                <span class="contact-label-mobile">Instagram</span>
-            </a>
-            <a href="https://buymeacoffee.com/historyaddress.bg" target="_blank" rel="noopener noreferrer" class="contact-item contact-donate js-donate" aria-label="Подкрепете ни - дарение">
-                <span class="contact-icon">🤍</span>
-                <span class="contact-label-desktop">Подкрепете ни</span>
-                <span class="contact-label-mobile">Дарете</span>
-            </a>
+    <!-- ======== TEAM ======== -->
+    <section style="padding:clamp(70px,10vw,130px) clamp(20px,5vw,80px);">
+        <div style="max-width:1180px;margin:0 auto;">
+            <div data-reveal="up" style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:16px;margin-bottom:clamp(48px,6vw,84px);">
+                <div>
+                    <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px;">
+                        <span style="width:36px;height:1px;background:var(--gold);"></span>
+                        <span style="font-size:13px;letter-spacing:0.28em;text-transform:uppercase;color:var(--gold);font-weight:500;">Хората зад проекта</span>
+                    </div>
+                    <h2 style="font-family:'Playfair Display',serif;font-weight:500;font-size:clamp(2rem,4vw,3.4rem);line-height:1.05;letter-spacing:-0.01em;color:var(--ink);margin:0;">Нашият екип</h2>
+                </div>
+                <span id="abTeamCount" style="font-size:13px;letter-spacing:0.16em;text-transform:uppercase;color:var(--muted);"></span>
+            </div>
+            <div id="abTeamRows" style="display:flex;flex-direction:column;"></div>
         </div>
     </section>
+
+    <!-- ======== PARTNERS ======== -->
+    <section style="padding:clamp(70px,10vw,130px) clamp(20px,5vw,80px);border-top:1px solid var(--line);background:var(--bg2);">
+        <div data-reveal="up" style="max-width:1240px;margin:0 auto;">
+            <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px;">
+                <span style="width:36px;height:1px;background:var(--gold);"></span>
+                <span style="font-size:13px;letter-spacing:0.28em;text-transform:uppercase;color:var(--gold);font-weight:500;">Заедно</span>
+            </div>
+            <div style="display:flex;align-items:end;justify-content:space-between;gap:24px;flex-wrap:wrap;">
+                <h2 style="font-family:'Playfair Display',serif;font-weight:500;font-size:clamp(2rem,4vw,3.4rem);line-height:1.05;letter-spacing:-0.01em;color:var(--ink);margin:0;">Партньори</h2>
+                <a href="partners.html" class="ab-link-gold" style="font-size:14px;letter-spacing:0.1em;text-transform:uppercase;color:var(--gold);text-decoration:none;white-space:nowrap;">Виж всички →</a>
+            </div>
+            <div id="abPartners" style="margin:clamp(32px,4vw,52px) 0 0;">
+                <p style="margin:0;max-width:40ch;font-family:'Playfair Display',serif;font-style:italic;font-size:clamp(1.3rem,2.4vw,1.9rem);line-height:1.4;color:var(--ink2);">
+                    Предстои обявяване на официалните партньори.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ======== CONTACT ======== -->
+    <section style="padding:clamp(80px,12vw,150px) clamp(20px,5vw,80px);">
+        <div data-reveal="up" style="max-width:1240px;margin:0 auto;">
+            <div style="display:flex;align-items:center;gap:14px;margin-bottom:26px;">
+                <span style="width:36px;height:1px;background:var(--gold);"></span>
+                <span style="font-size:13px;letter-spacing:0.28em;text-transform:uppercase;color:var(--gold);font-weight:500;">Свържете се</span>
+            </div>
+            <h2 style="font-family:'Playfair Display',serif;font-weight:500;font-size:clamp(2.4rem,6vw,5rem);line-height:1.02;letter-spacing:-0.015em;color:var(--ink);margin:0;max-width:17ch;">
+                Имате въпрос или нещо <em style="font-style:italic;color:var(--gold);">да споделите</em>?
+            </h2>
+            <p style="margin:clamp(24px,3vw,36px) 0 0;max-width:52ch;font-size:clamp(1.05rem,1.4vw,1.25rem);line-height:1.7;color:var(--ink2);">
+                Пишете ни за въпроси, запитвания, предложения, забелязани неточности или каквото и да било друго. Изслушваме всяко съобщение и отговаряме лично.
+            </p>
+            <div style="display:flex;flex-wrap:wrap;gap:16px;margin-top:clamp(40px,5vw,60px);">
+                <a href="mailto:historyaddressbg@gmail.com" onclick="handleEmailClick(event)" class="ab-btn" style="display:inline-flex;align-items:center;gap:14px;padding:18px 30px;border:1px solid var(--line);color:var(--ink);text-decoration:none;font-size:14px;letter-spacing:0.1em;text-transform:uppercase;">
+                    <span style="font-family:'Playfair Display',serif;font-size:1.1rem;color:var(--gold);text-transform:none;">@</span>
+                    Email
+                </a>
+                <a href="https://www.instagram.com/historyaddress.bg/" target="_blank" rel="noopener noreferrer" class="ab-btn" style="display:inline-flex;align-items:center;gap:14px;padding:18px 30px;border:1px solid var(--line);color:var(--ink);text-decoration:none;font-size:14px;letter-spacing:0.1em;text-transform:uppercase;">
+                    <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="#cd853f" stroke-width="1.6"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
+                    Instagram
+                </a>
+                <a href="https://buymeacoffee.com/historyaddress.bg" target="_blank" rel="noopener noreferrer" class="ab-btn-solid" style="display:inline-flex;align-items:center;gap:14px;padding:18px 30px;border:1px solid var(--gold);background:var(--chip);color:var(--ink);text-decoration:none;font-size:14px;letter-spacing:0.1em;text-transform:uppercase;transition:filter .25s ease;">
+                    <svg viewBox="0 0 24 24" width="17" height="17" fill="#cd853f" aria-hidden="true"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                    Подкрепете ни
+                </a>
+            </div>
+        </div>
+    </section>
+
 </main>
 
 <footer class="site-footer">
@@ -558,189 +319,129 @@
 <script>
     var apiBase = window.location.protocol === 'file:' ? 'http://localhost:3000' : window.location.origin;
     document.getElementById('year').textContent = new Date().getFullYear();
+    function esc(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-    /* ── Email modal ──────────────────────────────────────────── */
+    /* ── Email modal (unchanged behavior) ── */
     function handleEmailClick(e) {
-        if (window.innerWidth > 768) {
-            e.preventDefault();
-            document.getElementById('emailModal').style.display = 'flex';
-        }
+        if (window.innerWidth > 768) { e.preventDefault(); document.getElementById('emailModal').style.display = 'flex'; }
     }
     function closeEmailModal() { document.getElementById('emailModal').style.display = 'none'; }
     function copyEmail() {
-        navigator.clipboard.writeText('historyaddressbg@gmail.com')
-            .then(function() { alert('Email-ът е копиран!'); });
+        navigator.clipboard.writeText('historyaddressbg@gmail.com').then(function() { alert('Email-ът е копиран!'); });
     }
     document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeEmailModal(); });
-    document.getElementById('emailModal').addEventListener('click', function(e) {
-        if (e.target === this) closeEmailModal();
+    document.getElementById('emailModal').addEventListener('click', function(e) { if (e.target === this) closeEmailModal(); });
+
+    /* ── Scroll cue ── */
+    document.getElementById('abScrollCue').addEventListener('click', function(){
+        var el = document.getElementById('mission');
+        if (el) window.scrollTo({ top: el.offsetTop - 60, behavior: 'smooth' });
     });
 
-    /* ── Build team card ──────────────────────────────────────── */
-    function buildMemberCard(member) {
-        var card = document.createElement('div');
-        card.className = 'team-member';
-
-        var photo = document.createElement('div');
-        photo.className = 'member-photo';
-        if (member.photo) {
-            var img = document.createElement('img');
-            img.src = member.photo;
-            img.alt = member.name;
-            photo.appendChild(img);
-        } else {
-            photo.textContent = '👤';
+    /* ── Marquee (two identical halves) ── */
+    (function(){
+        var cities = ['София','Пловдив','Варна','Велико Търново','Русе'];
+        function half(hidden){
+            var h = '<div style="display:flex;align-items:center;gap:0;"' + (hidden ? ' aria-hidden="true"' : '') + '>';
+            cities.forEach(function(c, i){
+                var italic = i % 2 === 1;
+                h += '<span style="font-family:\'Playfair Display\',serif;font-size:clamp(1.8rem,4.5vw,4rem);font-weight:500;padding:0 clamp(20px,3vw,48px);white-space:nowrap;'
+                   + (italic ? "color:var(--gold);font-style:italic;" : "color:transparent;-webkit-text-stroke:1px var(--gold);")
+                   + '">' + c + '</span>';
+                h += '<span style="color:var(--gold);font-size:1rem;">◆</span>';
+            });
+            return h + '</div>';
         }
+        document.getElementById('abMarquee').innerHTML = half(false) + half(true);
+    })();
 
-        var name = document.createElement('div');
-        name.className = 'member-name';
-        name.textContent = member.name;
-
-        var role = document.createElement('div');
-        role.className = 'member-role';
-        role.textContent = member.role || 'Член на екипа';
-
-        var bio = document.createElement('p');
-        bio.className = 'member-bio';
-        bio.textContent = member.bio || '';
-
-        card.appendChild(photo);
-        card.appendChild(name);
-        card.appendChild(role);
-        card.appendChild(bio);
-        return card;
+    /* ── Scroll reveal (ported from the design prototype) ── */
+    function setupReveal() {
+        var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        var els = Array.prototype.slice.call(document.querySelectorAll('[data-reveal]:not([data-revealed])'));
+        if (reduce || !('IntersectionObserver' in window)) {
+            els.forEach(function(e){ e.style.opacity = '1'; e.style.transform = 'none'; e.setAttribute('data-revealed',''); });
+            return;
+        }
+        function off(dir){ return dir === 'left' ? 'translateX(-48px)' : dir === 'right' ? 'translateX(48px)' : 'translateY(44px)'; }
+        els.forEach(function(e){
+            e.setAttribute('data-revealed','');
+            e.style.transition = 'opacity .9s cubic-bezier(.2,.7,.2,1), transform .9s cubic-bezier(.2,.7,.2,1)';
+            e.style.willChange = 'opacity, transform';
+            e.style.opacity = '0';
+            e.style.transform = off(e.getAttribute('data-reveal'));
+        });
+        var io = new IntersectionObserver(function(ents){
+            ents.forEach(function(en){ if (en.isIntersecting){ en.target.style.opacity = '1'; en.target.style.transform = 'none'; io.unobserve(en.target); } });
+        }, { threshold: 0.12, rootMargin: '0px 0px -7% 0px' });
+        els.forEach(function(e){ io.observe(e); });
     }
 
-    /* ── Team expand/collapse ─────────────────────────────────── */
-    var teamOpen = false;
-    function toggleMoreMembers() {
-        var overflow = document.getElementById('teamOverflow');
-        var btn = document.getElementById('teamShowMore');
-        teamOpen = !teamOpen;
-        overflow.classList.toggle('open', teamOpen);
-        btn.textContent = teamOpen ? '↑ Скрий' : btn.dataset.label;
+    /* ── Team (real data from /api/team — same call as before) ── */
+    function buildTeamRow(m, i) {
+        var even = i % 2 === 0;
+        var n = i + 1, idx = (n < 10 ? '0' : '') + n;
+        var row = document.createElement('div');
+        row.className = 'ab-team-row';
+        row.style.cssText = 'display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:clamp(20px,4vw,64px);padding:clamp(28px,4vw,52px) 0;border-top:1px solid var(--line);';
+        var photoInner = m.photo
+            ? '<img src="' + esc(m.photo) + '" alt="' + esc(m.name) + '" style="width:100%;height:100%;object-fit:cover;display:block;">'
+            : '<span style="font-size:clamp(2.4rem,5vw,3.6rem);color:var(--gold);line-height:1;opacity:0.7;">&#128100;</span>';
+        row.innerHTML =
+            '<div data-reveal="' + (even ? 'left' : 'right') + '" style="order:' + (even ? 1 : 3) + ';">' +
+                '<span style="font-family:\'Playfair Display\',serif;font-size:clamp(1rem,1.4vw,1.2rem);color:var(--gold);letter-spacing:0.1em;">' + idx + '</span>' +
+                '<h3 style="font-family:\'Playfair Display\',serif;font-weight:500;font-size:clamp(1.8rem,3.6vw,3rem);line-height:1.04;color:var(--ink);margin:10px 0 12px;">' + esc(m.name) + '</h3>' +
+                '<div style="font-size:12px;letter-spacing:0.16em;text-transform:uppercase;color:var(--gold);margin-bottom:14px;">' + esc(m.role || 'Член на екипа') + '</div>' +
+                '<p style="margin:0;max-width:40ch;font-size:0.98rem;line-height:1.7;color:var(--muted);">' + esc(m.bio || '') + '</p>' +
+            '</div>' +
+            '<div style="order:2;width:1px;height:clamp(60px,12vw,150px);background:var(--line);justify-self:center;"></div>' +
+            '<div data-reveal="' + (even ? 'right' : 'left') + '" style="order:' + (even ? 3 : 1) + ';display:flex;justify-content:' + (even ? 'flex-end' : 'flex-start') + ';">' +
+                '<div style="width:clamp(140px,18vw,210px);height:clamp(140px,18vw,210px);border-radius:50%;overflow:hidden;border:1px solid var(--gold);background:var(--chip);display:flex;align-items:center;justify-content:center;flex-shrink:0;">' + photoInner + '</div>' +
+            '</div>';
+        return row;
     }
-
-    /* ── Load team ────────────────────────────────────────────── */
-    var PEEK = 4;
+    var DEFAULT_TEAM = [{ name: 'Георги Георгиев Петков', role: 'Администратор', bio: 'Основател и администратор на проекта „Адресът на историята".', photo: null }];
+    function renderTeam(team) {
+        if (!team || !team.length) team = DEFAULT_TEAM;
+        var rows = document.getElementById('abTeamRows');
+        rows.innerHTML = '';
+        team.forEach(function(m, i){ rows.appendChild(buildTeamRow(m, i)); });
+        var cnt = document.getElementById('abTeamCount');
+        if (team.length > 1) cnt.textContent = team.length + ' души';
+        setupReveal();
+    }
     fetch(apiBase + '/api/team')
-        .then(function(res) { return res.json(); })
-        .then(function(team) {
-            if (!team || team.length === 0) {
-                team = [{ name: 'Георги Георгиев Петков', role: 'Администратор', bio: 'Основател и администратор на проекта „Адресът на историята".', photo: null }];
-            }
-            var grid  = document.getElementById('teamGrid');
-            var btn   = document.getElementById('teamShowMore');
-            var badge = document.getElementById('memberCount');
-            grid.innerHTML = '';
+        .then(function(res){ return res.json(); })
+        .then(function(team){ renderTeam(team); })
+        .catch(function(){ renderTeam(DEFAULT_TEAM); });
 
-            team.slice(0, PEEK).forEach(function(m) { grid.appendChild(buildMemberCard(m)); });
-
-            var hidden = team.slice(PEEK);
-            if (hidden.length > 0) {
-                var wrap = document.createElement('div');
-                wrap.className = 'team-overflow-wrap';
-                var overflow = document.createElement('div');
-                overflow.className = 'team-overflow';
-                overflow.id = 'teamOverflow';
-                hidden.forEach(function(m) { overflow.appendChild(buildMemberCard(m)); });
-                wrap.appendChild(overflow);
-                grid.appendChild(wrap);
-                var label = 'Виж всички (' + team.length + ' члена)';
-                btn.textContent = label;
-                btn.dataset.label = label;
-                btn.style.display = 'inline-block';
-            }
-            if (team.length > 1) {
-                badge.textContent = team.length + ' члена';
-                badge.style.display = 'inline-block';
-            }
-        })
-        .catch(function() {
-            var grid = document.getElementById('teamGrid');
-            grid.innerHTML = '';
-            grid.appendChild(buildMemberCard({ name: 'Георги Георгиев Петков', role: 'Администратор', bio: 'Основател и администратор на проекта „Адресът на историята".', photo: null }));
+    /* ── Partners (same /api/partners call; teaser stays unless partners exist) ── */
+    function renderPartners(partners) {
+        if (!partners || !partners.length) return;   // keep the design's teaser
+        var box = document.getElementById('abPartners');
+        box.innerHTML = '';
+        var grid = document.createElement('div');
+        grid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:clamp(20px,2.4vw,32px);';
+        partners.forEach(function(p){
+            var card = document.createElement('div');
+            card.style.cssText = 'display:flex;flex-direction:column;gap:10px;padding:22px;border:1px solid var(--line);border-radius:6px;background:var(--bg);';
+            var logo = (p.logo_url || p.logo)
+                ? '<img src="' + esc(p.logo_url || p.logo) + '" alt="' + esc(p.name) + '" style="height:46px;width:auto;object-fit:contain;align-self:flex-start;">'
+                : '<span style="font-size:1.8rem;">🏢</span>';
+            var link = p.website
+                ? '<a href="' + esc(p.website) + '" target="_blank" rel="noopener noreferrer" class="ab-link-gold" style="font-size:13px;letter-spacing:0.08em;text-transform:uppercase;color:var(--gold);text-decoration:none;margin-top:auto;">Уебсайт →</a>'
+                : '';
+            card.innerHTML = logo +
+                '<div style="font-family:\'Playfair Display\',serif;font-size:1.25rem;color:var(--ink);">' + esc(p.name) + '</div>' +
+                '<p style="margin:0;font-size:0.92rem;line-height:1.6;color:var(--muted);">' + esc(p.description || p.desc || 'Партньор на проекта.') + '</p>' + link;
+            grid.appendChild(card);
         });
-
-    /* ── Build partner card ───────────────────────────────────── */
-    function buildPartnerCard(p) {
-        var card = document.createElement('div');
-        card.className = 'pcard';
-
-        var header = document.createElement('div');
-        header.className = 'pcard-header';
-
-        var logoWrap = document.createElement('div');
-        logoWrap.className = 'pcard-logo-wrap';
-        var logoSrc = p.logo_url || p.logo || null;
-        if (logoSrc) {
-            var img = document.createElement('img');
-            img.src = logoSrc; img.alt = p.name;
-            logoWrap.appendChild(img);
-        } else {
-            logoWrap.textContent = '🏢';
-        }
-
-        var nameEl = document.createElement('div');
-        nameEl.className = 'pcard-name';
-        nameEl.textContent = p.name;
-        header.appendChild(logoWrap);
-        header.appendChild(nameEl);
-
-        var desc = document.createElement('div');
-        desc.className = 'pcard-desc';
-        desc.textContent = p.description || p.desc || 'Партньор на проекта „Адресът на историята"';
-
-        var links = document.createElement('div');
-        links.className = 'pcard-links';
-        if (p.website) {
-            var a = document.createElement('a');
-            a.href = p.website; a.target = '_blank'; a.rel = 'noopener noreferrer';
-            a.className = 'pcard-link'; a.innerHTML = '🌐 Уебсайт';
-            links.appendChild(a);
-        }
-        if (p.instagram) {
-            var instaUrl = p.instagram.startsWith('http') ? p.instagram : 'https://instagram.com/' + p.instagram.replace('@', '');
-            var b = document.createElement('a');
-            b.href = instaUrl; b.target = '_blank'; b.rel = 'noopener noreferrer';
-            b.className = 'pcard-link'; b.innerHTML = '📸 Instagram';
-            links.appendChild(b);
-        }
-        if (p.email) {
-            var c = document.createElement('a');
-            c.href = 'mailto:' + p.email;
-            c.className = 'pcard-link'; c.innerHTML = '📧 Email';
-            links.appendChild(c);
-        }
-
-        card.appendChild(header);
-        card.appendChild(desc);
-        if (links.children.length > 0) card.appendChild(links);
-        return card;
+        box.appendChild(grid);
     }
-
-    /* ── Load partners ────────────────────────────────────────── */
-    var PARTNER_PEEK = 3;
     fetch(apiBase + '/api/partners')
-        .then(function(res) { return res.json(); })
-        .then(function(partners) {
-            var grid    = document.getElementById('partnersGrid');
-            var moreBar = document.getElementById('partnersMoreBar');
-            var totalEl = document.getElementById('partnersTotalCount');
-            grid.innerHTML = '';
-            if (!partners || partners.length === 0) {
-                grid.innerHTML = '<div class="partners-empty"><div class="partners-empty-icon">🤝</div><p class="partners-empty-text">Предстои обявяване на официалните партньори.</p></div>';
-                return;
-            }
-            partners.slice(0, PARTNER_PEEK).forEach(function(p) { grid.appendChild(buildPartnerCard(p)); });
-            if (partners.length > PARTNER_PEEK) {
-                totalEl.textContent = partners.length;
-                moreBar.style.display = 'block';
-            }
-        })
-        .catch(function() {
-            document.getElementById('partnersGrid').innerHTML = '<div class="partners-empty"><div class="partners-empty-icon">🤝</div><p class="partners-empty-text">Предстои обявяване на официалните партньори.</p></div>';
-        });
+        .then(function(res){ return res.json(); })
+        .then(function(partners){ renderPartners(partners); })
+        .catch(function(){});
 </script>
 </body>
 </html>

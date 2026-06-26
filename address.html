@@ -298,7 +298,7 @@ html, body {
     box-shadow: none !important;
 }
 </style>
-    <script defer src="assets/js/account-nav.js?v=15"></script>
+    <script defer src="assets/js/account-nav.js?v=17"></script>
 </head>
 <body>
 <script>
@@ -487,10 +487,21 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')closeEmailMo
       var col=el('div');
       /* info card */
       var isEvent=p.category==='events';
+      // Flexible dates: a custom date_label overrides the default Роден/Починал.
+      var dStart=p.date_start||p.birth_date, dEnd=p.date_end||p.death_date, dLabel=(p.date_label||'').trim();
+      var dateRows='';
+      if(dLabel){
+        if(fmt(dStart)){
+          var dv=esc(fmt(dStart))+(fmt(dEnd)?' – '+esc(fmt(dEnd)):'');
+          dateRows='<div class="dp-ci"><span class="dp-ci-icon">📅</span><div><div class="dp-ci-lbl">'+esc(dLabel)+'</div><div class="dp-ci-val">'+dv+'</div></div></div>';
+        }
+      } else {
+        dateRows=(fmt(dStart)?'<div class="dp-ci"><span class="dp-ci-icon">'+(isEvent?'📅':'🎂')+'</span><div><div class="dp-ci-lbl">'+(isEvent?'Дата':'Роден')+'</div><div class="dp-ci-val">'+esc(fmt(dStart))+'</div></div></div>':'')
+               +((!isEvent&&fmt(dEnd))?'<div class="dp-ci"><span class="dp-ci-icon">🕯️</span><div><div class="dp-ci-lbl">Починал</div><div class="dp-ci-val">'+esc(fmt(dEnd))+'</div></div></div>':'');
+      }
       var infoItems=[
         p.address?'<div class="dp-ci"><span class="dp-ci-icon">📍</span><div><div class="dp-ci-lbl">Адрес</div><div class="dp-ci-val">'+esc(p.address)+'</div></div></div>':'',
-        fmt(p.birth_date)?'<div class="dp-ci"><span class="dp-ci-icon">'+(isEvent?'📅':'🎂')+'</span><div><div class="dp-ci-lbl">'+(isEvent?'Дата':'Роден')+'</div><div class="dp-ci-val">'+esc(fmt(p.birth_date))+'</div></div></div>':'',
-        (!isEvent&&fmt(p.death_date))?'<div class="dp-ci"><span class="dp-ci-icon">🕯️</span><div><div class="dp-ci-lbl">Починал</div><div class="dp-ci-val">'+esc(fmt(p.death_date))+'</div></div></div>':'',
+        dateRows,
         p.photo_date?'<div class="dp-ci"><span class="dp-ci-icon">📷</span><div><div class="dp-ci-lbl">Снимка</div><div class="dp-ci-val">'+esc(p.photo_date)+'</div></div></div>':'',
         p.credited_to?'<div class="dp-ci"><span class="dp-ci-icon">🙏</span><div><div class="dp-ci-lbl">Предложено от</div><div class="dp-ci-val">'+esc(p.credited_to)+'</div></div></div>':'',
         mapHref?'<a class="dp-map" href="'+mapHref+'">🗺️ Карта <span class="arr">→</span></a>':''
