@@ -81,16 +81,16 @@
                 (role ? '<div class="nav-user-role">Роля: ' + escapeHtml(role) + '</div>' : '') +
             '</div>' +
             '<div class="nav-user-div"></div>' +
-            '<a class="nav-user-item" href="/profile.html#activity"><span class="nui-ico">⭐</span>Моите одобрения</a>' +
-            '<a class="nav-user-item" href="/profile.html#achievements"><span class="nui-ico">🏅</span>Постижения и приноси</a>' +
-            '<a class="nav-user-item" href="/profile.html#saved"><span class="nui-ico">📍</span>Запазени локации</a>' +
-            (isAdmin ? '<a class="nav-user-item" href="' + dashHref + '"><span class="nui-ico">🏛️</span>Управление</a>' : '') +
-            (isMod ? '<a class="nav-user-item" href="' + modHref + '"><span class="nui-ico">🛡️</span>Модерация</a>' : '') +
-            '<a class="nav-user-item" href="/profile.html#settings"><span class="nui-ico">⚙️</span>Настройки</a>' +
+            '<a class="nav-user-item" href="/profile.html#activity">Моите одобрения</a>' +
+            '<a class="nav-user-item" href="/profile.html#achievements">Постижения и приноси</a>' +
+            '<a class="nav-user-item" href="/profile.html#saved">Запазени локации</a>' +
+            (isAdmin ? '<a class="nav-user-item" href="' + dashHref + '">Управление</a>' : '') +
+            (isMod ? '<a class="nav-user-item" href="' + modHref + '">Модерация</a>' : '') +
+            '<a class="nav-user-item" href="/profile.html#settings">Настройки</a>' +
             '<div class="nav-user-div"></div>' +
-            '<div class="nav-user-theme"><span><span class="nui-ico">🌓</span>Светъл / Тъмен режим</span><span class="nav-user-theme-slot"></span></div>' +
+            '<div class="nav-user-theme"><span>Светъл / Тъмен режим</span><span class="nav-user-theme-slot"></span></div>' +
             '<div class="nav-user-div"></div>' +
-            '<button class="nav-user-item nav-user-logout" type="button"><span class="nui-ico">🚪</span>Изход</button>';
+            '<button class="nav-user-item nav-user-logout" type="button">Изход</button>';
         // textContent (not innerHTML) for the name → safe against XSS from display_name/email.
         menu.querySelector('.nav-user-name').textContent = name;
 

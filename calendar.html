@@ -173,7 +173,7 @@
             .cal-dot { width: 8px; height: 8px; }
         }
     </style>
-    <script defer src="assets/js/account-nav.js?v=17"></script>
+    <script defer src="assets/js/account-nav.js?v=18"></script>
 </head>
 <body class="cal-page">
 <header class="site-header">
@@ -238,7 +238,7 @@
     <div class="cal-events" id="eventsList"></div>
 
     <div class="cal-surprise-wrap">
-        <button class="cal-surprise" id="surpriseBtn">🎲 Изненадай ме - случайна личност</button>
+        <button class="cal-surprise" id="surpriseBtn">Изненадай ме - случайна личност</button>
     </div>
 </main>
 
@@ -274,7 +274,7 @@ function handleEmailClick(event) {
     var m = document.getElementById('emailModal');
     if (!m) {
         m = document.createElement('div'); m.id = 'emailModal'; m.className = 'email-modal';
-        m.innerHTML = '<div class="email-modal-content"><h3>📧 Свържете се с нас</h3><div class="email-address-display">historyaddressbg@gmail.com</div><div class="email-modal-buttons"><button class="btn-copy" onclick="navigator.clipboard.writeText(\'historyaddressbg@gmail.com\')">📋 Копирай</button><button class="btn-close" onclick="document.getElementById(\'emailModal\').style.display=\'none\';document.body.style.overflow=\'\'">✕ Затвори</button></div></div>';
+        m.innerHTML = '<div class="email-modal-content"><h3>Свържете се с нас</h3><div class="email-address-display">historyaddressbg@gmail.com</div><div class="email-modal-buttons"><button class="btn-copy" onclick="navigator.clipboard.writeText(\'historyaddressbg@gmail.com\')">Копирай</button><button class="btn-close" onclick="document.getElementById(\'emailModal\').style.display=\'none\';document.body.style.overflow=\'\'">Затвори</button></div></div>';
         document.body.appendChild(m);
         m.addEventListener('click', function(e){ if (e.target === m) { m.style.display='none'; document.body.style.overflow=''; } });
     }
@@ -345,7 +345,7 @@ function handleEmailClick(event) {
 
         var c = countMonth();
         document.getElementById('calStats').innerHTML = c.total
-            ? '<strong>' + c.total + '</strong> годишнини · 🎂 ' + c.b + ' рождени дни · 🕯️ ' + c.d + ' кончини'
+            ? '<strong>' + c.total + '</strong> годишнини · ' + c.b + ' рождени дни · ' + c.d + ' кончини'
             : 'Няма отбелязани годишнини през ' + MONTHS[state.month - 1].toLowerCase() + '.';
 
         document.getElementById('gridView').hidden = state.view !== 'grid';
@@ -407,12 +407,11 @@ function handleEmailClick(event) {
     function evCard(ev) {
         // A custom date_label (e.g. "Построена през") overrides the default Роден/Починал.
         var verb = ev.date_label ? esc(ev.date_label) : (ev.type === 'birth' ? 'Роден(а)' : 'Починал(а)');
-        var icon = ev.date_label ? '📅' : (ev.type === 'birth' ? '🎂' : '🕯️');
         var lifespan = (ev.birth_date && ev.death_date) ? ' · ' + yr(ev.birth_date) + '–' + yr(ev.death_date) : '';
         return '<a class="cal-ev" href="address.html?slug=' + encodeURIComponent(ev.slug) + '">' +
             photoHtml(ev, 'cal-ev-photo') +
             '<div class="cal-ev-body"><div class="cal-ev-name">' + esc(ev.name) + '</div>' +
-            '<div class="cal-ev-meta"><span class="cal-ev-type ' + ev.type + '">' + icon + ' ' + verb + '</span> преди ' + yearsWord(ev.years_ago) + ' (' + yr(ev.full_date) + ' г.)' + lifespan + '</div></div>' +
+            '<div class="cal-ev-meta"><span class="cal-ev-type ' + ev.type + '">' + verb + '</span> преди ' + yearsWord(ev.years_ago) + ' (' + yr(ev.full_date) + ' г.)' + lifespan + '</div></div>' +
             '<span class="cal-ev-arrow">→</span></a>';
     }
 
@@ -479,10 +478,10 @@ function handleEmailClick(event) {
         var ds = p.date_start || p.birth_date, de = p.date_end || p.death_date;
         var dates = [];
         if (p.date_label) {
-            dates.push('📅 ' + esc(p.date_label) + ' ' + yr(ds) + (de ? '–' + yr(de) : '') + ' г.');
+            dates.push(esc(p.date_label) + ' ' + yr(ds) + (de ? '–' + yr(de) : '') + ' г.');
         } else {
-            if (p.birth_date) dates.push('🎂 роден(а) ' + yr(p.birth_date) + ' г.');
-            if (p.death_date) dates.push('🕯️ починал(а) ' + yr(p.death_date) + ' г.');
+            if (p.birth_date) dates.push('роден(а) ' + yr(p.birth_date) + ' г.');
+            if (p.death_date) dates.push('починал(а) ' + yr(p.death_date) + ' г.');
         }
         var box = document.getElementById('personBox');
         box.innerHTML = '<div class="cal-person">' +
@@ -514,10 +513,10 @@ function handleEmailClick(event) {
                 var ds = p.date_start || p.birth_date, de = p.date_end || p.death_date;
                 var dates = [];
                 if (p.date_label) {
-                    dates.push('📅 ' + yr(ds) + (de ? '–' + yr(de) : ''));
+                    dates.push(yr(ds) + (de ? '–' + yr(de) : ''));
                 } else {
-                    if (p.birth_date) dates.push('🎂 ' + yr(p.birth_date));
-                    if (p.death_date) dates.push('🕯️ ' + yr(p.death_date));
+                    if (p.birth_date) dates.push('р. ' + yr(p.birth_date));
+                    if (p.death_date) dates.push('п. ' + yr(p.death_date));
                 }
                 var ini = esc(initial(p.name));
                 var photo = p.image
