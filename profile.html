@@ -70,10 +70,10 @@
         .pf-verify #pfResend{ flex-shrink:0; }
 
         /* ── Two-column shell ── */
-        .pf-shell { display:grid; grid-template-columns:300px 1fr; gap:2.2rem; align-items:start; }
-        .pf-side { position:sticky; top:76px; display:flex; flex-direction:column; gap:1rem; }
+        .pf-shell { display:grid; grid-template-columns:300px minmax(0,1fr); gap:2.2rem; align-items:start; }
+        .pf-side { position:sticky; top:76px; min-width:0; display:flex; flex-direction:column; gap:1rem; }
         .pf-body { min-width:0; }
-        @media (max-width:860px){ .pf-shell{ grid-template-columns:1fr; } .pf-side{ position:static; top:auto; } }
+        @media (max-width:860px){ .pf-shell{ grid-template-columns:minmax(0,1fr); } .pf-side{ position:static; top:auto; } }
 
         /* ── Identity card ── */
         .pf-idcard { position:relative; background:var(--card); border:1px solid var(--line); border-radius:18px; padding:1.5rem 1.4rem 1.3rem; box-shadow:var(--shadow-soft); overflow:hidden; }
@@ -107,7 +107,7 @@
         .pf-tab.active::after { content:'' !important; display:block !important; position:absolute; left:0; top:9px; bottom:9px; width:3px; border-radius:3px; background:linear-gradient(var(--gold),var(--gold2)); }
         .pf-tab-ico { display:inline-flex; color:var(--gold); }
         .pf-tab-ico svg { display:block; }
-        @media (max-width:860px){ .pf-nav{ flex-direction:row; overflow-x:auto; scrollbar-width:none; } .pf-nav::-webkit-scrollbar{ display:none; } .pf-tab{ width:auto; white-space:nowrap; } .pf-tab.active::after{ left:9px; right:9px; top:auto; bottom:0; width:auto; height:3px; } }
+        /* Nav stays vertical on mobile too (a horizontal row blows out the grid width). */
 
         /* ── Panels ── */
         .pf-panel[hidden] { display: none; }
@@ -121,7 +121,7 @@
         .pf-saved-block + .pf-saved-block { margin-top:2.6rem; }
 
         /* ── Stats ledger ── */
-        .pf-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:0; background:var(--card); border:1px solid var(--line); border-radius:16px; box-shadow:var(--shadow-soft); overflow:hidden; margin-bottom:2.2rem; }
+        .pf-stats { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:0; background:var(--card); border:1px solid var(--line); border-radius:16px; box-shadow:var(--shadow-soft); overflow:hidden; margin-bottom:2.2rem; }
         .pf-stat { padding:1.5rem 1rem; text-align:center; }
         .pf-stat + .pf-stat { border-left:1px solid var(--line2); }
         .pf-stat-num { font-family:var(--font-display); font-size:2.7rem; font-weight:700; line-height:1; color:var(--gold); }
