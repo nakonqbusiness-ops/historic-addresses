@@ -26,6 +26,16 @@
         var nav = header && header.querySelector('.nav');
         if (!nav || nav.querySelector('.nav-account') || header.querySelector('.nav-user')) return;
 
+        // Quick "Предложи локация" button. Shown only on mobile (via CSS) where it fills
+        // the freed slot on the nav's bottom row; hidden on desktop.
+        if (!nav.querySelector('.nav-suggest')) {
+            var sg = document.createElement('a');
+            sg.className = 'nav-suggest';
+            sg.href = '/suggest.html';
+            sg.innerHTML = '<span class="nav-suggest-plus" aria-hidden="true">+</span><span>Предложи</span>';
+            nav.appendChild(sg);
+        }
+
         // GUEST default: a clean "Вход" pill in the nav. The standalone theme toggle
         // stays visible in the header so guests can still switch modes.
         var a = document.createElement('a');
@@ -81,7 +91,7 @@
                 (role ? '<div class="nav-user-role">Роля: ' + escapeHtml(role) + '</div>' : '') +
             '</div>' +
             '<div class="nav-user-div"></div>' +
-            '<a class="nav-user-item" href="/profile.html#activity">Моите одобрения</a>' +
+            '<a class="nav-user-item" href="/profile.html#activity">Моите предложения</a>' +
             '<a class="nav-user-item" href="/profile.html#achievements">Постижения и приноси</a>' +
             '<a class="nav-user-item" href="/profile.html#saved">Запазени локации</a>' +
             (isAdmin ? '<a class="nav-user-item" href="' + dashHref + '">Управление</a>' : '') +
@@ -102,13 +112,27 @@
         var toggle = document.getElementById('theme-toggle');
         if (toggle) menu.querySelector('.nav-user-theme-slot').appendChild(toggle);
 
-        function close() { menu.setAttribute('hidden', ''); btn.setAttribute('aria-expanded', 'false'); wrap.classList.remove('open'); }
-        function open()  { menu.removeAttribute('hidden'); btn.setAttribute('aria-expanded', 'true');  wrap.classList.add('open'); }
+        // Smooth open/close: closing plays a fade/slide-out animation (CSS) before the
+        // menu is actually removed from the layout.
+        function open()  { wrap.classList.remove('closing'); menu.removeAttribute('hidden'); btn.setAttribute('aria-expanded', 'true'); wrap.classList.add('open'); }
+        function close() {
+            if (menu.hasAttribute('hidden') || wrap.classList.contains('closing')) return;
+            btn.setAttribute('aria-expanded', 'false');
+            wrap.classList.remove('open');
+            wrap.classList.add('closing');
+            var fin = function () { wrap.classList.remove('closing'); menu.setAttribute('hidden', ''); };
+            var to = setTimeout(fin, 220);
+            menu.addEventListener('animationend', function h() { menu.removeEventListener('animationend', h); clearTimeout(to); fin(); }, { once: true });
+        }
         btn.addEventListener('click', function (e) { e.stopPropagation(); if (menu.hasAttribute('hidden')) open(); else close(); });
         document.addEventListener('click', function (e) { if (!wrap.contains(e.target)) close(); });
         document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
         // A click on the theme row toggles the mode, not the menu.
         menu.querySelector('.nav-user-theme').addEventListener('click', function (e) { e.stopPropagation(); });
+        // Clicking any link inside smoothly dismisses the menu (incl. same-page #tab links).
+        Array.prototype.forEach.call(menu.querySelectorAll('a.nav-user-item'), function (link) {
+            link.addEventListener('click', function () { close(); });
+        });
 
         menu.querySelector('.nav-user-logout').addEventListener('click', function () {
             fetch('/api/auth/logout', { method: 'POST', credentials: 'include' })

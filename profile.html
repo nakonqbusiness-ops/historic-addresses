@@ -29,7 +29,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Mulish:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
-    <link rel="stylesheet" href="assets/css/styles.css?v=7">
+    <link rel="stylesheet" href="assets/css/styles.css?v=8">
     <script defer src="assets/js/theme.js"></script>
     <script defer src="assets/js/transitions.js"></script>
 
@@ -107,7 +107,16 @@
         .pf-tab.active::after { content:'' !important; display:block !important; position:absolute; left:0; top:9px; bottom:9px; width:3px; border-radius:3px; background:linear-gradient(var(--gold),var(--gold2)); }
         .pf-tab-ico { display:inline-flex; color:var(--gold); }
         .pf-tab-ico svg { display:block; }
-        /* Nav stays vertical on mobile too (a horizontal row blows out the grid width). */
+        /* On mobile the header dropdown handles tab navigation, so hide the duplicate
+           sidebar nav and shrink the identity card to save vertical space. */
+        @media (max-width:768px){
+            .pf-nav { display:none; }
+            .pf-idcard { padding:1rem 1.15rem; }
+            .pf-seal { width:48px; height:48px; font-size:1.3rem; }
+            .pf-idname { font-size:1.12rem; }
+            .pf-idrule, .pf-rank-head, .pf-rank-bar, .pf-rank-note { display:none; }
+            .pf-idpills { margin-top:.7rem; }
+        }
 
         /* ── Panels ── */
         .pf-panel[hidden] { display: none; }
@@ -318,7 +327,7 @@
             .sub-card > .place-body { order:3; flex-basis:100%; }
         }
     </style>
-    <script defer src="assets/js/account-nav.js?v=18"></script>
+    <script defer src="assets/js/account-nav.js?v=19"></script>
 </head>
 
 <body class="pf-page">
@@ -712,11 +721,25 @@
                 setTimeout(function(){ el.classList.remove('pf-flash'); }, 2800);
             }, 140);
         }
+        // Smooth-scroll the active tab's content into view (used when the user switches
+        // tabs from the header dropdown, so they're not left disoriented at the top).
+        function scrollToPanel(name) {
+            var el = document.getElementById('tab-' + name);
+            if (!el) return;
+            var y = el.getBoundingClientRect().top + window.pageYOffset - 70;
+            try { window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' }); }
+            catch (e) { window.scrollTo(0, Math.max(0, y)); }
+        }
+        var pfTabsBooted = false;
         function fromHash() {
             var h = (location.hash || '').replace('#', '');
             // Deep-link straight to 2FA enrolment (used when staff need to enable it).
-            if (h === 'twofa' || h === 'enable-2fa') { activate('settings'); highlight2fa(); return; }
-            activate(VALID_TABS.indexOf(h) >= 0 ? h : 'activity');
+            if (h === 'twofa' || h === 'enable-2fa') { activate('settings'); highlight2fa(); pfTabsBooted = true; return; }
+            var name = VALID_TABS.indexOf(h) >= 0 ? h : 'activity';
+            activate(name);
+            // Scroll on a real navigation (hashchange), or when arriving on a non-default tab.
+            if (pfTabsBooted || (h && name !== 'activity')) scrollToPanel(name);
+            pfTabsBooted = true;
         }
         window.addEventListener('hashchange', fromHash);
         fromHash();
