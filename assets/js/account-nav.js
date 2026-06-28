@@ -26,13 +26,12 @@
         var nav = header && header.querySelector('.nav');
         if (!nav || nav.querySelector('.nav-account') || header.querySelector('.nav-user')) return;
 
-        // Quick "Предложи локация" button. Shown only on mobile (via CSS) where it fills
-        // the freed slot on the nav's bottom row; hidden on desktop.
+        // "Предложи" — a normal nav link (gold, no box/button), on desktop and mobile.
         if (!nav.querySelector('.nav-suggest')) {
             var sg = document.createElement('a');
             sg.className = 'nav-suggest';
             sg.href = '/suggest.html';
-            sg.innerHTML = '<span class="nav-suggest-plus" aria-hidden="true">+</span><span>Предложи</span>';
+            sg.textContent = 'Предложи';
             nav.appendChild(sg);
         }
 

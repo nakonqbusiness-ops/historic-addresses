@@ -304,8 +304,8 @@ body.page-exiting {
     align-items: center;
 }
 
-/* Quick-submit "Предложи" button: nav-only on mobile, hidden on desktop. */
-.nav-suggest { display: none; }
+/* "Предложи" nav link — same style as the other links but gold (no box/button). */
+.nav-suggest { color: var(--accent-strong) !important; opacity: 1 !important; font-weight: 700; }
 
 .nav a {
     color: var(--fg);
@@ -1375,36 +1375,14 @@ button:not(.theme-toggle):not(.preview-item button):active {
         display: none; /* Hide decorative symbols on mobile */
     }
 
-    /* Mobile nav: a tidy 4-column grid → top row 4 links, bottom row 2 links + the
-       gold "Предложи" quick-submit button (which fills the freed bottom-row slot). */
     .nav {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 0.45rem 0.5rem;
-        width: 100%;
-        font-size: 0.82rem;
-        align-items: stretch;
+        gap: 0.5rem;
+        font-size: 0.85rem;
     }
-    .nav > a:not(.nav-suggest):not(.nav-account) {
-        display: flex; align-items: center; justify-content: center; text-align: center;
-        padding: 0.5rem 0.3rem; border-radius: 9px;
-        background: rgba(205,133,63,0.06); border: 1px solid var(--border);
+
+    .nav a {
+        padding: 0.4rem 0.6rem;
     }
-    .nav > a:not(.nav-suggest):not(.nav-account).active {
-        background: rgba(205,133,63,0.16); border-color: rgba(205,133,63,0.45);
-    }
-    .nav > a:not(.nav-suggest):not(.nav-account)::after { display: none !important; }
-    .nav-suggest {
-        grid-column: span 2;
-        display: inline-flex !important; align-items: center; justify-content: center; gap: 0.3rem;
-        padding: 0.5rem 0.6rem; border-radius: 10px;
-        background: var(--accent-gradient); color: #1a1410 !important;
-        font-weight: 800; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.03em;
-        box-shadow: 0 4px 12px rgba(205,133,63,0.35); border: none; white-space: nowrap;
-    }
-    .nav-suggest::after { display: none !important; }
-    .nav-suggest .nav-suggest-plus { font-size: 1.05rem; line-height: 1; font-weight: 800; }
-    .nav-account { grid-column: 1 / -1; justify-content: center; }
 
     /* Hero section */
     .hero {
