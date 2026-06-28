@@ -1375,13 +1375,17 @@ button:not(.theme-toggle):not(.preview-item button):active {
         display: none; /* Hide decorative symbols on mobile */
     }
 
+    /* Pack the nav onto 2 rows (4 links on top, 2 + "Предложи" on the bottom). */
     .nav {
-        gap: 0.5rem;
-        font-size: 0.85rem;
+        flex-wrap: wrap;
+        gap: 0.4rem 0.55rem;
+        font-size: 0.74rem;
+        max-width: 100%;
     }
 
     .nav a {
-        padding: 0.4rem 0.6rem;
+        padding: 0.25rem 0.2rem;
+        letter-spacing: 0.02em;
     }
 
     /* Hero section */
@@ -1611,11 +1615,13 @@ button:not(.theme-toggle):not(.preview-item button):active {
         flex-wrap: wrap;
         justify-content: flex-start;
         width: 100%;
+        gap: 0.3rem 0.45rem;
     }
 
     .nav a {
-        font-size: 0.8rem;
-        padding: 0.35rem 0.5rem;
+        font-size: 0.72rem;
+        padding: 0.28rem 0.32rem;
+        letter-spacing: 0.02em;
     }
 
     .page-title {

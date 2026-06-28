@@ -17,17 +17,17 @@
 <meta property="og:url" content="https://historyaddress.bg/address.html">
 <meta property="og:title" content="Адресът на историята">
 <meta property="og:description" content="Исторически адреси и домове в България">
-<meta property="og:image" content="https://historyaddress.bg/assets/img/HistAdrLogo.png">
+<meta property="og:image" content="https://historyaddress.bg/assets/img/HistAdrLogoOrig.png">
 <meta property="twitter:card" content="summary_large_image">
 <meta property="twitter:url" content="https://historyaddress.bg/address.html">
 <meta property="twitter:title" content="Адресът на историята">
 <meta property="twitter:description" content="Исторически адреси и домове в България">
-<meta property="twitter:image" content="https://historyaddress.bg/assets/img/HistAdrLogo.png">
+<meta property="twitter:image" content="https://historyaddress.bg/assets/img/HistAdrLogoOrig.png">
 <script>(function(){try{var s=localStorage.getItem('theme-preference');if(s==='system')s='dark';document.documentElement.setAttribute('data-theme',(s==='dark'||s==='light')?s:'dark');}catch(e){}})()</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400;1,600&family=Mulish:wght@300;400;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/styles.css?v=9">
+<link rel="stylesheet" href="assets/css/styles.css?v=10">
 <script defer src="assets/js/theme.js"></script>
 <script defer src="assets/js/transitions.js"></script>
 <script defer src="assets/js/calendar-popup.js"></script>
@@ -323,7 +323,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')closeEmailMo
 
 <header class="site-header">
   <a class="logo-link" href="index.html">
-    <img src="assets/img/HistAdrLogo.png" alt="Адресът на историята" class="header-logo">
+    <img src="assets/img/HistAdrLogoOrig.png" alt="Адресът на историята" class="header-logo">
     <span class="logo-text">Адресът на историята</span>
   </a>
   <nav class="nav">
@@ -632,7 +632,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')closeEmailMo
   function seo(p){
     var u='https://historyaddress.bg/address.html?slug='+encodeURIComponent(slug);
     var d=p.biography?p.biography.substring(0,155):'Исторически адрес: '+(p.address||'');
-    var i=(p.images&&p.images[0]&&p.images[0].path)?'https://historyaddress.bg/'+p.images[0].path:'https://historyaddress.bg/assets/img/HistAdrLogo.png';
+    var i=(p.images&&p.images[0]&&p.images[0].path)?'https://historyaddress.bg/'+p.images[0].path:'https://historyaddress.bg/assets/img/HistAdrLogoOrig.png';
     document.title=p.name+' - Адресът на историята';
     [['meta[name="description"]','content',d],['link[rel="canonical"]','href',u],
      ['meta[property="og:url"]','content',u],['meta[property="og:title"]','content',p.name],
