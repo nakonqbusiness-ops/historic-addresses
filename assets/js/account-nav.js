@@ -35,25 +35,31 @@
             nav.appendChild(sg);
         }
 
-        // GUEST default: a clean "Вход" pill in the nav. The standalone theme toggle
-        // stays visible in the header so guests can still switch modes.
-        var a = document.createElement('a');
-        a.className = 'nav-account';
-        a.href = '/login.html';   // absolute so it works from /admin/ pages too
-        a.innerHTML = USER_ICON + '<span>Вход</span>';
-        nav.appendChild(a);
-
+        // Render the account UI ONLY after the auth state is known. Previously the guest
+        // "Вход" pill was injected synchronously and then swapped for the avatar once
+        // /api/auth/me resolved — but on heavier pages (e.g. index, which fires several
+        // API calls the single-threaded DB serialises) that swap was slow enough to flash
+        // "Вход" and bump the mobile nav onto a 3rd row. Now a logged-in user never sees it.
+        function showGuest() {
+            if (nav.querySelector('.nav-account') || header.querySelector('.nav-user')) return;
+            var a = document.createElement('a');
+            a.className = 'nav-account';
+            a.href = '/login.html';   // absolute so it works from /admin/ pages too
+            a.innerHTML = USER_ICON + '<span>Вход</span>';
+            nav.appendChild(a);
+        }
         fetch('/api/auth/me', { credentials: 'include' })
             .then(function (r) { return r.ok ? r.json() : null; })
             .then(function (me) {
-                if (!me) return;
-                // LOGGED IN: drop the guest pill and show a compact avatar dropdown that
-                // also absorbs the theme toggle (frees up the navbar row).
-                document.body.classList.add('is-auth');
-                if (a.parentNode) a.parentNode.removeChild(a);
-                buildUserMenu(header, me);
+                if (me) {
+                    // LOGGED IN: show the compact avatar dropdown (also absorbs the theme toggle).
+                    document.body.classList.add('is-auth');
+                    buildUserMenu(header, me);
+                } else {
+                    showGuest();
+                }
             })
-            .catch(function () {});
+            .catch(function () { showGuest(); });
     }
 
     function buildUserMenu(header, me) {
