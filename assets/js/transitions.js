@@ -38,7 +38,7 @@
 				document.body.classList.add('page-exiting');
 				setTimeout(function() {
 					window.location.href = href;
-				}, 300);
+				}, 120);
 			});
 		});
 	});

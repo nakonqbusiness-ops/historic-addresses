@@ -483,10 +483,46 @@ function resetEmailHtml(link) {
 function approvalEmailHtml(placeTitle, link) {
     const body =
       `<h1 style="margin:0 0 14px;font-family:Georgia,serif;font-size:25px;font-weight:700;color:#3a2f1f;">Одобрено! 🎉</h1>
-       <p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:#5a4a33;">Чудесна новина! Вашето предложение <strong style="color:#cd853f;">„${escHtml(placeTitle)}"</strong> беше прегледано от нашия екип и вече е публикувано в „Адресът на историята". Благодарим Ви, че помагате да опазим българската история!</p>
+       <p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:#5a4a33;">Поздравления! Вашият адрес <strong style="color:#cd853f;">„${escHtml(placeTitle)}"</strong> е одобрен и вече е на картата! Благодарим Ви, че помагате да опазим българската история!</p>
        ${emailButton(link, 'Вижте го на сайта')}
-       <p style="margin:14px 0 0;font-size:13px;line-height:1.6;color:#8b7355;">Можете да предложите още локации по всяко време от профила си.</p>`;
-    return emailLayout(body, 'Вашето предложение е одобрено и публикувано!');
+       <p style="margin:14px 0 0;font-size:13px;line-height:1.6;color:#8b7355;">Можете да предложите още локации по всяко време.</p>`;
+    return emailLayout(body, 'Вашият адрес е одобрен и вече е на картата!');
+}
+// TRIGGER 1: sent the moment a place is submitted (registered users and guests).
+function submissionReceivedEmailHtml(placeTitle) {
+    const titleLine = placeTitle
+        ? `<p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:#5a4a33;">Получихме предложението Ви <strong style="color:#cd853f;">„${escHtml(placeTitle)}"</strong>.</p>` : '';
+    const body =
+      `<h1 style="margin:0 0 14px;font-family:Georgia,serif;font-size:25px;font-weight:700;color:#3a2f1f;">Благодарим Ви! 📨</h1>
+       <p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:#5a4a33;">Благодарим ви, вашето предложение за адрес бе изпратено за модерация!</p>
+       ${titleLine}
+       <p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:#5a4a33;">Нашият екип ще го прегледа и ще Ви уведомим по имейл за решението. 🏛️</p>
+       <p style="margin:14px 0 0;font-size:13px;line-height:1.6;color:#8b7355;">Ако нямате профил, можете да си създадете - предложенията, направени с този имейл, ще се появят автоматично в него.</p>`;
+    return emailLayout(body, 'Получихме Вашето предложение за адрес');
+}
+// TRIGGER 3: sent when a moderator returns a submission for correction, with their note.
+function correctionEmailHtml(placeTitle, note) {
+    const noteBox = note
+        ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:18px 0;"><tr><td style="background:#fbf3e3;border-left:4px solid #cd853f;border-radius:8px;padding:14px 16px;font-size:14px;line-height:1.6;color:#5a4a33;"><strong style="color:#3a2f1f;">Бележка от администратора:</strong><br>${escHtml(note)}</td></tr></table>` : '';
+    const body =
+      `<h1 style="margin:0 0 14px;font-family:Georgia,serif;font-size:24px;font-weight:700;color:#3a2f1f;">Нужна е корекция ✍️</h1>
+       <p style="margin:0 0 6px;font-size:15px;line-height:1.7;color:#5a4a33;">Вашето предложение${placeTitle ? ` <strong style="color:#cd853f;">„${escHtml(placeTitle)}"</strong>` : ''} се нуждае от корекция. Бележка от администратора: ${note ? escHtml(note) : '(няма допълнителна бележка)'}</p>
+       ${noteBox}
+       ${emailButton(DOMAIN + '/profile.html#activity', 'Редактирай предложението')}
+       <p style="margin:14px 0 0;font-size:13px;line-height:1.6;color:#8b7355;">Коригирайте предложението от профила си и го изпратете отново за преглед. Ако сте гост, създайте профил със същия имейл, за да го редактирате.</p>`;
+    return emailLayout(body, 'Вашето предложение се нуждае от корекция');
+}
+// TRIGGER 4: sent when a moderator rejects a submission outright, with their reason.
+function rejectionEmailHtml(placeTitle, reason) {
+    const reasonBox = reason
+        ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:18px 0;"><tr><td style="background:#f7eaea;border-left:4px solid #c95050;border-radius:8px;padding:14px 16px;font-size:14px;line-height:1.6;color:#5a4a33;"><strong style="color:#3a2f1f;">Причина:</strong><br>${escHtml(reason)}</td></tr></table>` : '';
+    const body =
+      `<h1 style="margin:0 0 14px;font-family:Georgia,serif;font-size:24px;font-weight:700;color:#3a2f1f;">Относно Вашето предложение</h1>
+       <p style="margin:0 0 6px;font-size:15px;line-height:1.7;color:#5a4a33;">За съжаление предложението ви${placeTitle ? ` <strong style="color:#cd853f;">„${escHtml(placeTitle)}"</strong>` : ''} бе отхвърлено. Причина: ${reason ? escHtml(reason) : '(няма посочена причина)'}</p>
+       ${reasonBox}
+       <p style="margin:14px 0 0;font-size:14px;line-height:1.7;color:#5a4a33;">Благодарим Ви, че се включихте. Винаги сте добре дошли да предложите друга локация.</p>
+       ${emailButton(DOMAIN + '/suggest.html', 'Предложи друга локация')}`;
+    return emailLayout(body, 'Относно Вашето предложение за адрес');
 }
 
 // Module-level HTML escaper for values dropped into email templates.
@@ -848,6 +884,10 @@ app.use((_req, res, next) => {
     res.setHeader('X-Frame-Options', 'DENY');                  // anti-clickjacking
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
     res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+    // HSTS: force HTTPS for 180 days. Honoured by browsers only over HTTPS, so it's a
+    // no-op on localhost/http and safe to send unconditionally. No `preload` (that's a
+    // hard-to-reverse commitment); includeSubDomains since the whole site is HTTPS.
+    res.setHeader('Strict-Transport-Security', 'max-age=15552000; includeSubDomains');
     next();
 });
 
@@ -912,6 +952,124 @@ app.use((req, _res, next) => {
         for (const [k, v] of recentVisits) if (v < cutoff) recentVisits.delete(k);
     }
     next();
+});
+
+// ── Dynamic SEO for address/event detail pages ───────────────────────────────
+// address.html is client-rendered, so a crawler would otherwise see a generic
+// <title>/description and a canonical that points at the bare address.html. We
+// server-render the per-place <title>, meta description, canonical, OG/Twitter tags
+// and a Schema.org JSON-LD block into the <head> BEFORE sending, so the page can
+// rank for the personality's/event's name on its own. Registered ahead of
+// express.static so it can intercept /address.html?slug=…; with no slug (or an
+// unknown one) it falls through to the static file unchanged.
+let _addressTpl = null;
+function addressTemplate() {
+    if (_addressTpl == null) {
+        try { _addressTpl = fs.readFileSync(path.join(__dirname, 'address.html'), 'utf8'); }
+        catch { _addressTpl = ''; }
+    }
+    return _addressTpl;
+}
+// First photo as an absolute URL (R2 paths are already absolute; legacy relative
+// paths get the site domain). Falls back to the logo so OG cards always have an image.
+function seoImage(p) {
+    const path0 = p && p.images && p.images[0] && p.images[0].path;
+    if (!path0) return DOMAIN + '/assets/img/HistAdrLogoOrig.png';
+    return /^https?:\/\//i.test(path0) ? path0 : DOMAIN + '/' + String(path0).replace(/^\/+/, '');
+}
+// Category-aware, name-first <title> + meta description (keyword-rich, unique per page).
+function seoTitleDesc(name, category) {
+    if (category === 'monument') return {
+        title: `${name} - история, снимки и локация | Адресът на историята`,
+        desc:  `Научете повече за ${name}. История, интересни факти, снимки и точни координати на локацията на картата.`,
+    };
+    if (category === 'events') return {
+        title: `${name} - история, дата и място | Адресът на историята`,
+        desc:  `Научете повече за ${name}. Историята на събитието, дата, снимки и точни координати на мястото на картата.`,
+    };
+    return {
+        title: `${name} - история, къща и биография | Адресът на историята`,
+        desc:  `Научете повече за живота на ${name}. Открийте къде е живял, исторически факти, снимки и точни координати на локацията на картата.`,
+    };
+}
+// Schema.org JSON-LD: a @graph that tells Google exactly who/what the page is about.
+// People (category 'home') get a Person node + the HistoricalLandmark of their house;
+// monuments get a HistoricalLandmark; events get a Place.
+function placeJsonLd(p, url) {
+    const name = (p.name || '').trim() || 'Историческа локация';
+    const cat  = p.category || 'home';
+    const img  = seoImage(p);
+    const desc = (p.biography && p.biography.trim()) || seoTitleDesc(name, cat).desc;
+    const geo  = p.coordinates && p.coordinates.lat
+        ? { '@type': 'GeoCoordinates', latitude: p.coordinates.lat, longitude: p.coordinates.lng } : null;
+    const postal = { '@type': 'PostalAddress', addressCountry: 'BG' };
+    if (p.address) postal.streetAddress = p.address;
+
+    const landmark = {
+        '@type': cat === 'events' ? 'Place' : 'HistoricalLandmark',
+        name: cat === 'home' ? `Къщата на ${name}` : name,
+        description: desc, url, image: img, address: postal,
+    };
+    if (geo) landmark.geo = geo;
+
+    const graph = [];
+    if (cat === 'home') {
+        const person = { '@type': 'Person', name, description: desc, image: img, url };
+        if (p.birth_date) person.birthDate = p.birth_date;
+        if (p.death_date) person.deathDate = p.death_date;
+        person.homeLocation = Object.assign({ '@type': 'Place', name: landmark.name }, geo ? { geo } : {});
+        graph.push(person, landmark);
+    } else {
+        graph.push(landmark);
+    }
+    return { '@context': 'https://schema.org', '@graph': graph };
+}
+// Inject the computed SEO into the address.html template (string replacement on the
+// known head tags + JSON-LD before </head>). All dynamic values are escaped.
+function renderAddressSeo(html, p, slug) {
+    const name = (p.name || '').trim() || 'Историческа локация';
+    const url  = `${DOMAIN}/address.html?slug=${encodeURIComponent(slug)}`;
+    const { title, desc } = seoTitleDesc(name, p.category || 'home');
+    const t = escHtml(title), d = escHtml(desc), u = escHtml(url), img = escHtml(seoImage(p));
+    const set = [
+        [/<title>[\s\S]*?<\/title>/i,                          `<title>${t}</title>`],
+        [/<meta\s+name=["']description["'][^>]*>/i,            `<meta name="description" content="${d}">`],
+        [/<link\s+rel=["']canonical["'][^>]*>/i,               `<link rel="canonical" href="${u}">`],
+        [/<meta\s+property=["']og:url["'][^>]*>/i,             `<meta property="og:url" content="${u}">`],
+        [/<meta\s+property=["']og:title["'][^>]*>/i,           `<meta property="og:title" content="${t}">`],
+        [/<meta\s+property=["']og:description["'][^>]*>/i,     `<meta property="og:description" content="${d}">`],
+        [/<meta\s+property=["']og:image["'][^>]*>/i,           `<meta property="og:image" content="${img}">`],
+        [/<meta\s+property=["']twitter:url["'][^>]*>/i,        `<meta property="twitter:url" content="${u}">`],
+        [/<meta\s+property=["']twitter:title["'][^>]*>/i,      `<meta property="twitter:title" content="${t}">`],
+        [/<meta\s+property=["']twitter:description["'][^>]*>/i,`<meta property="twitter:description" content="${d}">`],
+        [/<meta\s+property=["']twitter:image["'][^>]*>/i,      `<meta property="twitter:image" content="${img}">`],
+    ];
+    let out = html;
+    for (const [re, rep] of set) out = out.replace(re, rep);
+    const ld = JSON.stringify(placeJsonLd(p, url)).replace(/</g, '\\u003c');
+    out = out.replace(/<\/head>/i, `<script type="application/ld+json" id="ld-place">${ld}</script>\n</head>`);
+    // Flag so the client SEO skips re-injecting the JSON-LD (avoids a duplicate node).
+    out = out.replace(/<html(\s|>)/i, '<html data-ssr-seo="1"$1');
+    return out;
+}
+app.get('/address.html', async (req, res, next) => {
+    const slug = String(req.query.slug || '').trim();
+    if (!slug) return next();                          // listing/no slug → static file
+    try {
+        let data = cache.get(`home:${slug}`);          // reuse the /api/homes/:slug cache if warm
+        if (!data) {
+            const row = await dbGet('SELECT * FROM homes WHERE slug=? OR id=?', [slug, slug]);
+            if (!row) return next();                   // unknown slug → static (client handles it)
+            data = rowToHome(row);
+        }
+        const tpl = addressTemplate();
+        if (!tpl) return next();
+        res.set('Cache-Control', 'no-cache');
+        res.type('html').send(renderAddressSeo(tpl, data, slug));
+    } catch (e) {
+        console.error('address SEO error:', e.message);
+        next();
+    }
 });
 
 // ── Static files ──────────────────────────────────────────────────────────────
@@ -1165,6 +1323,14 @@ function initDB() {
         // Admins can hide a *processed* submission from the moderation history (without
         // deleting it) to declutter the approved/rejected lists.
         db.run('ALTER TABLE pending_addresses ADD COLUMN hidden_from_history INTEGER DEFAULT 0', () => {});
+        // Anonymous guest submissions: the email a non-registered visitor gave us. When
+        // they later register with that exact email we transfer the rows to them (see
+        // claimGuestSubmissions in /api/auth/register). For guest rows user_id is NULL.
+        db.run('ALTER TABLE pending_addresses ADD COLUMN guest_email TEXT', () => {});
+        // The original table declared user_id NOT NULL; relax it so guest rows (NULL
+        // user_id + guest_email) can be stored. SQLite can't ALTER a NOT NULL away, so
+        // we rebuild the table once. Idempotent: only runs while user_id is still NOT NULL.
+        migratePendingGuestNullable();
 
         // ── Internal moderator feedback (moderators → admins/owners) ──────────────
         // Threaded notes on a pending submission. NOT shown to the submitter.
@@ -1219,6 +1385,63 @@ function migrateHomes() {
                 if (--pending === 0) finish();
             });
         }
+    });
+}
+
+// Rebuild pending_addresses so user_id is nullable (needed for anonymous guest
+// submissions). Runs at most once: if the column is already nullable we do nothing.
+function migratePendingGuestNullable() {
+    db.all('PRAGMA table_info(pending_addresses)', (err, cols) => {
+        if (err || !cols || !cols.length) return;
+        const userIdCol = cols.find(c => c.name === 'user_id');
+        if (!userIdCol || userIdCol.notnull === 0) return;   // already nullable → done
+        console.log('🛠  Migrating pending_addresses → nullable user_id (guest submissions)…');
+        db.serialize(() => {
+            db.run('PRAGMA foreign_keys = OFF');
+            db.run('BEGIN');
+            db.run(`CREATE TABLE pending_addresses__new (
+                id           TEXT PRIMARY KEY,
+                user_id      TEXT,
+                guest_email  TEXT,
+                title        TEXT NOT NULL,
+                description  TEXT,
+                city         TEXT,
+                address      TEXT,
+                lat          REAL,
+                lng          REAL,
+                category     TEXT NOT NULL DEFAULT 'home',
+                image_path   TEXT,
+                status       TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','approved','rejected')),
+                created_at   TEXT NOT NULL,
+                reviewed_at  TEXT,
+                reviewed_by  TEXT,
+                result_slug  TEXT,
+                owns_image   INTEGER DEFAULT 0,
+                author_name  TEXT,
+                moderation_note TEXT,
+                denied       INTEGER DEFAULT 0,
+                hidden_from_history INTEGER DEFAULT 0,
+                FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+            )`);
+            db.run(`INSERT INTO pending_addresses__new
+                (id,user_id,guest_email,title,description,city,address,lat,lng,category,image_path,
+                 status,created_at,reviewed_at,reviewed_by,result_slug,owns_image,author_name,
+                 moderation_note,denied,hidden_from_history)
+                SELECT id,user_id,guest_email,title,description,city,address,lat,lng,category,image_path,
+                 status,created_at,reviewed_at,reviewed_by,result_slug,owns_image,author_name,
+                 moderation_note,denied,hidden_from_history
+                FROM pending_addresses`);
+            db.run('DROP TABLE pending_addresses');
+            db.run('ALTER TABLE pending_addresses__new RENAME TO pending_addresses');
+            db.run('CREATE INDEX IF NOT EXISTS idx_pending_status ON pending_addresses(status, created_at)');
+            db.run('CREATE INDEX IF NOT EXISTS idx_pending_user   ON pending_addresses(user_id, created_at)');
+            db.run('CREATE INDEX IF NOT EXISTS idx_pending_guest  ON pending_addresses(guest_email)');
+            db.run('COMMIT', (e) => {
+                if (e) console.error('❌ pending_addresses migration failed:', e.message);
+                else   console.log('✅ pending_addresses now supports guest submissions.');
+            });
+            db.run('PRAGMA foreign_keys = ON');
+        });
     });
 }
 
@@ -1469,6 +1692,18 @@ app.post('/api/auth/register', rateLimitAuth, async (req, res) => {
             'INSERT INTO users (id,email,password_hash,role,permissions,newsletter,created_at,email_verified) VALUES (?,?,?,?,?,?,?,0)',
             [id, email, password_hash, 'user', '[]', newsletter, now]
         );
+
+        // Account claiming: any past anonymous submissions made with this exact email are
+        // transferred to the new profile (ownership + stats/badges, which derive from the
+        // owned rows). Best-effort: never block or fail the registration over it.
+        try {
+            const r = await dbRun(
+                'UPDATE pending_addresses SET user_id=?, guest_email=NULL WHERE guest_email=? AND user_id IS NULL',
+                [id, email]
+            );
+            if (r && r.changes) console.log(`🔗 Linked ${r.changes} guest submission(s) to new user ${email}`);
+        } catch (e) { console.warn('guest-claim on register failed:', e.message); }
+
         issueAuthCookie(res, { id, role: 'user' });
         res.status(201).json({ id, email, role: 'user', email_verified: false });
 
@@ -2024,17 +2259,32 @@ async function deleteR2(url) {
     catch (e) { console.warn('R2 delete failed for', key, '-', e.message); }
 }
 
+// Resolve the email we should notify for a submission row: the owning user's email
+// for registered submissions, or the stored guest_email for anonymous ones.
+async function submissionRecipientEmail(row) {
+    if (!row) return null;
+    if (row.user_id) {
+        try { const u = await dbGet('SELECT email FROM users WHERE id=?', [row.user_id]); return (u && u.email) || null; }
+        catch { return null; }
+    }
+    return row.guest_email || null;
+}
+
 // Submit a suggestion (logged-in users). Accepts text fields + up to MAX_PHOTOS images.
 app.post('/api/suggest', requireUser, requireVerified, requireNotBanned, rateLimitSuggest, acceptPhotos('images'), async (req, res) => {
     try {
         const b = req.body || {};
-        const title = sanitizeText(b.title, 200);
-        if (!title) return res.status(400).json({ error: 'Заглавието е задължително' });
-
-        const category    = normCategory(b.category);
+        // Simplified form: the suggester gives an exact address, an optional history/
+        // comment and photos. Title/category/coordinates are set by a moderator on
+        // review, so we derive a placeholder title from the address (NOT NULL column).
         const description = sanitizeText(b.description, 5000);
         const city        = sanitizeText(b.city, 120);
         const address     = sanitizeText(b.address, 200);
+        const title = (address || description.slice(0, 80) || 'Предложение').slice(0, 200);
+        if (!address && !description && !(req.files && req.files.length)) {
+            return res.status(400).json({ error: 'Моля, добавете адрес, описание или снимка.' });
+        }
+        const category = normCategory(b.category);   // defaults to 'home'
         const lat = (b.lat !== undefined && b.lat !== '' && isFinite(+b.lat)) ? +b.lat : null;
         const lng = (b.lng !== undefined && b.lng !== '' && isFinite(+b.lng)) ? +b.lng : null;
 
@@ -2070,8 +2320,74 @@ app.post('/api/suggest', requireUser, requireVerified, requireNotBanned, rateLim
             [id, req.user.sub, title, description || null, city || null, address || null, lat, lng, category, image_path, now, ownsImage, authorName || null]
         );
         res.status(201).json({ id, status: 'pending', photos: urls.length });
+
+        // TRIGGER 1: confirm we received the submission (fire-and-forget).
+        dbGet('SELECT email FROM users WHERE id=?', [req.user.sub])
+            .then(u => u && u.email && sendEmail({
+                to: u.email,
+                subject: 'Получихме Вашето предложение за адрес 📨',
+                html: submissionReceivedEmailHtml(title),
+            }))
+            .catch(() => {});
     } catch (e) {
         console.error('suggest error:', e.message);
+        res.status(500).json({ error: 'Грешка при изпращане. Опитайте отново.' });
+    }
+});
+
+// Submit a suggestion as an ANONYMOUS GUEST (no account). Simplified form: an email
+// (so we can notify them and later auto-link the post when they register), a free-text
+// address, a history/comment and photos. Category & coordinates are filled by an admin
+// during moderation. Rate-limited per IP (rateLimitSuggest falls back to IP when there
+// is no logged-in user).
+app.post('/api/suggest-guest', rateLimitSuggest, acceptPhotos('images'), async (req, res) => {
+    try {
+        const b = req.body || {};
+        const email = String(b.email || '').trim().toLowerCase();
+        if (!validEmail(email)) return res.status(400).json({ error: 'Моля, въведете валиден имейл адрес.' });
+
+        const address     = sanitizeText(b.address, 200);
+        const description = sanitizeText(b.description, 5000);
+        // Guests don't supply a title; derive one from the address so moderators have a
+        // label. The admin sets the proper name on approval. Never empty (title is NOT NULL).
+        const title = (address || description.slice(0, 80) || 'Предложение от гост').slice(0, 200);
+        if (!address && !description && !(req.files && req.files.length)) {
+            return res.status(400).json({ error: 'Моля, добавете адрес, описание или снимка.' });
+        }
+
+        const ownsImage  = (b.owns_image === 'true' || b.owns_image === true || b.owns_image === '1') ? 1 : 0;
+        const authorName = ownsImage ? sanitizeText(b.author_name, 80) : '';
+
+        // Anti-spam: cap pending submissions per guest email.
+        const cnt = await dbGet("SELECT COUNT(*) AS n FROM pending_addresses WHERE guest_email=? AND status='pending'", [email]);
+        if (cnt && cnt.n >= 10) return res.status(429).json({ error: 'Достигнахте лимита на чакащи предложения за този имейл. Изчакайте модерация.' });
+
+        const urls = [];
+        for (const f of (req.files || [])) {
+            try {
+                const base = crypto.randomBytes(16).toString('hex');
+                urls.push(await uploadPhotoToR2(f.buffer, `pending/${base}`));
+            } catch (e) { console.warn('guest suggest: skipped a bad photo -', e.message); }
+        }
+        const image_path = urls.length ? JSON.stringify(urls) : null;
+
+        const id  = crypto.randomUUID();
+        const now = new Date().toISOString();
+        await dbRun(
+            `INSERT INTO pending_addresses (id,user_id,guest_email,title,description,city,address,lat,lng,category,image_path,status,created_at,owns_image,author_name)
+             VALUES (?,NULL,?,?,?,?,?,?,?,?,?,'pending',?,?,?)`,
+            [id, email, title, description || null, null, address || null, null, null, 'home', image_path, now, ownsImage, authorName || null]
+        );
+        res.status(201).json({ id, status: 'pending', photos: urls.length });
+
+        // TRIGGER 1: confirm receipt to the guest (fire-and-forget).
+        sendEmail({
+            to: email,
+            subject: 'Получихме Вашето предложение за адрес 📨',
+            html: submissionReceivedEmailHtml(title),
+        }).catch(() => {});
+    } catch (e) {
+        console.error('guest suggest error:', e.message);
         res.status(500).json({ error: 'Грешка при изпращане. Опитайте отново.' });
     }
 });
@@ -2163,8 +2479,9 @@ app.get('/api/admin/pending', requireModerator, async (req, res) => {
         const rows = await dbAll(
             `SELECT p.id,p.title,p.description,p.city,p.address,p.lat,p.lng,p.category,p.image_path,
                     p.status,p.created_at,p.result_slug,p.owns_image,p.author_name,p.denied,p.moderation_note,
-                    p.hidden_from_history, u.email AS user_email
-             FROM pending_addresses p JOIN users u ON u.id = p.user_id
+                    p.hidden_from_history, COALESCE(u.email, p.guest_email) AS user_email,
+                    (p.user_id IS NULL) AS is_guest
+             FROM pending_addresses p LEFT JOIN users u ON u.id = p.user_id
              WHERE p.status = ? AND p.hidden_from_history = ? ORDER BY p.created_at ASC LIMIT 500`,
             [status, wantHidden ? 1 : 0]
         );
@@ -2189,6 +2506,7 @@ app.get('/api/admin/pending', requireModerator, async (req, res) => {
                 status: r.status, denied: !!r.denied, created_at: r.created_at,
                 moderation_note: r.moderation_note || '',
                 user_email: isAdmin ? r.user_email : null,        // moderators never see private emails
+                is_guest: !!r.is_guest,                           // anonymous (no account) submission
                 slug: r.result_slug || null,
                 owns_image: !!r.owns_image, author_name: r.author_name || '',
                 hidden_from_history: !!r.hidden_from_history,
@@ -2281,7 +2599,15 @@ app.post('/api/admin/moderate/:id', requireRole('admin'), acceptPhotos('images')
             const note = sanitizeText(b.note, 1000) || null;
             await dbRun("UPDATE pending_addresses SET status='rejected', denied=0, reviewed_at=?, reviewed_by=?, moderation_note=? WHERE id=?",
                 [now, req.user.sub, note, row.id]);
-            return res.json({ id: row.id, status: 'rejected', denied: 0, note });
+            res.json({ id: row.id, status: 'rejected', denied: 0, note });
+            // TRIGGER 3: returned for correction - email the submitter the admin's note.
+            submissionRecipientEmail(row)
+                .then(to => to && sendEmail({
+                    to, subject: 'Вашето предложение се нуждае от корекция ✍️',
+                    html: correctionEmailHtml(row.title, note),
+                }))
+                .catch(() => {});
+            return;
         }
 
         // ── Deny entirely: a final rejection. Delete the photos from R2 and mark the
@@ -2291,7 +2617,15 @@ app.post('/api/admin/moderate/:id', requireRole('admin'), acceptPhotos('images')
             for (const u of pendingUrls) { await deleteR2(u); await deleteR2(pendingThumbUrl(u)); }
             await dbRun("UPDATE pending_addresses SET status='rejected', denied=1, image_path=NULL, reviewed_at=?, reviewed_by=?, moderation_note=? WHERE id=?",
                 [now, req.user.sub, note, row.id]);
-            return res.json({ id: row.id, status: 'rejected', denied: 1, note });
+            res.json({ id: row.id, status: 'rejected', denied: 1, note });
+            // TRIGGER 4: rejected outright - email the submitter the admin's reason.
+            submissionRecipientEmail(row)
+                .then(to => to && sendEmail({
+                    to, subject: 'Относно Вашето предложение за адрес',
+                    html: rejectionEmailHtml(row.title, note),
+                }))
+                .catch(() => {});
+            return;
         }
 
         // ── Approve, applying moderator edits ──
@@ -2371,11 +2705,11 @@ app.post('/api/admin/moderate/:id', requireRole('admin'), acceptPhotos('images')
         cache.clear();
         res.json({ id: row.id, status: 'approved', slug, photos: images.length });
 
-        // Notify the suggester that their submission is now live (fire-and-forget).
-        dbGet('SELECT email FROM users WHERE id=?', [row.user_id])
-            .then(u => u && u.email && sendEmail({
-                to: u.email,
-                subject: 'Вашето предложение е одобрено! 🎉',
+        // TRIGGER 2: notify the suggester (registered user or guest) that it's now live.
+        submissionRecipientEmail(row)
+            .then(to => to && sendEmail({
+                to,
+                subject: 'Поздравления! Вашият адрес е одобрен 🎉',
                 html: approvalEmailHtml(title, `${DOMAIN}/address.html?slug=${encodeURIComponent(slug)}`),
             }))
             .catch(() => {});

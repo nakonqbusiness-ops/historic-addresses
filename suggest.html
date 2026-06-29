@@ -29,10 +29,10 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Mulish:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
-    <link rel="stylesheet" href="assets/css/styles.css?v=10">
+    <link rel="stylesheet" href="assets/css/styles.css?v=13">
     <script defer src="assets/js/theme.js"></script>
-    <script defer src="assets/js/transitions.js"></script>
-    <script defer src="assets/js/account-nav.js?v=21"></script>
+    <script defer src="assets/js/transitions.js?v=2"></script>
+    <script defer src="assets/js/account-nav.js?v=22"></script>
 
     <style>
         :root { --font-display: 'Cormorant Garamond', Georgia, serif; --font-body: 'Mulish', sans-serif; }
@@ -181,7 +181,7 @@
     <div class="sg-head">
         <p class="sg-eyebrow">Помогни на архива</p>
         <h1 class="sg-title">Предложи локация</h1>
-        <p class="sg-sub">Знаете ли исторически дом, паметник или сграда, които липсват? Изпратете предложение със снимка - нашият екип ще го прегледа и публикува.</p>
+        <p class="sg-sub">Знаете ли исторически дом, паметник или сграда, които липсват? Изпратете предложение със снимка - нашият екип ще го прегледа и публикува. Не е нужен профил.</p>
     </div>
 
     <div class="sg-card">
@@ -189,8 +189,8 @@
         <div class="sg-success" id="sgSuccess">
             <div class="sg-success-icon">✓</div>
             <h2>Благодарим Ви!</h2>
-            <p>Вашето предложение беше изпратено успешно и очаква одобрение от модератор. Можете да следите състоянието му в профила си.</p>
-            <div class="sg-success-actions">
+            <p id="sgSuccessText">Вашето предложение беше изпратено успешно и очаква одобрение от модератор. Можете да следите състоянието му в профила си.</p>
+            <div class="sg-success-actions" id="sgSuccessActions">
                 <a class="primary" href="profile.html">Моите предложения</a>
                 <button type="button" id="sgAgain">Предложи още една</button>
             </div>
@@ -211,47 +211,24 @@
             </div>
 
             <form class="sg-form locked" id="sgForm" novalidate>
-                <div class="sg-field">
-                    <label for="sgTitle">Заглавие / Име <span class="req">*</span></label>
-                    <input id="sgTitle" class="sg-input" type="text" maxlength="200" placeholder="напр. „Къщата на Иван Вазов" или „Първа банка"" required>
-                </div>
-
-                <div class="sg-row">
-                    <div class="sg-field">
-                        <label for="sgCategory">Категория <span class="req">*</span></label>
-                        <select id="sgCategory" class="sg-select" required>
-                            <option value="home">🏠 Дом / Личност</option>
-                            <option value="monument">🏛️ Паметник / сграда / институция</option>
-                            <option value="events">📅 Събитие</option>
-                        </select>
-                    </div>
-                    <div class="sg-field">
-                        <label for="sgCity">Град</label>
-                        <input id="sgCity" class="sg-input" type="text" maxlength="120" placeholder="напр. София">
-                    </div>
+                <!-- Guests only: we need an email to confirm receipt, notify them of the
+                     decision, and auto-link the post if they later create an account. -->
+                <div class="sg-field sg-guest-only" id="sgEmailWrap" hidden>
+                    <label for="sgEmail">Вашият имейл <span class="req">*</span></label>
+                    <input id="sgEmail" class="sg-input" type="email" maxlength="254" placeholder="напр. ivan@example.com" autocomplete="email">
+                    <p class="sg-hint">Ще Ви уведомим по имейл за решението. Ако по-късно си създадете профил със същия имейл, предложението автоматично ще се появи в него.</p>
                 </div>
 
                 <div class="sg-field">
-                    <label for="sgAddress">Адрес (улица)</label>
-                    <input id="sgAddress" class="sg-input" type="text" maxlength="200" placeholder="напр. ул. „Раковски" 12">
+                    <label for="sgAddress">Точен адрес <span class="req">*</span></label>
+                    <input id="sgAddress" class="sg-input" type="text" maxlength="200" placeholder="напр. ул. „Раковски" 12, София">
+                    <p class="sg-hint">Колкото по-точен е адресът, толкова по-лесно ще намерим мястото.</p>
                 </div>
 
                 <div class="sg-field">
-                    <label for="sgDescription">Описание</label>
-                    <textarea id="sgDescription" class="sg-textarea" maxlength="5000" placeholder="Разкажете накратко историята на това място…"></textarea>
+                    <label for="sgDescription">История / Коментар</label>
+                    <textarea id="sgDescription" class="sg-textarea" maxlength="5000" placeholder="Разкажете накратко историята на това място или защо е важно…"></textarea>
                 </div>
-
-                <div class="sg-row">
-                    <div class="sg-field">
-                        <label for="sgLat">Ширина (lat)</label>
-                        <input id="sgLat" class="sg-input" type="text" inputmode="decimal" placeholder="напр. 42.6977">
-                    </div>
-                    <div class="sg-field">
-                        <label for="sgLng">Дължина (lng)</label>
-                        <input id="sgLng" class="sg-input" type="text" inputmode="decimal" placeholder="напр. 23.3219">
-                    </div>
-                </div>
-                <p class="sg-hint" style="margin-top:-0.75rem;margin-bottom:1.25rem;">Координатите са по желание - нужни са, за да се покаже мястото на картата.</p>
 
                 <div class="sg-field">
                     <label>Снимки</label>
@@ -323,27 +300,28 @@
     var previews = document.getElementById('sgPreviews');
     var selectedFiles = [];
     var MAX_FILES = 6;
-    var loggedIn = false;
+    var loggedIn = false;   // true once we confirm a session; guests submit too
 
     function toast(msg, opts) { (window.haToast || function(m){ alert(m); })(msg, opts); }
 
-    // ── Auth gate ──
+    // Show/hide the registered-only vs guest-only fields. Guests get a simplified
+    // form (email + address + history + photos); registered users get the full form.
+    function applyMode(isGuest) {
+        Array.prototype.forEach.call(document.querySelectorAll('.sg-auth-only'), function(el){ el.hidden = isGuest; });
+        Array.prototype.forEach.call(document.querySelectorAll('.sg-guest-only'), function(el){ el.hidden = !isGuest; });
+    }
+
+    // ── Auth gate ── Both guests and registered users can submit; we just adapt the
+    // form. The lock overlay is no longer shown.
     fetch('/api/auth/me', { credentials: 'include' })
         .then(function(r){ return r.ok ? r.json() : null; })
-        .then(function(me){
-            loggedIn = !!me;
-            if (loggedIn) {
-                form.classList.remove('locked');
-                lock.classList.remove('show');
-                enableForm(true);
-            } else {
-                form.classList.add('locked');
-                lock.classList.add('show');
-                enableForm(false);
-            }
-        })
-        .catch(function(){
-            form.classList.add('locked'); lock.classList.add('show'); enableForm(false);
+        .then(function(me){ loggedIn = !!me; })
+        .catch(function(){ loggedIn = false; })
+        .then(function(){
+            lock.classList.remove('show');
+            form.classList.remove('locked');
+            applyMode(!loggedIn);
+            enableForm(true);
         });
 
     function enableForm(on) {
@@ -353,12 +331,11 @@
     }
 
     // ── Image picking (multiple) ──
-    drop.addEventListener('click', function(){ if (loggedIn) fileInput.click(); });
-    drop.addEventListener('dragover', function(e){ e.preventDefault(); if (loggedIn) drop.classList.add('drag'); });
+    drop.addEventListener('click', function(){ fileInput.click(); });
+    drop.addEventListener('dragover', function(e){ e.preventDefault(); drop.classList.add('drag'); });
     drop.addEventListener('dragleave', function(){ drop.classList.remove('drag'); });
     drop.addEventListener('drop', function(e){
         e.preventDefault(); drop.classList.remove('drag');
-        if (!loggedIn) return;
         addFiles(e.dataTransfer.files);
     });
     fileInput.addEventListener('change', function(e){ addFiles(e.target.files); fileInput.value = ''; });
@@ -407,52 +384,73 @@
         return 'Възникна грешка. Моля опитайте отново.';
     }
 
+    function showSuccess() {
+        var txt = document.getElementById('sgSuccessText');
+        var actions = document.getElementById('sgSuccessActions');
+        if (loggedIn) {
+            txt.textContent = 'Вашето предложение беше изпратено успешно и очаква одобрение от модератор. Можете да следите състоянието му в профила си.';
+            actions.innerHTML = '<a class="primary" href="profile.html">Моите предложения</a><button type="button" id="sgAgain">Предложи още една</button>';
+        } else {
+            txt.textContent = 'Вашето предложение беше изпратено успешно и очаква одобрение. Изпратихме потвърждение на имейла Ви и ще Ви уведомим за решението. Създайте профил със същия имейл, за да следите предложенията си.';
+            actions.innerHTML = '<a class="primary" href="register.html">Създай профил</a><button type="button" id="sgAgain">Предложи още една</button>';
+        }
+        document.getElementById('sgAgain').addEventListener('click', resetForm);
+        formWrap.style.display = 'none';
+        success.classList.add('show');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function resetForm() {
+        form.reset(); selectedFiles = []; renderPreviews();
+        document.getElementById('sgOwnNameWrap').hidden = true;
+        success.classList.remove('show'); formWrap.style.display = '';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
     form.addEventListener('submit', function(e){
         e.preventDefault();
-        if (!loggedIn) { lock.classList.add('show'); return; }
 
-        var title = document.getElementById('sgTitle').value.trim();
-        if (!title) { toast('Моля въведете заглавие.'); return; }
-
-        var fd = new FormData();
-        fd.append('title', title);
-        fd.append('category', document.getElementById('sgCategory').value);
-        fd.append('city', document.getElementById('sgCity').value.trim());
-        fd.append('address', document.getElementById('sgAddress').value.trim());
-        fd.append('description', document.getElementById('sgDescription').value.trim());
-        var lat = document.getElementById('sgLat').value.trim();
-        var lng = document.getElementById('sgLng').value.trim();
-        if (lat) fd.append('lat', lat);
-        if (lng) fd.append('lng', lng);
-        selectedFiles.forEach(function(f){ fd.append('images', f); });
+        // Simplified panel for everyone: exact address + history/comment + photos +
+        // watermark. Title/category/coordinates are added by moderators on review.
+        var description = document.getElementById('sgDescription').value.trim();
+        var address     = document.getElementById('sgAddress').value.trim();
         var owns = document.getElementById('sgOwn').checked;
+        var endpoint, fd = new FormData();
+
+        if (!address) { toast('Моля въведете точния адрес.'); return; }
+
+        if (loggedIn) {
+            endpoint = '/api/suggest';
+        } else {
+            // Guests also give an email so we can notify them and link the post later.
+            var email = document.getElementById('sgEmail').value.trim();
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { toast('Моля въведете валиден имейл адрес.'); return; }
+            endpoint = '/api/suggest-guest';
+            fd.append('email', email);
+        }
+        fd.append('address', address);
+        fd.append('description', description);
+
+        selectedFiles.forEach(function(f){ fd.append('images', f); });
         fd.append('owns_image', owns ? 'true' : 'false');
         if (owns) fd.append('author_name', document.getElementById('sgOwnName').value.trim());
 
         setLoading(true);
-        fetch('/api/suggest', { method: 'POST', credentials: 'include', body: fd })
+        fetch(endpoint, { method: 'POST', credentials: 'include', body: fd })
             .then(function(res){
                 return res.json().catch(function(){ return {}; }).then(function(data){ return { ok: res.ok, status: res.status, data: data }; });
             })
             .then(function(r){
                 setLoading(false);
-                if (r.ok) {
-                    formWrap.style.display = 'none';
-                    success.classList.add('show');
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                    return;
-                }
-                if (r.status === 401) { loggedIn = false; form.classList.add('locked'); lock.classList.add('show'); enableForm(false); }
+                if (r.ok) { showSuccess(); return; }
                 toast(friendly(r.data && r.data.error, r.status));
             })
             .catch(function(){ setLoading(false); toast('Възникна грешка при свързване. Проверете интернет връзката си.'); });
     });
 
-    document.getElementById('sgAgain').addEventListener('click', function(){
-        form.reset(); selectedFiles = []; renderPreviews();
-        success.classList.remove('show'); formWrap.style.display = '';
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    });
+    // The initial #sgAgain button (rebuilt by showSuccess) also resets the form.
+    var initialAgain = document.getElementById('sgAgain');
+    if (initialAgain) initialAgain.addEventListener('click', resetForm);
 })();
 </script>
 </body>

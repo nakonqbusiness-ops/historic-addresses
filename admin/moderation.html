@@ -26,9 +26,9 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Mulish:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
-    <link rel="stylesheet" href="/assets/css/styles.css?v=10">
+    <link rel="stylesheet" href="/assets/css/styles.css?v=13">
     <script defer src="/assets/js/theme.js"></script>
-    <script defer src="/assets/js/account-nav.js?v=21"></script>
+    <script defer src="/assets/js/account-nav.js?v=22"></script>
 
     <style>
         :root { --font-display: 'Cormorant Garamond', Georgia, serif; --font-body: 'Mulish', sans-serif; }
@@ -239,8 +239,10 @@
         @media (max-width: 760px) {
             .mod-card { grid-template-columns: 1fr; }
             .mod-img-wrap { width: 100%; height: 200px; }
-            .mod-actions { flex-direction: row; min-width: 0; }
-            .mod-btn { flex: 1; }
+            /* Action buttons share the row and may shrink (min-width:0) / wrap their
+               label so all three fit the screen instead of overflowing to the right. */
+            .mod-actions { flex-direction: row; min-width: 0; gap: 0.4rem; }
+            .mod-btn { flex: 1 1 0; min-width: 0; padding: 0.6rem 0.4rem; font-size: 0.78rem; gap: 0.3rem; line-height: 1.2; }
             .mod-form-grid { grid-template-columns: 1fr; }
         }
     </style>
@@ -511,7 +513,7 @@
         body.appendChild(chip); body.appendChild(name); if (metaBits.length) body.appendChild(meta);
         if (s.description) { var d = document.createElement('p'); d.className = 'mod-desc'; d.textContent = s.description; body.appendChild(d); }
         var sub = document.createElement('div'); sub.className = 'mod-sub';
-        if (s.user_email) { var by = document.createElement('span'); by.appendChild(document.createTextNode('От: ')); var em = document.createElement('strong'); em.textContent = s.user_email; by.appendChild(em); sub.appendChild(by); }
+        if (s.user_email) { var by = document.createElement('span'); by.appendChild(document.createTextNode('От: ')); var em = document.createElement('strong'); em.textContent = s.user_email; by.appendChild(em); if (s.is_guest) by.appendChild(document.createTextNode(' (гост)')); sub.appendChild(by); }
         var dt = document.createElement('span'); dt.textContent = '🕓 ' + fmtDate(s.created_at);
         sub.appendChild(dt);
         body.appendChild(sub);
@@ -649,7 +651,7 @@
         document.getElementById('edDeath').value = '';
         dateMode.value = (s.category === 'events') ? 'one' : 'none';
         applyDateMode();
-        document.getElementById('edSubmitter').innerHTML = 'Изпратено от <strong>' + esc(s.user_email || '-') + '</strong> на ' + esc(fmtDate(s.created_at));
+        document.getElementById('edSubmitter').innerHTML = 'Изпратено от <strong>' + esc(s.user_email || '-') + '</strong>' + (s.is_guest ? ' (гост)' : '') + ' на ' + esc(fmtDate(s.created_at));
 
         renderPhotos();
         modal.classList.add('show');

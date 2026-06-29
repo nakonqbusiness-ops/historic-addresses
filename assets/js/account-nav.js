@@ -35,18 +35,30 @@
             nav.appendChild(sg);
         }
 
-        // Render the account UI ONLY after the auth state is known. Previously the guest
-        // "Вход" pill was injected synchronously and then swapped for the avatar once
-        // /api/auth/me resolved — but on heavier pages (e.g. index, which fires several
-        // API calls the single-threaded DB serialises) that swap was slow enough to flash
-        // "Вход" and bump the mobile nav onto a 3rd row. Now a logged-in user never sees it.
+        // Reserve the account slot SYNCHRONOUSLY with a fixed-size skeleton, so the async
+        // /api/auth/me check can never shift the layout (no late "Вход" spawn / 3rd-row
+        // jump while the cookie check is in flight — this was visible on heavy pages like
+        // addresses/map where the DB serialises many queries and /me resolves late). The
+        // skeleton has the EXACT box of the guest "Вход" pill (same classes + content, only
+        // rendered as a neutral loading placeholder), so the nav lays out in its final shape
+        // from the first paint. On resolve we either turn it into the real link (guest) or
+        // remove it and show the fixed avatar (logged-in) — neither changes the row count.
+        var skel = document.createElement('span');
+        skel.className = 'nav-account nav-account-skel';
+        skel.setAttribute('aria-hidden', 'true');
+        skel.innerHTML = USER_ICON + '<span>Вход</span>';
+        nav.appendChild(skel);
+        function clearSkel() { if (skel && skel.parentNode) skel.parentNode.removeChild(skel); }
+
         function showGuest() {
-            if (nav.querySelector('.nav-account') || header.querySelector('.nav-user')) return;
+            if (nav.querySelector('.nav-account:not(.nav-account-skel)') || header.querySelector('.nav-user')) return;
             var a = document.createElement('a');
             a.className = 'nav-account';
             a.href = '/login.html';   // absolute so it works from /admin/ pages too
             a.innerHTML = USER_ICON + '<span>Вход</span>';
-            nav.appendChild(a);
+            // Swap the skeleton in place (identical box) → seamless, zero layout shift.
+            if (skel && skel.parentNode) skel.parentNode.replaceChild(a, skel);
+            else nav.appendChild(a);
         }
         fetch('/api/auth/me', { credentials: 'include' })
             .then(function (r) { return r.ok ? r.json() : null; })
@@ -54,6 +66,7 @@
                 if (me) {
                     // LOGGED IN: show the compact avatar dropdown (also absorbs the theme toggle).
                     document.body.classList.add('is-auth');
+                    clearSkel();
                     buildUserMenu(header, me);
                 } else {
                     showGuest();

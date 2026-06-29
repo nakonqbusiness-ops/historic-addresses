@@ -236,11 +236,11 @@ html, body {
 }
 
 body {
-    animation: fadeIn 0.4s ease-out;
+    animation: fadeIn 0.22s ease-out;
 }
 
 body.page-exiting {
-    animation: pageExit 0.3s ease-in forwards;
+    animation: pageExit 0.13s ease-in forwards;
 }
 
 /* Entrance animations */
@@ -283,10 +283,31 @@ body.page-exiting {
     align-items: center;
     justify-content: space-between;
     /* !!! НОВА ВИСОЧИНА !!! */
-    height: 60px; 
+    height: 60px;
     padding: 0 clamp(1rem, 4vw, 2.5rem); /* Премахнах 16px padding-top/bottom */
     z-index: 20;
     box-shadow: var(--shadow-soft);
+    /* Pin the header typography to the shared vintage SYSTEM serif (the index header,
+       which the user confirmed is correct). Pages that set a different body font
+       (map/address use Mulish) no longer change the header. Using a system-font stack
+       (no web font on the nav) also removes the FOUT reflow that briefly bumped the
+       mobile nav onto a 3rd row while Mulish loaded. The avatar dropdown keeps its own
+       explicit fonts. */
+    font-family: "Baskerville", "Garamond", "Georgia", "Times New Roman", serif;
+}
+/* Several pages set a universal font rule (e.g. `.cal-page * { font-family: Mulish }`)
+   that targets the nav links DIRECTLY, which an inherited .site-header font can't beat.
+   Force the header bar text (logo + nav links + the injected Предложи/Вход/Модерация)
+   to the shared SYSTEM serif with !important so every page's header is identical — and
+   so the nav never uses a web font (no FOUT reflow that briefly bumped it to a 3rd row).
+   The avatar dropdown (.nav-user-*) is not matched, so it keeps its own fonts. */
+header.site-header .logo-text,
+header.site-header .nav a,
+header.site-header .nav-suggest,
+header.site-header .nav-account,
+header.site-header .nav-account span,
+header.site-header .nav-mod {
+    font-family: "Baskerville", "Garamond", "Georgia", "Times New Roman", serif !important;
 }
 
 .logo {
@@ -358,6 +379,22 @@ body.page-exiting {
 }
 .nav-account:hover { background: var(--accent-strong); color: #fff; }
 .nav-account::after { display: none !important; } /* no nav underline animation */
+/* Loading placeholder injected by account-nav.js to reserve the login/avatar slot
+   while /api/auth/me is in flight. Same box as .nav-account (so swapping in the real
+   "Вход" link causes no layout shift), but rendered as a neutral pulsing pill: the
+   icon + label are made invisible via transparent currentColor, leaving only the
+   reserved space. Removed (logged-in) or replaced (guest) once auth resolves. */
+.nav-account-skel {
+    color: transparent !important;
+    border-color: var(--border) !important;
+    background: rgba(205, 133, 63, 0.06);
+    pointer-events: none;
+    cursor: default;
+    animation: navSkelPulse 1.1s ease-in-out infinite;
+}
+.nav-account-skel svg { opacity: 0; }
+@keyframes navSkelPulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 0.9; } }
+@media (prefers-reduced-motion: reduce) { .nav-account-skel { animation: none; } }
 
 /* Moderation quick-link (owners/moderators only), injected by account-nav.js */
 .nav-mod {
@@ -1375,18 +1412,30 @@ button:not(.theme-toggle):not(.preview-item button):active {
         display: none; /* Hide decorative symbols on mobile */
     }
 
-    /* Pack the nav onto 2 rows (4 links on top, 2 + "Предложи" on the bottom). */
+    /* Pack the nav onto 2 rows (4 links on top, 3 on the bottom). The link size is
+       FLUID: it grows with the viewport so the links fill the width and stay easy to
+       read on big phones/tablets, but shrinks on ~320px phones so all 7 links still
+       fit on 2 rows. Capped so it never gets oversized before the desktop layout. */
     .nav {
         flex-wrap: wrap;
-        gap: 0.4rem 0.55rem;
-        font-size: 0.74rem;
+        gap: 0.45rem 0.6rem;
         max-width: 100%;
     }
 
     .nav a {
-        padding: 0.25rem 0.2rem;
+        font-size: clamp(0.64rem, 3.2vw, 1rem);
+        padding: 0.3rem 0.25rem;
         letter-spacing: 0.02em;
     }
+
+    /* The Вход/account pill is an <a>, so the rule above would squash its sides to
+       ~3px — smaller than the icon↔label gap, making "Вход" look shoved right. Give it
+       its own balanced padding (sides > gap) and keep it compact so the 8-item guest
+       nav still fits 2 rows. Specificity (.nav .nav-account) beats `.nav a`. */
+    /* Vertical padding tuned so the pill's total height ≈ a plain nav link's height —
+       this keeps row 2 the same height whether the login pill/avatar is present or not,
+       so the auth check can't change the nav height (no CLS) for guests OR logged-in. */
+    .nav .nav-account { padding: 0.18rem 0.48rem; gap: 0.28rem; }
 
     /* Hero section */
     .hero {
@@ -1611,18 +1660,25 @@ button:not(.theme-toggle):not(.preview-item button):active {
         font-size: 1.75rem;
     }
 
+    /* Keep the whole nav on 2 rows (4 + 3) even on ~320px phones, so the
+       "Предложи" link never drops onto a 3rd row alone. Font size is the fluid
+       clamp() from the ≤768 block (bottoms out at 0.64rem here); we just tighten the
+       gaps/padding so the 4-link top row still fits the narrowest phones. */
     .nav {
         flex-wrap: wrap;
         justify-content: flex-start;
         width: 100%;
-        gap: 0.3rem 0.45rem;
+        gap: 0.3rem 0.28rem;
     }
 
     .nav a {
-        font-size: 0.72rem;
-        padding: 0.28rem 0.32rem;
-        letter-spacing: 0.02em;
+        padding: 0.26rem 0.2rem;
+        letter-spacing: 0;
     }
+
+    /* Trim the pill a touch more on the smallest phones so the guest "Вход" stays on
+       row 2 (not a lonely 3rd row) down to ~360px. */
+    .nav .nav-account { padding: 0.18rem 0.4rem; gap: 0.26rem; }
 
     .page-title {
         font-size: 1.5rem;

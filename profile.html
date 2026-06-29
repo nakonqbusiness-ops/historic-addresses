@@ -29,9 +29,9 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Mulish:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
-    <link rel="stylesheet" href="assets/css/styles.css?v=10">
+    <link rel="stylesheet" href="assets/css/styles.css?v=13">
     <script defer src="assets/js/theme.js"></script>
-    <script defer src="assets/js/transitions.js"></script>
+    <script defer src="assets/js/transitions.js?v=2"></script>
 
     <style>
         /* Design tokens scoped to .pf-page so the shared header/footer keep the global palette. */
@@ -125,8 +125,6 @@
         .pf-section-head { display:flex; align-items:baseline; gap:.6rem; flex-wrap:wrap; margin:0 0 1.3rem; padding-bottom:.75rem; border-bottom:1px solid var(--line); }
         .pf-section-title { font-family:var(--font-display); font-size:1.8rem; font-weight:700; color:var(--fg); margin:0; white-space:nowrap; }
         .pf-section-count { font-size:.82rem; color:var(--muted); }
-        .pf-suggest-link { margin-left:auto; color:var(--gold); font-weight:700; font-size:.85rem; text-decoration:none; white-space:nowrap; }
-        .pf-suggest-link:hover { text-decoration:underline; }
         .pf-saved-block + .pf-saved-block { margin-top:2.6rem; }
 
         /* ── Stats ledger ── */
@@ -316,7 +314,6 @@
             .pf-top h1 { font-size:1.8rem; }
             .place-grid { grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:.9rem; }
             .pf-section-head { flex-wrap:wrap; }
-            .pf-suggest-link { margin-left:0; flex-basis:100%; }
             .pf-stat { padding:1.1rem .5rem; }
             .pf-stat-num { font-size:2rem; }
             .pf-stat-label { font-size:.7rem; }
@@ -327,7 +324,7 @@
             .sub-card > .place-body { order:3; flex-basis:100%; }
         }
     </style>
-    <script defer src="assets/js/account-nav.js?v=21"></script>
+    <script defer src="assets/js/account-nav.js?v=22"></script>
 </head>
 
 <body class="pf-page">
@@ -421,7 +418,6 @@
             <div class="pf-section-head">
                 <h2 class="pf-section-title">Моите предложения</h2>
                 <span class="pf-section-count" id="subsCount"></span>
-                <a class="pf-suggest-link" href="suggest.html">+ Предложи локация</a>
             </div>
             <div id="subsEmpty"></div>
 

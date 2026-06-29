@@ -27,9 +27,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400;1,600&family=Mulish:wght@300;400;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/styles.css?v=10">
+<link rel="stylesheet" href="assets/css/styles.css?v=13">
 <script defer src="assets/js/theme.js"></script>
-<script defer src="assets/js/transitions.js"></script>
+<script defer src="assets/js/transitions.js?v=2"></script>
 <script defer src="assets/js/calendar-popup.js"></script>
 <style>
 :root{--fd:'Cormorant Garamond',Georgia,serif;--fb:'Mulish',sans-serif}
@@ -260,6 +260,10 @@ html, body {
   .gh-thumb,.gh-hero{border-radius:7px}
   .gh-cue{display:none}
   .dp-body{padding:0.9rem 1rem 3rem}
+  /* Keep Любими/Посетени side by side (not stacked) on narrow screens so the
+     biography sits closer to the images. */
+  .dp-actions{flex-wrap:nowrap;gap:.5rem;margin-bottom:1.25rem}
+  .dp-act{flex:1 1 0;min-width:0;justify-content:center;padding:.6rem .5rem}
   .dp-bio{grid-template-columns:1fr;gap:1.5rem}
   .dp-portrait-col{flex-direction:row;align-items:flex-start;gap:1.25rem}
   .dp-portrait{width:140px;height:176px}
@@ -298,7 +302,7 @@ html, body {
     box-shadow: none !important;
 }
 </style>
-    <script defer src="assets/js/account-nav.js?v=21"></script>
+    <script defer src="assets/js/account-nav.js?v=22"></script>
 </head>
 <body>
 <script>
@@ -628,26 +632,55 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')closeEmailMo
     else if(dx>0&&lbIdx>0){lbIdx--;lbImg.src=srcs[lbIdx];upLb();}
   },{passive:true});
 
-  /* SEO */
+  /* SEO — mirrors the server-side injection in server.js (renderAddressSeo) so the
+     rendered DOM matches what crawlers get on the first byte. Also covers the case
+     where the page was served statically (no ?slug match) by filling tags client-side. */
+  function seoImg(p){
+    var path=p.images&&p.images[0]&&p.images[0].path;
+    if(!path) return 'https://historyaddress.bg/assets/img/HistAdrLogoOrig.png';
+    return /^https?:\/\//i.test(path) ? path : 'https://historyaddress.bg/'+path; // R2 paths are already absolute
+  }
+  function seoText(p){
+    var name=(p.name||'').trim()||'Историческа локация', cat=p.category||'home';
+    if(cat==='monument') return {title:name+' - история, снимки и локация | Адресът на историята',
+      desc:'Научете повече за '+name+'. История, интересни факти, снимки и точни координати на локацията на картата.'};
+    if(cat==='events') return {title:name+' - история, дата и място | Адресът на историята',
+      desc:'Научете повече за '+name+'. Историята на събитието, дата, снимки и точни координати на мястото на картата.'};
+    return {title:name+' - история, къща и биография | Адресът на историята',
+      desc:'Научете повече за живота на '+name+'. Открийте къде е живял, исторически факти, снимки и точни координати на локацията на картата.'};
+  }
   function seo(p){
     var u='https://historyaddress.bg/address.html?slug='+encodeURIComponent(slug);
-    var d=p.biography?p.biography.substring(0,155):'Исторически адрес: '+(p.address||'');
-    var i=(p.images&&p.images[0]&&p.images[0].path)?'https://historyaddress.bg/'+p.images[0].path:'https://historyaddress.bg/assets/img/HistAdrLogoOrig.png';
-    document.title=p.name+' - Адресът на историята';
-    [['meta[name="description"]','content',d],['link[rel="canonical"]','href',u],
-     ['meta[property="og:url"]','content',u],['meta[property="og:title"]','content',p.name],
-     ['meta[property="og:description"]','content',d],['meta[property="og:image"]','content',i],
-     ['meta[property="twitter:url"]','content',u],['meta[property="twitter:title"]','content',p.name],
-     ['meta[property="twitter:description"]','content',d],['meta[property="twitter:image"]','content',i]
+    var st=seoText(p), i=seoImg(p);
+    document.title=st.title;
+    [['meta[name="description"]','content',st.desc],['link[rel="canonical"]','href',u],
+     ['meta[property="og:url"]','content',u],['meta[property="og:title"]','content',st.title],
+     ['meta[property="og:description"]','content',st.desc],['meta[property="og:image"]','content',i],
+     ['meta[property="twitter:url"]','content',u],['meta[property="twitter:title"]','content',st.title],
+     ['meta[property="twitter:description"]','content',st.desc],['meta[property="twitter:image"]','content',i]
     ].forEach(function(x){var n=document.querySelector(x[0]);if(n)n.setAttribute(x[1],x[2]);});
   }
   function schema(p){
-    var s=document.createElement('script'); s.type='application/ld+json';
-    var d={'@context':'https://schema.org','@type':'Place',name:p.name,description:p.biography||'',
-      address:{'@type':'PostalAddress',streetAddress:p.address||'',addressCountry:'BG'}};
-    if(p.coordinates&&p.coordinates.lat)d.geo={'@type':'GeoCoordinates',latitude:p.coordinates.lat,longitude:p.coordinates.lng};
-    if(p.images&&p.images[0])d.image='https://historyaddress.bg/'+p.images[0].path;
-    s.textContent=JSON.stringify(d); document.head.appendChild(s);
+    if(document.getElementById('ld-place'))return;   // server already injected the JSON-LD
+    var name=(p.name||'').trim()||'Историческа локация', cat=p.category||'home';
+    var u='https://historyaddress.bg/address.html?slug='+encodeURIComponent(slug);
+    var img=seoImg(p), desc=(p.biography&&p.biography.trim())||seoText(p).desc;
+    var geo=(p.coordinates&&p.coordinates.lat)?{'@type':'GeoCoordinates',latitude:p.coordinates.lat,longitude:p.coordinates.lng}:null;
+    var postal={'@type':'PostalAddress',addressCountry:'BG'}; if(p.address)postal.streetAddress=p.address;
+    var landmark={'@type':cat==='events'?'Place':'HistoricalLandmark',name:cat==='home'?'Къщата на '+name:name,
+      description:desc,url:u,image:img,address:postal};
+    if(geo)landmark.geo=geo;
+    var graph;
+    if(cat==='home'){
+      var person={'@type':'Person',name:name,description:desc,image:img,url:u};
+      if(p.birth_date)person.birthDate=p.birth_date;
+      if(p.death_date)person.deathDate=p.death_date;
+      person.homeLocation=Object.assign({'@type':'Place',name:landmark.name},geo?{geo:geo}:{});
+      graph=[person,landmark];
+    } else { graph=[landmark]; }
+    var s=document.createElement('script'); s.type='application/ld+json'; s.id='ld-place';
+    s.textContent=JSON.stringify({'@context':'https://schema.org','@graph':graph});
+    document.head.appendChild(s);
   }
 })();
 </script>
