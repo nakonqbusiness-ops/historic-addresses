@@ -21,10 +21,56 @@
         });
     }
 
+    /* ── Auth-state cache ────────────────────────────────────────────────────────
+       The header's shape depends on whether you're logged in (avatar dropdown +
+       theme toggle tucked inside it) or a guest (a "Вход" pill + standalone theme
+       toggle). Deciding that only AFTER the async /api/auth/me round-trip used to
+       rebuild the header live — a visible flash, left/right jitter and a transient
+       3rd nav row on slow pages (map/addresses serialise many DB queries, so /me
+       resolves late). We instead remember the last known state here and paint it
+       synchronously on the next load, then merely CONFIRM with the server in the
+       background — touching the DOM again only if the state actually changed. */
+    var AUTH_CACHE_KEY = 'ha_auth_v1';
+    function readAuthCache() {
+        try { var raw = localStorage.getItem(AUTH_CACHE_KEY); return raw ? JSON.parse(raw) : null; }
+        catch (e) { return null; }
+    }
+    function writeAuthCache(info) {
+        try { localStorage.setItem(AUTH_CACHE_KEY, JSON.stringify(info || { l: 0 })); }
+        catch (e) {}
+    }
+    // Compact, render-ready snapshot of /api/auth/me (only what buildUserMenu needs).
+    function normalizeMe(me) {
+        var name = (me.display_name && me.display_name.trim()) || me.email || 'Профил';
+        return { l: 1, name: name, role: me.role,
+                 tr: me.totp_required ? 1 : 0, te: me.totp_enabled ? 1 : 0 };
+    }
+    // Identity signature: if the live value matches what we already painted, we skip
+    // the DOM rebuild entirely (the no-reflow happy path).
+    function authSig(info) {
+        return info && info.l === 1
+            ? 'auth|' + info.name + '|' + info.role + '|' + info.tr + '|' + info.te
+            : 'guest';
+    }
+
+    // Exposed so the login/register pages can prime the cache the instant a session is
+    // created — then the page they redirect to paints the right header on its FIRST frame
+    // (no guest→avatar swap after login). refresh() pulls /api/auth/me and stores it.
+    window.haAuth = {
+        refresh: function () {
+            return fetch('/api/auth/me', { credentials: 'include' })
+                .then(function (r) { return r.ok ? r.json() : null; })
+                .then(function (me) { writeAuthCache(me ? normalizeMe(me) : null); return me; })
+                .catch(function () { return null; });
+        },
+        clear: function () { writeAuthCache(null); }
+    };
+
     function injectAccountLink() {
         var header = document.querySelector('header.site-header');
         var nav = header && header.querySelector('.nav');
-        if (!nav || nav.querySelector('.nav-account') || header.querySelector('.nav-user')) return;
+        if (!nav || nav.dataset.accountReady) return;
+        nav.dataset.accountReady = '1';
 
         // "Предложи" — a normal nav link (gold, no box/button), on desktop and mobile.
         if (!nav.querySelector('.nav-suggest')) {
@@ -35,55 +81,70 @@
             nav.appendChild(sg);
         }
 
-        // Reserve the account slot SYNCHRONOUSLY with a fixed-size skeleton, so the async
-        // /api/auth/me check can never shift the layout (no late "Вход" spawn / 3rd-row
-        // jump while the cookie check is in flight — this was visible on heavy pages like
-        // addresses/map where the DB serialises many queries and /me resolves late). The
-        // skeleton has the EXACT box of the guest "Вход" pill (same classes + content, only
-        // rendered as a neutral loading placeholder), so the nav lays out in its final shape
-        // from the first paint. On resolve we either turn it into the real link (guest) or
-        // remove it and show the fixed avatar (logged-in) — neither changes the row count.
-        var skel = document.createElement('span');
-        skel.className = 'nav-account nav-account-skel';
-        skel.setAttribute('aria-hidden', 'true');
-        skel.innerHTML = USER_ICON + '<span>Вход</span>';
-        nav.appendChild(skel);
-        function clearSkel() { if (skel && skel.parentNode) skel.parentNode.removeChild(skel); }
-
-        function showGuest() {
-            if (nav.querySelector('.nav-account:not(.nav-account-skel)') || header.querySelector('.nav-user')) return;
+        // Theme toggle lives standalone in the bar for guests, but moves INSIDE the
+        // avatar menu when logged in. Put it back in the bar when reverting to guest.
+        function restoreThemeToggle() {
+            var t = document.getElementById('theme-toggle');
+            if (t && t.parentNode !== header) header.appendChild(t);
+        }
+        // Remove whatever account UI is currently mounted (guest pill or avatar menu),
+        // returning the header to a clean slate so the correct variant can be built.
+        function clearAccountUI() {
+            var link = nav.querySelector('.nav-account');
+            if (link) link.parentNode.removeChild(link);
+            var user = header.querySelector('.nav-user');
+            if (user) { restoreThemeToggle(); user.parentNode.removeChild(user); }
+            document.body.classList.remove('is-auth');
+        }
+        function renderGuest() {
+            clearAccountUI();
+            restoreThemeToggle();
             var a = document.createElement('a');
             a.className = 'nav-account';
             a.href = '/login.html';   // absolute so it works from /admin/ pages too
             a.innerHTML = USER_ICON + '<span>Вход</span>';
-            // Swap the skeleton in place (identical box) → seamless, zero layout shift.
-            if (skel && skel.parentNode) skel.parentNode.replaceChild(a, skel);
-            else nav.appendChild(a);
+            nav.appendChild(a);
         }
+        function renderAuth(info) {
+            clearAccountUI();
+            document.body.classList.add('is-auth');   // also absorbs the theme toggle
+            buildUserMenu(header, info);
+        }
+
+        // 1) Paint the LAST-KNOWN state immediately, so the header is right on the
+        //    first frame: no skeleton, no "Вход → avatar" flash, no reflow when the
+        //    state hasn't changed since last visit. Unknown (first visit / cleared
+        //    storage) optimistically shows the guest link; the fetch corrects it.
+        var cached = readAuthCache();
+        var shownSig;
+        if (cached && cached.l === 1) { renderAuth(cached); shownSig = authSig(cached); }
+        else { renderGuest(); shownSig = 'guest'; }
+
+        // 2) Confirm with the server in the background. Rebuild only on a real change.
         fetch('/api/auth/me', { credentials: 'include' })
             .then(function (r) { return r.ok ? r.json() : null; })
             .then(function (me) {
                 if (me) {
-                    // LOGGED IN: show the compact avatar dropdown (also absorbs the theme toggle).
-                    document.body.classList.add('is-auth');
-                    clearSkel();
-                    buildUserMenu(header, me);
+                    var info = normalizeMe(me);
+                    if (authSig(info) !== shownSig) renderAuth(info);
+                    writeAuthCache(info);
                 } else {
-                    showGuest();
+                    if (shownSig !== 'guest') renderGuest();
+                    writeAuthCache(null);
                 }
             })
-            .catch(function () { showGuest(); });
+            .catch(function () { /* offline: keep the optimistic render, don't thrash */ });
     }
 
-    function buildUserMenu(header, me) {
-        var name    = (me.display_name && me.display_name.trim()) || me.email || 'Профил';
+    function buildUserMenu(header, info) {
+        var name    = info.name || 'Профил';
         var initial = (name.trim().charAt(0) || '?').toUpperCase();
-        var role    = roleLabel(me.role) || 'Потребител';
-        var isMod   = me.role === 'owner' || me.role === 'admin' || me.role === 'moderator';
-        var isAdmin = me.role === 'owner' || me.role === 'admin';
+        var role    = roleLabel(info.role) || 'Потребител';
+        var isMod   = info.role === 'owner' || info.role === 'admin' || info.role === 'moderator';
+        var isAdmin = info.role === 'owner' || info.role === 'admin';
         // Staff must have 2FA; if they don't yet, point the staff links straight at the
         // 2FA enrol section so they land exactly where they need to act.
-        var needs2fa  = !!me.totp_required && !me.totp_enabled;
+        var needs2fa  = !!info.tr && !info.te;
         var dashHref  = needs2fa ? '/profile.html#twofa' : '/admin/dashboard.html';
         var modHref   = needs2fa ? '/profile.html#twofa' : '/admin/moderation.html';
 
@@ -153,6 +214,7 @@
         });
 
         menu.querySelector('.nav-user-logout').addEventListener('click', function () {
+            writeAuthCache(null);   // forget the cached identity → next page paints as guest
             fetch('/api/auth/logout', { method: 'POST', credentials: 'include' })
                 .catch(function () {})
                 .then(function () { location.href = '/index.html'; });

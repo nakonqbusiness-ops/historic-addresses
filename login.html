@@ -29,7 +29,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Mulish:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
-    <link rel="stylesheet" href="assets/css/styles.css?v=13">
+    <link rel="stylesheet" href="assets/css/styles.css?v=14">
     <script defer src="assets/js/theme.js"></script>
     <script defer src="assets/js/transitions.js?v=2"></script>
 
@@ -122,7 +122,7 @@
         .auth-alt a { color: var(--accent-strong); font-weight: 600; text-decoration: none; }
         .auth-alt a:hover { text-decoration: underline; }
     </style>
-    <script defer src="assets/js/account-nav.js?v=22"></script>
+    <script defer src="assets/js/account-nav.js?v=23"></script>
 </head>
 
 <body class="auth-page">
@@ -239,9 +239,16 @@
     var btn      = document.getElementById('submitBtn');
     var btnLabel = document.getElementById('btnLabel');
 
+    // Prime the header's auth cache, THEN navigate — so the destination page paints the
+    // logged-in header (avatar) on its first frame instead of flashing the guest "Вход".
+    function cacheThenGo(target) {
+        var p = (window.haAuth && window.haAuth.refresh) ? window.haAuth.refresh() : Promise.resolve();
+        p.then(function () { location.replace(target); });
+    }
+
     // If already logged in, skip straight to the profile.
     fetch('/api/auth/me', { credentials: 'include' })
-        .then(function(r) { if (r.ok) location.replace('profile.html'); })
+        .then(function(r) { if (r.ok) cacheThenGo('profile.html'); })
         .catch(function() {});
 
     // Password show/hide
@@ -329,8 +336,8 @@
         })
         .then(function(r) {
             if (r.ok && r.data && r.data.twofa_required) { showTwofa(r.data.pending); return; }
-            if (r.ok && r.data && r.data.enroll_2fa_required) { location.replace('profile.html#twofa'); return; }
-            if (r.ok) { location.replace('profile.html'); return; }
+            if (r.ok && r.data && r.data.enroll_2fa_required) { cacheThenGo('profile.html#twofa'); return; }
+            if (r.ok) { cacheThenGo('profile.html'); return; }
             setLoading(false);
             showError(friendlyError(r.data && r.data.error, r.status));
         })
@@ -358,7 +365,7 @@
             });
         })
         .then(function(r) {
-            if (r.ok) { location.replace('profile.html'); return; }
+            if (r.ok) { cacheThenGo('profile.html'); return; }
             setTwofaLoading(false);
             if (r.status === 401 && r.data && /изтече/.test(r.data.error || '')) { showError(r.data.error); setTimeout(backToLogin, 1500); return; }
             showError((r.data && r.data.error) || 'Невалиден код.');

@@ -624,6 +624,30 @@ async function issueVerification(userId, email) {
     return sendEmail({ to: email, subject: 'Потвърдете имейла си - Адресът на историята', html: verifyEmailHtml(link) });
 }
 
+// Account claiming: attach any anonymous (guest) submissions made with this exact email
+// to the given user, transferring ownership (and the stats/badges that derive from the
+// owned rows). Called whenever we have a CONFIRMED email→account link: at registration,
+// AND at every login — so a submission a visitor made while logged out, using the email
+// of an account they already own, also lands in their profile the next time they sign in.
+// Matches all statuses (pending/approved/returned) so a "returned for correction" guest
+// post becomes editable from the profile. Idempotent and best-effort: never throws.
+async function claimGuestSubmissions(userId, email) {
+    const e = String(email || '').trim().toLowerCase();
+    if (!userId || !e) return 0;
+    try {
+        const r = await dbRun(
+            'UPDATE pending_addresses SET user_id=?, guest_email=NULL WHERE guest_email=? AND user_id IS NULL',
+            [userId, e]
+        );
+        const n = (r && r.changes) || 0;
+        if (n) console.log(`🔗 Linked ${n} guest submission(s) to user ${e}`);
+        return n;
+    } catch (err) {
+        console.warn('guest-claim failed:', err.message);
+        return 0;
+    }
+}
+
 // Role gate, e.g. requireUserRole('owner','admin')
 function requireUserRole(...roles) {
     return (req, res, next) => requireUser(req, res, () => {
@@ -1696,13 +1720,7 @@ app.post('/api/auth/register', rateLimitAuth, async (req, res) => {
         // Account claiming: any past anonymous submissions made with this exact email are
         // transferred to the new profile (ownership + stats/badges, which derive from the
         // owned rows). Best-effort: never block or fail the registration over it.
-        try {
-            const r = await dbRun(
-                'UPDATE pending_addresses SET user_id=?, guest_email=NULL WHERE guest_email=? AND user_id IS NULL',
-                [id, email]
-            );
-            if (r && r.changes) console.log(`🔗 Linked ${r.changes} guest submission(s) to new user ${email}`);
-        } catch (e) { console.warn('guest-claim on register failed:', e.message); }
+        await claimGuestSubmissions(id, email);
 
         issueAuthCookie(res, { id, role: 'user' });
         res.status(201).json({ id, email, role: 'user', email_verified: false });
@@ -1731,6 +1749,8 @@ app.post('/api/auth/login', rateLimitAuth, async (req, res) => {
             return res.json({ twofa_required: true, pending: sign2faPending(user.id) });
         }
         issueAuthCookie(res, { id: user.id, role: user.role });
+        // Claim any guest submissions left under this email (e.g. submitted while logged out).
+        await claimGuestSubmissions(user.id, user.email);
         // Staff without 2FA can sign in but must enrol before using staff tools.
         res.json({ id: user.id, email: user.email, role: user.role, enroll_2fa_required: roleRequires2fa(user.role) });
     } catch (e) {
@@ -1754,6 +1774,8 @@ app.post('/api/auth/2fa-login', rateLimitAuth, async (req, res) => {
             await dbRun('UPDATE users SET totp_backup_codes=? WHERE id=?', [r.backupRemaining, user.id]);
         }
         issueAuthCookie(res, { id: user.id, role: user.role });
+        // Claim any guest submissions left under this email (e.g. submitted while logged out).
+        await claimGuestSubmissions(user.id, user.email);
         res.json({ id: user.id, email: user.email, role: user.role });
     } catch (e) {
         console.error('2fa-login error:', e.message);

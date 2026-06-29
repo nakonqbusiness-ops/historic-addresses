@@ -379,22 +379,9 @@ header.site-header .nav-mod {
 }
 .nav-account:hover { background: var(--accent-strong); color: #fff; }
 .nav-account::after { display: none !important; } /* no nav underline animation */
-/* Loading placeholder injected by account-nav.js to reserve the login/avatar slot
-   while /api/auth/me is in flight. Same box as .nav-account (so swapping in the real
-   "Вход" link causes no layout shift), but rendered as a neutral pulsing pill: the
-   icon + label are made invisible via transparent currentColor, leaving only the
-   reserved space. Removed (logged-in) or replaced (guest) once auth resolves. */
-.nav-account-skel {
-    color: transparent !important;
-    border-color: var(--border) !important;
-    background: rgba(205, 133, 63, 0.06);
-    pointer-events: none;
-    cursor: default;
-    animation: navSkelPulse 1.1s ease-in-out infinite;
-}
-.nav-account-skel svg { opacity: 0; }
-@keyframes navSkelPulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 0.9; } }
-@media (prefers-reduced-motion: reduce) { .nav-account-skel { animation: none; } }
+/* (The old loading skeleton was removed: account-nav.js now paints the correct
+   guest/logged-in header synchronously from a cached auth state, so there is no
+   in-flight placeholder to style.) */
 
 /* Moderation quick-link (owners/moderators only), injected by account-nav.js */
 .nav-mod {
@@ -1412,20 +1399,27 @@ button:not(.theme-toggle):not(.preview-item button):active {
         display: none; /* Hide decorative symbols on mobile */
     }
 
-    /* Pack the nav onto 2 rows (4 links on top, 3 on the bottom). The link size is
-       FLUID: it grows with the viewport so the links fill the width and stay easy to
-       read on big phones/tablets, but shrinks on ~320px phones so all 7 links still
-       fit on 2 rows. Capped so it never gets oversized before the desktop layout. */
+    /* Fixed 4-column grid: the 7–8 nav items ALWAYS land on exactly 2 rows
+       (4+4 for guests, 4+3 when logged in), independent of word lengths or phone
+       width. This is what guarantees "Вход" can never spill onto a lonely 3rd row —
+       flex-wrap couldn't, because it packs row 1 greedily and overflows the rest.
+       Items keep their natural width, centred in their column, so the bordered
+       "Вход" pill is never stretched. Font stays fluid for readability. */
     .nav {
-        flex-wrap: wrap;
-        gap: 0.45rem 0.6rem;
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 0.5rem 0.3rem;
+        width: 100%;
         max-width: 100%;
+        justify-items: center;
+        align-items: center;
     }
 
     .nav a {
-        font-size: clamp(0.64rem, 3.2vw, 1rem);
-        padding: 0.3rem 0.25rem;
+        font-size: clamp(0.6rem, 3vw, 1rem);
+        padding: 0.3rem 0.2rem;
         letter-spacing: 0.02em;
+        text-align: center;
     }
 
     /* The Вход/account pill is an <a>, so the rule above would squash its sides to
@@ -1660,19 +1654,15 @@ button:not(.theme-toggle):not(.preview-item button):active {
         font-size: 1.75rem;
     }
 
-    /* Keep the whole nav on 2 rows (4 + 3) even on ~320px phones, so the
-       "Предложи" link never drops onto a 3rd row alone. Font size is the fluid
-       clamp() from the ≤768 block (bottoms out at 0.64rem here); we just tighten the
-       gaps/padding so the 4-link top row still fits the narrowest phones. */
+    /* The 4-column grid (from the ≤768 block) already guarantees 2 rows here; on the
+       narrowest phones we only tighten the column gap and padding so the longest
+       labels ("Календар"/"Предложи") still fit their 1fr column without clipping. */
     .nav {
-        flex-wrap: wrap;
-        justify-content: flex-start;
-        width: 100%;
-        gap: 0.3rem 0.28rem;
+        gap: 0.3rem 0.18rem;
     }
 
     .nav a {
-        padding: 0.26rem 0.2rem;
+        padding: 0.26rem 0.12rem;
         letter-spacing: 0;
     }
 
