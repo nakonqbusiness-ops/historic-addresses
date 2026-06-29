@@ -2302,7 +2302,9 @@ app.post('/api/suggest', requireUser, requireVerified, requireNotBanned, rateLim
         const description = sanitizeText(b.description, 5000);
         const city        = sanitizeText(b.city, 120);
         const address     = sanitizeText(b.address, 200);
-        const title = (address || description.slice(0, 80) || 'Предложение').slice(0, 200);
+        // The suggester now names the place (person/building/event). Fall back to an
+        // address-derived placeholder if it ever arrives empty (defence in depth).
+        const title = sanitizeText(b.title, 200) || (address || description.slice(0, 80) || 'Предложение').slice(0, 200);
         if (!address && !description && !(req.files && req.files.length)) {
             return res.status(400).json({ error: 'Моля, добавете адрес, описание или снимка.' });
         }
@@ -2370,9 +2372,9 @@ app.post('/api/suggest-guest', rateLimitSuggest, acceptPhotos('images'), async (
 
         const address     = sanitizeText(b.address, 200);
         const description = sanitizeText(b.description, 5000);
-        // Guests don't supply a title; derive one from the address so moderators have a
-        // label. The admin sets the proper name on approval. Never empty (title is NOT NULL).
-        const title = (address || description.slice(0, 80) || 'Предложение от гост').slice(0, 200);
+        // The guest names the place (person/building/event). Fall back to an address-
+        // derived placeholder if it ever arrives empty (title is NOT NULL).
+        const title = sanitizeText(b.title, 200) || (address || description.slice(0, 80) || 'Предложение от гост').slice(0, 200);
         if (!address && !description && !(req.files && req.files.length)) {
             return res.status(400).json({ error: 'Моля, добавете адрес, описание или снимка.' });
         }

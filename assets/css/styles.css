@@ -310,6 +310,16 @@ header.site-header .nav-mod {
     font-family: "Baskerville", "Garamond", "Georgia", "Times New Roman", serif !important;
 }
 
+/* Pre-paint auth hint. A tiny synchronous <head> script sets html.ha-auth / html.ha-guest
+   from the cached login state BEFORE the header paints. When we already know the visitor
+   is logged in, hide the standalone theme toggle from the very first frame (it relocates
+   into the avatar menu) — but keep its box reserved via visibility:hidden so the avatar
+   drops into the same slot with no jump. This kills the desktop flash where the guest
+   header (toggle + pill) flickered before turning into the logged-in header on heavy
+   pages that paint before the deferred script runs. Once account-nav.js moves the real
+   toggle into the menu it is no longer a direct child here, so it shows normally there. */
+html.ha-auth header.site-header > #theme-toggle { visibility: hidden; }
+
 .logo {
     text-decoration: none;
     color: var(--fg);
@@ -1386,9 +1396,15 @@ button:not(.theme-toggle):not(.preview-item button):active {
         height: auto; /* Позволява хедърът да се разшири */
         padding: 0.75rem 1rem;
         flex-wrap: wrap;
-        gap: 0.75rem;
-        padding-right: 70px; /* Make room for fixed theme toggle */
+        gap: 0.5rem 0.75rem;
+        /* NOTE: no global right padding. The fixed theme toggle only floats over the
+           top-right CORNER (row 1), so only the LOGO needs to clear it — constrained
+           below. The nav lives on rows 2-3, BELOW the toggle, so it gets the full
+           width → wider columns → the links can be a comfortable, readable size. */
     }
+
+    /* Keep the logo clear of the fixed top-right theme toggle / avatar. */
+    .site-header .logo-link { max-width: calc(100% - 62px); }
 
     .logo {
         font-size: 1.2rem;
@@ -1407,8 +1423,10 @@ button:not(.theme-toggle):not(.preview-item button):active {
        "Вход" pill is never stretched. Font stays fluid for readability. */
     .nav {
         display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 0.5rem 0.3rem;
+        /* minmax(0,1fr) → 4 perfectly equal columns that can shrink: the nav can NEVER
+           overflow the viewport, whatever the longest label is. */
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0.55rem 0.12rem;
         width: 100%;
         max-width: 100%;
         justify-items: center;
@@ -1416,9 +1434,9 @@ button:not(.theme-toggle):not(.preview-item button):active {
     }
 
     .nav a {
-        font-size: clamp(0.6rem, 3vw, 1rem);
-        padding: 0.3rem 0.2rem;
-        letter-spacing: 0.02em;
+        font-size: clamp(0.66rem, 3.4vw, 1rem);
+        padding: 0.32rem 0.06rem;
+        letter-spacing: 0;
         text-align: center;
     }
 
@@ -1429,7 +1447,7 @@ button:not(.theme-toggle):not(.preview-item button):active {
     /* Vertical padding tuned so the pill's total height ≈ a plain nav link's height —
        this keeps row 2 the same height whether the login pill/avatar is present or not,
        so the auth check can't change the nav height (no CLS) for guests OR logged-in. */
-    .nav .nav-account { padding: 0.18rem 0.48rem; gap: 0.28rem; }
+    .nav .nav-account { padding: 0.18rem 0.32rem; gap: 0.22rem; }
 
     /* Hero section */
     .hero {
@@ -1658,17 +1676,17 @@ button:not(.theme-toggle):not(.preview-item button):active {
        narrowest phones we only tighten the column gap and padding so the longest
        labels ("Календар"/"Предложи") still fit their 1fr column without clipping. */
     .nav {
-        gap: 0.3rem 0.18rem;
+        gap: 0.4rem 0.06rem;
     }
 
     .nav a {
-        padding: 0.26rem 0.12rem;
+        padding: 0.28rem 0.05rem;
         letter-spacing: 0;
     }
 
     /* Trim the pill a touch more on the smallest phones so the guest "Вход" stays on
        row 2 (not a lonely 3rd row) down to ~360px. */
-    .nav .nav-account { padding: 0.18rem 0.4rem; gap: 0.26rem; }
+    .nav .nav-account { padding: 0.18rem 0.26rem; gap: 0.2rem; }
 
     .page-title {
         font-size: 1.5rem;

@@ -96,9 +96,18 @@
             if (user) { restoreThemeToggle(); user.parentNode.removeChild(user); }
             document.body.classList.remove('is-auth');
         }
+        // Keep the <html> class (set pre-paint by the head bootstrap) authoritative, so
+        // the CSS that reserves/hides the bar theme-toggle always matches the real DOM —
+        // even if the cached guess was wrong and we had to correct it after /me.
+        function setAuthClass(on) {
+            var d = document.documentElement;
+            d.classList.toggle('ha-auth', !!on);
+            d.classList.toggle('ha-guest', !on);
+        }
         function renderGuest() {
             clearAccountUI();
             restoreThemeToggle();
+            setAuthClass(false);
             var a = document.createElement('a');
             a.className = 'nav-account';
             a.href = '/login.html';   // absolute so it works from /admin/ pages too
@@ -107,6 +116,7 @@
         }
         function renderAuth(info) {
             clearAccountUI();
+            setAuthClass(true);                        // before buildUserMenu relocates the toggle
             document.body.classList.add('is-auth');   // also absorbs the theme toggle
             buildUserMenu(header, info);
         }

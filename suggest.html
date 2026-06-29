@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="bg" data-theme="dark">
 <head>
+    <script>/*ha-auth-boot*/(function(){try{var c=JSON.parse(localStorage.getItem('ha_auth_v1')||'null');document.documentElement.classList.add(c&&c.l===1?'ha-auth':'ha-guest');}catch(e){document.documentElement.classList.add('ha-guest');}})();</script>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
@@ -29,10 +30,10 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Mulish:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
-    <link rel="stylesheet" href="assets/css/styles.css?v=14">
+    <link rel="stylesheet" href="assets/css/styles.css?v=16">
     <script defer src="assets/js/theme.js"></script>
     <script defer src="assets/js/transitions.js?v=2"></script>
-    <script defer src="assets/js/account-nav.js?v=23"></script>
+    <script defer src="assets/js/account-nav.js?v=25"></script>
 
     <style>
         :root { --font-display: 'Cormorant Garamond', Georgia, serif; --font-body: 'Mulish', sans-serif; }
@@ -217,6 +218,12 @@
                     <label for="sgEmail">Вашият имейл <span class="req">*</span></label>
                     <input id="sgEmail" class="sg-input" type="email" maxlength="254" placeholder="напр. ivan@example.com" autocomplete="email">
                     <p class="sg-hint">Ще Ви уведомим по имейл за решението. Ако по-късно си създадете профил със същия имейл, предложението автоматично ще се появи в него.</p>
+                </div>
+
+                <div class="sg-field">
+                    <label for="sgTitle">Заглавие / Име <span class="req">*</span></label>
+                    <input id="sgTitle" class="sg-input" type="text" maxlength="200" placeholder="напр. Къщата на Иван Вазов">
+                    <p class="sg-hint">Името на личността, сградата или събитието.</p>
                 </div>
 
                 <div class="sg-field">
@@ -412,11 +419,13 @@
 
         // Simplified panel for everyone: exact address + history/comment + photos +
         // watermark. Title/category/coordinates are added by moderators on review.
+        var title       = document.getElementById('sgTitle').value.trim();
         var description = document.getElementById('sgDescription').value.trim();
         var address     = document.getElementById('sgAddress').value.trim();
         var owns = document.getElementById('sgOwn').checked;
         var endpoint, fd = new FormData();
 
+        if (!title) { toast('Моля въведете заглавие (име на личност, сграда или събитие).'); return; }
         if (!address) { toast('Моля въведете точния адрес.'); return; }
 
         if (loggedIn) {
@@ -428,6 +437,7 @@
             endpoint = '/api/suggest-guest';
             fd.append('email', email);
         }
+        fd.append('title', title);
         fd.append('address', address);
         fd.append('description', description);
 
