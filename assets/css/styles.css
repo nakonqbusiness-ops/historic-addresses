@@ -319,6 +319,10 @@ header.site-header .nav-mod {
    pages that paint before the deferred script runs. Once account-nav.js moves the real
    toggle into the menu it is no longer a direct child here, so it shows normally there. */
 html.ha-auth header.site-header > #theme-toggle { visibility: hidden; }
+/* The guest "Вход" pill now lives in the STATIC HTML (so a guest's header is complete
+   on first paint). Hide it the instant we know the visitor is logged in — the avatar
+   replaces it — so it never flashes before account-nav.js swaps in the avatar. */
+html.ha-auth header.site-header .nav-account { display: none !important; }
 
 .logo {
     text-decoration: none;
@@ -560,6 +564,14 @@ html.ha-auth header.site-header > #theme-toggle { visibility: hidden; }
     background: linear-gradient(135deg, #8b5a2b, #a0522d);
     border-color: rgba(139, 90, 43, 0.5);
 }
+
+/* Pre-paint toggle styling: the <head> boot script sets html[data-theme] synchronously,
+   so the switch shows its correct colour + knob position on the FIRST frame instead of a
+   gray "off" flash while the deferred theme.js loads and sets data-mode. Same specificity
+   as the [data-mode] rules above and placed after them, so values stay consistent. */
+html[data-theme="dark"] #theme-toggle { background: linear-gradient(135deg, #8b5a2b, #a0522d); border-color: rgba(139, 90, 43, 0.5); }
+html[data-theme="light"] #theme-toggle { background: linear-gradient(135deg, #ffd700, #ffed4e); border-color: rgba(255, 215, 0, 0.5); }
+html[data-theme="dark"] #theme-toggle::before { transform: translateX(30px); background: #1a1410; }
 
 /* Icon inside the switch */
 #theme-toggle .theme-icon {
@@ -1550,7 +1562,11 @@ button:not(.theme-toggle):not(.preview-item button):active {
     #theme-toggle[data-mode="dark"]::before {
         transform: translateX(24px) !important;
     }
-    
+    /* Pre-paint knob position on mobile (smaller switch) — matches the data-mode rule. */
+    html[data-theme="dark"] #theme-toggle::before {
+        transform: translateX(24px) !important;
+    }
+
     #theme-toggle .theme-icon {
         font-size: 0.75rem !important;
     }

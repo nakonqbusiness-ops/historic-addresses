@@ -87,37 +87,42 @@
             var t = document.getElementById('theme-toggle');
             if (t && t.parentNode !== header) header.appendChild(t);
         }
-        // Remove whatever account UI is currently mounted (guest pill or avatar menu),
-        // returning the header to a clean slate so the correct variant can be built.
-        function clearAccountUI() {
-            var link = nav.querySelector('.nav-account');
-            if (link) link.parentNode.removeChild(link);
+        function removeAvatar() {
             var user = header.querySelector('.nav-user');
             if (user) { restoreThemeToggle(); user.parentNode.removeChild(user); }
-            document.body.classList.remove('is-auth');
         }
         // Keep the <html> class (set pre-paint by the head bootstrap) authoritative, so
-        // the CSS that reserves/hides the bar theme-toggle always matches the real DOM —
-        // even if the cached guess was wrong and we had to correct it after /me.
+        // the CSS that hides the static guest pill / reserves the bar theme-toggle always
+        // matches the real DOM — even if the cached guess was wrong and we corrected it.
         function setAuthClass(on) {
             var d = document.documentElement;
             d.classList.toggle('ha-auth', !!on);
             d.classList.toggle('ha-guest', !on);
         }
+        // GUEST: the static HTML already carries the correct header (Предложи + Вход pill
+        // + toggle), so there is nothing to build — we only undo any logged-in state. This
+        // is what makes a guest's header flawless from the very first paint (zero swap).
         function renderGuest() {
-            clearAccountUI();
-            restoreThemeToggle();
             setAuthClass(false);
-            var a = document.createElement('a');
-            a.className = 'nav-account';
-            a.href = '/login.html';   // absolute so it works from /admin/ pages too
-            a.innerHTML = USER_ICON + '<span>Вход</span>';
-            nav.appendChild(a);
+            removeAvatar();
+            restoreThemeToggle();
+            document.body.classList.remove('is-auth');
+            if (!nav.querySelector('.nav-account')) {   // defensive: rebuild if ever missing
+                var a = document.createElement('a');
+                a.className = 'nav-account';
+                a.href = '/login.html';
+                a.innerHTML = USER_ICON + '<span>Вход</span>';
+                nav.appendChild(a);
+            }
         }
+        // LOGGED IN: drop the guest pill (CSS already hid it pre-paint via html.ha-auth)
+        // and mount the avatar menu. Rebuild fresh so a changed cached identity reconciles.
         function renderAuth(info) {
-            clearAccountUI();
-            setAuthClass(true);                        // before buildUserMenu relocates the toggle
+            setAuthClass(true);
             document.body.classList.add('is-auth');   // also absorbs the theme toggle
+            var link = nav.querySelector('.nav-account');
+            if (link) link.parentNode.removeChild(link);
+            removeAvatar();
             buildUserMenu(header, info);
         }
 

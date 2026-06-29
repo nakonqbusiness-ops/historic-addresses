@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="bg" data-theme="dark">
 <head>
-    <script>/*ha-auth-boot*/(function(){try{var c=JSON.parse(localStorage.getItem('ha_auth_v1')||'null');document.documentElement.classList.add(c&&c.l===1?'ha-auth':'ha-guest');}catch(e){document.documentElement.classList.add('ha-guest');}})();</script>
+    <script>/*ha-auth-boot*/(function(){var d=document.documentElement;try{var c=JSON.parse(localStorage.getItem('ha_auth_v1')||'null');d.classList.add(c&&c.l===1?'ha-auth':'ha-guest');}catch(e){d.classList.add('ha-guest');}try{var t=localStorage.getItem('theme-preference');if(t==='system')t='dark';d.setAttribute('data-theme',(t==='light'||t==='dark')?t:'dark');}catch(e){d.setAttribute('data-theme','dark');}})();</script>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<link rel="icon" type="image/png" href="/assets/img/favicon-96x96.png" sizes="96x96" />
@@ -23,7 +23,7 @@
 		})();
 	</script>
 	
-	<link rel="stylesheet" href="assets/css/styles.css?v=16">
+	<link rel="stylesheet" href="assets/css/styles.css?v=17">
 	<script defer src="assets/js/theme.js"></script>
 	<script defer src="assets/js/transitions.js?v=2"></script>
 	
@@ -137,7 +137,7 @@
 			}
 		}
 	</style>
-    <script defer src="assets/js/account-nav.js?v=25"></script>
+    <script defer src="assets/js/account-nav.js?v=26"></script>
 </head>
 <body>
 	<header class="site-header">
@@ -153,6 +153,8 @@
 			<a href="calendar.html">Календар</a>
 			<a href="news.html" class="active">Новини</a>
 			<a href="about.html">За Нас</a>
+		<a class="nav-suggest" href="/suggest.html">Предложи</a>
+		<a class="nav-account" href="/login.html"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>Вход</span></a>
 		</nav>
 		
 		<button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode"></button>

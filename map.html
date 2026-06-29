@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="bg" data-theme="dark">
 <head>
-    <script>/*ha-auth-boot*/(function(){try{var c=JSON.parse(localStorage.getItem('ha_auth_v1')||'null');document.documentElement.classList.add(c&&c.l===1?'ha-auth':'ha-guest');}catch(e){document.documentElement.classList.add('ha-guest');}})();</script>
+    <script>/*ha-auth-boot*/(function(){var d=document.documentElement;try{var c=JSON.parse(localStorage.getItem('ha_auth_v1')||'null');d.classList.add(c&&c.l===1?'ha-auth':'ha-guest');}catch(e){d.classList.add('ha-guest');}try{var t=localStorage.getItem('theme-preference');if(t==='system')t='dark';d.setAttribute('data-theme',(t==='light'||t==='dark')?t:'dark');}catch(e){d.setAttribute('data-theme','dark');}})();</script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="icon" type="image/png" href="/assets/img/favicon-96x96.png" sizes="96x96">
@@ -26,7 +26,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Mulish:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/styles.css?v=16">
+<link rel="stylesheet" href="assets/css/styles.css?v=17">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
@@ -356,7 +356,7 @@ body.is-auth .panel-fav { display:flex; }
 .leaflet-control-attribution { background:rgba(10,9,8,0.75) !important; color:#4a4238 !important; font-size:0.6rem !important; }
 .leaflet-control-attribution a { color:#6a6258 !important; }
 </style>
-    <script defer src="assets/js/account-nav.js?v=25"></script>
+    <script defer src="assets/js/account-nav.js?v=26"></script>
     <script defer src="assets/js/scroll-hint.js?v=3"></script>
 </head>
 <body>
@@ -395,6 +395,8 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')closeEmailMo
         <a href="calendar.html">Календар</a>
         <a href="news.html">Новини</a>
         <a href="about.html">За Нас</a>
+    <a class="nav-suggest" href="/suggest.html">Предложи</a>
+    <a class="nav-account" href="/login.html"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>Вход</span></a>
     </nav>
     <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode"></button>
 </header>
