@@ -3692,7 +3692,8 @@ app.get('/api/health', (_req, res) => {
 // keeping. Double-gated: the request must (1) supply the secret DB_BACKUP_KEY and
 // (2) come from a logged-in owner. ANY failure returns the normal 404 page, so the
 // route is invisible to anyone lacking both. VACUUM INTO yields a clean, WAL-
-// consistent copy that is streamed and then deleted.
+// consistent copy; it is integrity-checked, served with an X-DB-SHA256 header
+// (and Cache-Control: no-transform so it isn't gzipped), and then deleted.
 function safeEqual(a, b) {
     const ba = Buffer.from(String(a)), bb = Buffer.from(String(b));
     return ba.length === bb.length && crypto.timingSafeEqual(ba, bb);
@@ -3713,7 +3714,30 @@ app.get('/api/sys/db-export', async (req, res) => {
         const tmp = path.join(path.dirname(DB_FILE), 'ha-backup-' + crypto.randomBytes(8).toString('hex') + '.db');
         const sqlPath = tmp.replace(/\\/g, '/').replace(/'/g, "''");   // server-generated, no user input
         await dbRun(`VACUUM INTO '${sqlPath}'`);
+
+        // Verify the snapshot is internally consistent before we ship it, so a
+        // corrupt source can never be served as a "good" backup.
+        const integrityOk = await new Promise((resolve) => {
+            const snap = new sqlite3.Database(tmp, sqlite3.OPEN_READONLY, (err) => {
+                if (err) return resolve(false);
+                snap.get('PRAGMA integrity_check', (e, row) => {
+                    snap.close(() => {});
+                    resolve(!e && row && row.integrity_check === 'ok');
+                });
+            });
+        });
+        if (!integrityOk) {
+            fs.unlink(tmp, () => {});
+            console.error('db-export: snapshot failed integrity_check - refusing to send');
+            return res.status(500).json({ error: 'Backup snapshot failed integrity check' });
+        }
+
+        // SHA-256 so the download can be verified end-to-end. no-transform also stops
+        // the compression middleware from gzipping (and potentially mangling) the binary.
+        const sha = crypto.createHash('sha256').update(await fs.promises.readFile(tmp)).digest('hex');
         const fname = 'historyaddress-backup-' + new Date().toISOString().slice(0, 10) + '.db';
+        res.setHeader('X-DB-SHA256', sha);
+        res.setHeader('Cache-Control', 'no-transform');
         res.download(tmp, fname, () => { fs.unlink(tmp, () => {}); });
     } catch (e) {
         console.error('db-export error:', e.message);
