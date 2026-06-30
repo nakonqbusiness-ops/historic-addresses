@@ -537,6 +537,13 @@ function unsubToken(userId) {
 function unsubLink(userId) {
     return `${DOMAIN}/api/newsletter/unsubscribe?u=${encodeURIComponent(userId)}&t=${unsubToken(userId)}`;
 }
+// Email-based unsubscribe token for public (account-less) newsletter subscribers.
+function unsubEmailToken(email) {
+    return crypto.createHmac('sha256', JWT_SECRET).update('unsub-email:' + String(email).toLowerCase()).digest('hex').slice(0, 32);
+}
+function unsubEmailLink(email) {
+    return `${DOMAIN}/api/newsletter/unsubscribe?e=${encodeURIComponent(email)}&t=${unsubEmailToken(email)}`;
+}
 function newsletterEmailHtml(article, unsub) {
     const href = article.link || `${DOMAIN}/news-article.html?slug=${encodeURIComponent(article.slug)}`;
     const cover = isHttpUrl(article.cover_image)
@@ -557,15 +564,31 @@ function newsletterEmailHtml(article, unsub) {
 // tiny gap to stay friendly to Resend's rate limits; each gets a personal unsub link.
 async function sendNewsletter(article) {
     if (!resend) { console.warn('✉️  newsletter skipped - RESEND_API_KEY not set'); return; }
-    let subs = [];
-    try { subs = await dbAll('SELECT id,email FROM users WHERE newsletter=1'); } catch (e) { return; }
-    if (!subs.length) return;
-    console.log(`✉️  sending newsletter "${article.title}" to ${subs.length} subscriber(s)`);
-    for (const u of subs) {
+    let users = [], guests = [];
+    try { users  = await dbAll('SELECT id,email FROM users WHERE newsletter=1'); } catch (e) { return; }
+    try { guests = await dbAll('SELECT email FROM newsletter_subscribers'); } catch (e) { guests = []; }
+    // Build a de-duplicated recipient list; account holders keep their id-based unsub link.
+    const seen = new Set();
+    const recipients = [];
+    for (const u of users) {
+        const key = String(u.email).toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        recipients.push({ email: u.email, unsub: unsubLink(u.id) });
+    }
+    for (const g of guests) {
+        const key = String(g.email).toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        recipients.push({ email: g.email, unsub: unsubEmailLink(g.email) });
+    }
+    if (!recipients.length) return;
+    console.log(`✉️  sending newsletter "${article.title}" to ${recipients.length} subscriber(s)`);
+    for (const r of recipients) {
         await sendEmail({
-            to: u.email,
+            to: r.email,
             subject: 'Нова новина - ' + article.title,
-            html: newsletterEmailHtml(article, unsubLink(u.id)),
+            html: newsletterEmailHtml(article, r.unsub),
         });
         await new Promise(r => setTimeout(r, 120));   // ~8/sec, well under limits
     }
@@ -884,6 +907,12 @@ const rateLimitActivity = makeRateLimiter({
     windowMs: 60 * 1000, max: 60,
     key: req => (req.user && req.user.sub) || clientIp(req),
     message: 'Твърде много заявки. Опитайте отново след малко.',
+});
+// Throttle public newsletter sign-ups (per IP) to curb abuse.
+const rateLimitSubscribe = makeRateLimiter({
+    windowMs: 60 * 60 * 1000, max: 15,
+    key: req => clientIp(req),
+    message: 'Твърде много опити. Опитайте по-късно.',
 });
 
 // ─── Express app ─────────────────────────────────────────────────────────────
@@ -1223,7 +1252,16 @@ function initDB() {
         )`);
         db.run('CREATE INDEX IF NOT EXISTS idx_news_slug      ON news(slug)');
         db.run('CREATE INDEX IF NOT EXISTS idx_news_published ON news(is_published, published_date DESC)');
-        db.run('ALTER TABLE news ADD COLUMN link TEXT', () => {});   // optional external link
+        db.run('ALTER TABLE news ADD COLUMN link TEXT', () => {});            // optional external link
+        db.run('ALTER TABLE news ADD COLUMN place TEXT', () => {});           // city dateline (e.g. "Пловдив")
+        db.run('ALTER TABLE news ADD COLUMN is_featured INTEGER DEFAULT 0', () => {}); // shown in the news carousel
+
+        // Public newsletter sign-ups that aren't tied to a user account.
+        db.run(`CREATE TABLE IF NOT EXISTS newsletter_subscribers (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            email       TEXT UNIQUE NOT NULL,
+            created_at  TEXT DEFAULT CURRENT_TIMESTAMP
+        )`);
 
         // Team
         db.run(`CREATE TABLE IF NOT EXISTS team (
@@ -1883,7 +1921,18 @@ app.get('/api/newsletter/unsubscribe', async (req, res) => {
     const id = String(req.query.u || '');
     const t  = String(req.query.t || '');
     const page = (msg) => `<!doctype html><html lang="bg"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Отписване</title><link rel="stylesheet" href="/assets/css/styles.css?v=X"><style>body{display:flex;min-height:90vh;align-items:center;justify-content:center;font-family:'Mulish',sans-serif;text-align:center;padding:2rem}.u-card{max-width:420px;background:var(--card);border:1px solid var(--border);border-radius:18px;padding:2.2rem}.u-card h1{font-family:'Cormorant Garamond',serif;color:var(--fg)}.u-card a{color:var(--accent-strong);font-weight:700;text-decoration:none}</style></head><body><div class="u-card">${msg}</div></body></html>`;
+    const email = String(req.query.e || '').toLowerCase();
     try {
+        // Email-based link → public (account-less) subscriber.
+        if (email) {
+            if (t !== unsubEmailToken(email)) {
+                return res.status(400).send(page('<h1>Невалидна връзка</h1><p style="color:var(--muted)">Връзката за отписване е невалидна.</p><a href="/index.html">Към началото</a>'));
+            }
+            await dbRun('DELETE FROM newsletter_subscribers WHERE email=?', [email]);
+            await dbRun('UPDATE users SET newsletter=0 WHERE email=?', [email]);   // also opt out a matching account, if any
+            return res.send(page('<h1>Отписахте се</h1><p style="color:var(--muted)">Вече няма да получавате новини по имейл от нас.</p><a href="/index.html">Към началото</a>'));
+        }
+        // Id-based link → registered user.
         if (!id || t !== unsubToken(id)) {
             return res.status(400).send(page('<h1>Невалидна връзка</h1><p style="color:var(--muted)">Връзката за отписване е невалидна.</p><a href="/index.html">Към началото</a>'));
         }
@@ -1892,6 +1941,25 @@ app.get('/api/newsletter/unsubscribe', async (req, res) => {
     } catch (e) {
         console.error('unsubscribe error:', e.message);
         res.status(500).send(page('<h1>Грешка</h1><p style="color:var(--muted)">Опитайте отново по-късно.</p>'));
+    }
+});
+
+// Public newsletter sign-up from the News page (no account required).
+app.post('/api/newsletter/subscribe', rateLimitSubscribe, async (req, res) => {
+    const email = String((req.body && req.body.email) || '').trim().toLowerCase();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || email.length > 254) {
+        return res.status(400).json({ error: 'Невалиден имейл адрес.' });
+    }
+    try {
+        // If an account already exists for this email, just flip its opt-in;
+        // otherwise store it as a standalone subscriber (idempotent).
+        const u = await dbGet('SELECT id FROM users WHERE email=?', [email]);
+        if (u) await dbRun('UPDATE users SET newsletter=1 WHERE id=?', [u.id]);
+        else   await dbRun('INSERT OR IGNORE INTO newsletter_subscribers (email) VALUES (?)', [email]);
+        res.json({ success: true });
+    } catch (e) {
+        console.error('subscribe error:', e.message);
+        res.status(500).json({ error: 'Database error' });
     }
 });
 
@@ -3353,15 +3421,20 @@ app.delete('/api/partners/:id', requireRole('owner'), async (req, res) => {
 
 // ── News ──────────────────────────────────────────────────────────────────────
 app.get('/api/news', async (req, res) => {
-    const page    = Math.max(1, parseInt(req.query.page)  || 1);
-    const limit   = Math.min(100, parseInt(req.query.limit) || 10);
-    const offset  = (page - 1) * limit;
-    const showAll = req.query.all === 'true';
-    const W       = showAll ? '' : 'WHERE is_published=1';
+    const page     = Math.max(1, parseInt(req.query.page)  || 1);
+    const limit    = Math.min(100, parseInt(req.query.limit) || 10);
+    const offset   = (page - 1) * limit;
+    const showAll  = req.query.all === 'true';
+    const featured = req.query.featured === 'true';
+    const conds    = [];
+    if (!showAll)  conds.push('is_published=1');
+    if (featured)  conds.push('is_featured=1');
+    const W        = conds.length ? 'WHERE ' + conds.join(' AND ') : '';
     try {
         const countRow = await dbGet(`SELECT COUNT(*) AS total FROM news ${W}`);
         const rows     = await dbAll(
-            `SELECT id,title,slug,excerpt,cover_image,published_date,author,is_published,link
+            `SELECT id,title,slug,excerpt,cover_image,published_date,author,is_published,is_featured,place,link,
+                    MAX(1, CAST(ROUND((LENGTH(content)-LENGTH(REPLACE(content,' ',''))+1)/180.0) AS INTEGER)) AS read_minutes
              FROM news ${W} ORDER BY published_date DESC LIMIT ? OFFSET ?`,
             [limit, offset]
         );
@@ -3392,17 +3465,18 @@ app.get('/api/news/:ref', async (req, res) => {
 });
 
 app.post('/api/news', requireRole('owner'), async (req, res) => {
-    const { title, slug, content, excerpt, cover_image, published_date, author, is_published, link } = req.body;
+    const { title, slug, content, excerpt, cover_image, published_date, author, is_published, link, place, is_featured } = req.body;
     if (!title || !slug || !content) return res.status(400).json({ error: 'title, slug and content are required' });
     const cleanLink = isHttpUrl(link) ? String(link).trim() : null;
     const published  = is_published !== false ? 1 : 0;
+    const featured   = (is_featured === true || is_featured === 1) ? 1 : 0;
     try {
         const r = await dbRun(
-            `INSERT INTO news (title,slug,content,excerpt,cover_image,published_date,author,is_published,link) VALUES (?,?,?,?,?,?,?,?,?)`,
+            `INSERT INTO news (title,slug,content,excerpt,cover_image,published_date,author,is_published,link,place,is_featured) VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
             [title, slug, content, excerpt||'', cover_image||'',
              published_date || new Date().toISOString().split('T')[0],
              author || 'Екипът на Адресът на историята',
-             published, cleanLink]
+             published, cleanLink, (place || '').trim() || null, featured]
         );
         cache.clear();
         res.json({ success: true, id: r.lastID });
@@ -3419,12 +3493,13 @@ app.post('/api/news', requireRole('owner'), async (req, res) => {
 });
 
 app.put('/api/news/:id', requireRole('owner'), async (req, res) => {
-    const { title, slug, content, excerpt, cover_image, published_date, author, is_published, link } = req.body;
+    const { title, slug, content, excerpt, cover_image, published_date, author, is_published, link, place, is_featured } = req.body;
     const cleanLink = isHttpUrl(link) ? String(link).trim() : null;
+    const featured  = (is_featured === true || is_featured === 1) ? 1 : 0;
     try {
         await dbRun(
-            `UPDATE news SET title=?,slug=?,content=?,excerpt=?,cover_image=?,published_date=?,author=?,is_published=?,link=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`,
-            [title, slug, content, excerpt, cover_image, published_date, author, is_published, cleanLink, req.params.id]
+            `UPDATE news SET title=?,slug=?,content=?,excerpt=?,cover_image=?,published_date=?,author=?,is_published=?,link=?,place=?,is_featured=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`,
+            [title, slug, content, excerpt, cover_image, published_date, author, is_published, cleanLink, (place || '').trim() || null, featured, req.params.id]
         );
         cache.clear();
         res.json({ success: true });

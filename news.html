@@ -12,7 +12,7 @@
 
 	<title>Новини - Адресът на историята</title>
 	<meta name="description" content="Последни новини и актуализации от Адресът на историята">
-	
+
 	<script>
 		(function() {
 			try {
@@ -22,121 +22,14 @@
 			} catch(e) {}
 		})();
 	</script>
-	
-	<link rel="stylesheet" href="assets/css/styles.css?v=17">
+
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+	<link rel="stylesheet" href="assets/css/styles.css?v=18">
 	<script defer src="assets/js/theme.js"></script>
 	<script defer src="assets/js/transitions.js?v=2"></script>
-	
-	<style>
-		.news-grid {
-			display: grid;
-			grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-			gap: 1.5rem;
-			margin: 2rem 0;
-		}
-		
-		.news-card {
-			display: block;
-			background: var(--card);
-			border: 1px solid var(--border);
-			border-radius: 12px;
-			overflow: hidden;
-			text-decoration: none;
-			color: inherit;
-			transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
-			box-shadow: var(--shadow-soft);
-		}
-		
-		.news-card:hover {
-			transform: translateY(-4px);
-			box-shadow: var(--shadow);
-			border-color: var(--accent-strong);
-		}
-		
-		.news-card-image {
-			width: 100%;
-			height: 200px;
-			object-fit: cover;
-			background: var(--muted);
-		}
-		
-		.news-card-content {
-			padding: 1.5rem;
-		}
-		
-		.news-card-date {
-			font-size: 0.85rem;
-			color: var(--muted);
-			margin-bottom: 0.5rem;
-		}
-		
-		.news-card-title {
-			font-size: 1.3rem;
-			font-weight: 700;
-			margin: 0 0 0.75rem;
-			color: var(--fg);
-			line-height: 1.3;
-		}
-		
-		.news-card-excerpt {
-			font-size: 0.95rem;
-			color: var(--muted);
-			line-height: 1.6;
-			margin: 0;
-		}
-		
-		.news-card-author {
-			font-size: 0.8rem;
-			color: var(--muted);
-			margin-top: 1rem;
-			font-style: italic;
-		}
-		
-		.pagination {
-			display: flex;
-			justify-content: center;
-			align-items: center;
-			gap: 1rem;
-			margin: 3rem 0;
-		}
-		
-		.pagination button {
-			padding: 0.6rem 1.2rem;
-			border: 1px solid var(--border);
-			background: var(--card);
-			color: var(--fg);
-			border-radius: 8px;
-			cursor: pointer;
-			transition: all 0.3s ease;
-		}
-		
-		.pagination button:hover:not(:disabled) {
-			background: var(--accent-strong);
-			border-color: var(--accent-strong);
-			color: white;
-		}
-		
-		.pagination button:disabled {
-			opacity: 0.3;
-			cursor: not-allowed;
-		}
-		
-		.pagination .page-info {
-			color: var(--muted);
-			font-size: 0.9rem;
-		}
-		
-		@media (max-width: 768px) {
-			.news-grid {
-				grid-template-columns: 1fr;
-				gap: 1rem;
-			}
-			
-			.news-card-image {
-				height: 180px;
-			}
-		}
-	</style>
     <script defer src="assets/js/account-nav.js?v=26"></script>
 </head>
 <body>
@@ -145,7 +38,7 @@
 			<img src="assets/img/HistAdrLogoOrig.png" alt="Адресът на историята" class="header-logo">
 			<span class="logo-text">Адресът на историята</span>
 		</a>
-		
+
 		<nav class="nav">
 			<a href="index.html">Начало</a>
 			<a href="map.html">Карта</a>
@@ -156,21 +49,58 @@
 		<a class="nav-suggest" href="/suggest.html">Предложи</a>
 		<a class="nav-account" href="/login.html"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>Вход</span></a>
 		</nav>
-		
+
 		<button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode"></button>
 	</header>
 
-	<main class="container">
-		<h1 class="page-title gradient-text">📰 Новини</h1>
-		
-		<div id="newsGrid" class="news-grid">
-			<p style="text-align:center;padding:3rem;color:var(--muted);">Зареждане...</p>
-		</div>
-		
-		<div class="pagination">
-			<button id="prevPage">← Предишна</button>
-			<span class="page-info" id="pageInfo">Страница 1</span>
-			<button id="nextPage">Следваща →</button>
+	<main class="nx-page">
+		<div class="nx-wrap">
+			<!-- masthead -->
+			<div class="nx-masthead">
+				<div>
+					<h1 class="nx-masthead-title">Новини</h1>
+					<div class="nx-kicker">ХРОНИКА НА АДРЕСИТЕ</div>
+				</div>
+				<div class="nx-masthead-sub">Новини, истории и събития<br>около адресите, които пазим</div>
+			</div>
+
+			<!-- featured carousel -->
+			<section class="nx-feat-section" id="featuredSection" aria-label="Водеща новина"></section>
+
+			<div class="nx-divider"></div>
+
+			<!-- latest stories (paginated) -->
+			<section class="nx-section">
+				<div class="nx-sec-head">
+					<div class="nx-sec-title">Последни истории</div>
+					<span class="nx-range" id="rangeLabel"></span>
+				</div>
+
+				<div class="nx-grid" id="newsGrid">
+					<p class="nx-empty" style="grid-column:1/-1">Зареждане…</p>
+				</div>
+
+				<div class="nx-pag" id="pagination" hidden>
+					<button class="nx-pagnav" id="prevPage">← Предишна</button>
+					<div class="nx-pagnums" id="pageNums"></div>
+					<button class="nx-pagnav" id="nextPage">Следваща →</button>
+				</div>
+				<div class="nx-pag-note">Зареждат се само историите от текущата страница — за бързина дори при стотици новини.</div>
+			</section>
+
+			<!-- newsletter -->
+			<section class="nx-newsletter">
+				<div class="nx-newsletter-inner">
+					<div>
+						<div class="nx-nl-title">Бюлетинът на адресите</div>
+						<p class="nx-nl-sub">Следете новооткрити адреси, истории и събития.</p>
+					</div>
+					<form class="nx-nl-form" id="nlForm">
+						<input class="nx-nl-input" id="nlEmail" type="email" placeholder="вашият имейл" aria-label="Имейл" required>
+						<button class="nx-nl-btn" type="submit">АБОНИРАЙ СЕ</button>
+					</form>
+				</div>
+			</section>
 		</div>
 	</main>
 
@@ -192,8 +122,8 @@
 			</a>
 
 			<p class="footer-links">
-				<a href="privacy.html">Поверителност</a> • 
-				<a href="terms.html">Условия</a> • 
+				<a href="privacy.html">Поверителност</a> •
+				<a href="terms.html">Условия</a> •
 				<a href="copyright.html">Авторски права</a> <span>•</span> <a href="donation-terms.html">Дарения</a>
 			</p>
 			<p class="footer-copy">© <span id="year"></span> Адресът на историята</p>
@@ -203,100 +133,224 @@
 	<script>
 	(function() {
 		var apiBase = window.location.protocol === 'file:' ? 'http://localhost:3000' : window.location.origin;
-		var currentPage = 1;
-		var totalPages = 1;
-		
-		function formatDate(dateStr) {
-			var date = new Date(dateStr);
-			var months = ['януари', 'февруари', 'март', 'април', 'май', 'юни', 'юли', 'август', 'септември', 'октомври', 'ноември', 'декември'];
-			return date.getDate() + ' ' + months[date.getMonth()] + ' ' + date.getFullYear();
+		var PAGE_SIZE = 9;
+		var MONTHS = ['януари','февруари','март','април','май','юни','юли','август','септември','октомври','ноември','декември'];
+		// Deterministic warm tint palette used as a cover_image placeholder.
+		var TINTS = [
+			'linear-gradient(150deg,#2a1d11,#7a5128)','linear-gradient(150deg,#221c14,#574733)',
+			'linear-gradient(150deg,#2e2114,#6b4a24)','linear-gradient(150deg,#1f1813,#4d3f2c)',
+			'linear-gradient(150deg,#2a1f12,#8a5e2c)','linear-gradient(150deg,#241a10,#5f4322)',
+			'linear-gradient(150deg,#201a13,#52432f)','linear-gradient(150deg,#2c2013,#73502a)'
+		];
+
+		var state = { carousel: 0, page: 1, totalPages: 1, total: 0, featured: [] };
+		var timer = null;
+
+		function esc(s){ return String(s == null ? '' : s).replace(/[<>&"]/g, function(c){ return {'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]; }); }
+		function shortDate(d){ var x = new Date(d); if (isNaN(x)) return ''; return x.getDate() + ' ' + MONTHS[x.getMonth()]; }
+		function tintFor(a){
+			if (a.cover_image) return "url('" + a.cover_image.replace(/'/g, '%27').replace(/"/g, '%22') + "')";
+			var h = 0, s = a.slug || a.title || '';
+			for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+			return TINTS[h % TINTS.length];
 		}
-		
-		function loadNews(page) {
-			currentPage = page || 1;
+		function dateline(a){ var p = a.place ? esc(a.place) + ' · ' : ''; return p + esc(shortDate(a.published_date)); }
+		function readLabel(a){ return a.read_minutes ? a.read_minutes + ' мин' : ''; }
+		function hrefFor(a){
+			if (a.link && /^https?:\/\//i.test(a.link)) return { href: a.link, ext: true };
+			return { href: 'news-article.html?slug=' + encodeURIComponent(a.slug), ext: false };
+		}
+		function linkAttrs(a){ var h = hrefFor(a); return 'href="' + esc(h.href) + '"' + (h.ext ? ' target="_blank" rel="noopener noreferrer"' : ''); }
+
+		// ── Featured carousel ──────────────────────────────────────────────
+		function renderFeatured(){
+			var sec = document.getElementById('featuredSection');
+			var list = state.featured;
+			if (!list.length) { sec.innerHTML = ''; return; }
+			var i = state.carousel % list.length;
+			var a = list[i];
+			var read = readLabel(a);
+			var dots = list.map(function(_, k){
+				return '<button class="nx-dot' + (k === i ? ' active' : '') + '" data-dot="' + k + '" aria-label="Слайд ' + (k+1) + '"></button>';
+			}).join('');
+			sec.innerHTML =
+				'<div class="nx-feat">' +
+					'<div class="nx-feat-text">' +
+						'<div class="nx-feat-top">' +
+							'<span class="nx-badge">ВОДЕЩА</span>' +
+							'<span class="nx-dateline">' + dateline(a) + '</span>' +
+						'</div>' +
+						'<a ' + linkAttrs(a) + ' style="text-decoration:none"><h2 class="nx-feat-title">' + esc(a.title) + '</h2></a>' +
+						(a.excerpt ? '<p class="nx-feat-deck">' + esc(a.excerpt) + '</p>' : '') +
+						'<div class="nx-byline">' +
+							'<span class="nx-author">' + esc(a.author || '') + '</span>' +
+							(read ? '<span>·</span><span>' + read + ' четене</span>' : '') +
+						'</div>' +
+						'<div class="nx-controls">' +
+							'<button class="nx-arrow" data-feat="prev" aria-label="Предишна">←</button>' +
+							'<button class="nx-arrow" data-feat="next" aria-label="Следваща">→</button>' +
+							'<div class="nx-dots">' + dots + '</div>' +
+							'<span class="nx-counter">' + (i + 1) + ' / ' + list.length + '</span>' +
+						'</div>' +
+					'</div>' +
+					'<a class="nx-feat-img" ' + linkAttrs(a) + '>' +
+						'<div class="nx-tint" style="background:' + tintFor(a) + ';background-size:cover;background-position:center"></div>' +
+						'<div class="nx-grain"></div>' +
+						'<div class="nx-vignette"></div>' +
+						'<span class="nx-photo-cap">ФОТО · АРХИВ „АДРЕСЪТ“</span>' +
+						'<div class="nx-autobar"><span></span></div>' +
+					'</a>' +
+				'</div>';
+		}
+
+		function goCarousel(k){
+			var n = state.featured.length;
+			if (!n) return;
+			state.carousel = ((k % n) + n) % n;
+			renderFeatured();
+			restartAutoplay();
+		}
+		function restartAutoplay(){
+			if (timer) clearInterval(timer);
+			if (state.featured.length > 1)
+				timer = setInterval(function(){ goCarousel(state.carousel + 1); }, 5000);
+		}
+
+		document.getElementById('featuredSection').addEventListener('click', function(e){
+			var b = e.target.closest('button');
+			if (!b) return;
+			if (b.dataset.feat === 'prev') goCarousel(state.carousel - 1);
+			else if (b.dataset.feat === 'next') goCarousel(state.carousel + 1);
+			else if (b.dataset.dot != null) goCarousel(parseInt(b.dataset.dot, 10));
+		});
+
+		// ── Latest stories grid + pagination ───────────────────────────────
+		function renderGrid(items){
 			var grid = document.getElementById('newsGrid');
-			grid.innerHTML = '<p style="text-align:center;padding:3rem;color:var(--muted);">Зареждане...</p>';
-			
-			fetch(apiBase + '/api/news?page=' + currentPage + '&limit=9')
-				.then(function(res) {
-					if (!res.ok) throw new Error('Server error');
-					return res.json();
+			if (!items.length) {
+				grid.innerHTML = '<p class="nx-empty" style="grid-column:1/-1">Все още няма публикувани новини.</p>';
+				return;
+			}
+			var start = (state.page - 1) * PAGE_SIZE;
+			grid.innerHTML = items.map(function(a, idx){
+				var isNew = state.page === 1 && idx < 2;
+				var read = readLabel(a);
+				var footRight = read ? read : '';
+				return '<a class="nx-card" ' + linkAttrs(a) + '>' +
+					'<div class="nx-imgwrap">' +
+						'<div class="nx-img" style="background:' + tintFor(a) + ';background-size:cover;background-position:center"></div>' +
+						'<div class="nx-grain"></div>' +
+						(isNew ? '<span class="nx-new">НОВО</span>' : '') +
+					'</div>' +
+					'<div class="nx-card-dateline">' + dateline(a) + '</div>' +
+					'<h3 class="nx-title">' + esc(a.title) + '</h3>' +
+					(a.excerpt ? '<p class="nx-deck">' + esc(a.excerpt) + '</p>' : '') +
+					'<div class="nx-card-foot">' +
+						'<span>' + esc(a.author || '') + (footRight ? ' · ' + footRight : '') + '</span>' +
+						'<span class="nx-read">ПРОЧЕТИ →</span>' +
+					'</div>' +
+				'</a>';
+			}).join('');
+		}
+
+		function renderPagination(){
+			var pag = document.getElementById('pagination');
+			var nums = document.getElementById('pageNums');
+			if (state.totalPages <= 1) { pag.hidden = true; nums.innerHTML = ''; }
+			else {
+				pag.hidden = false;
+				var html = '';
+				for (var p = 1; p <= state.totalPages; p++)
+					html += '<button class="nx-pagbtn' + (p === state.page ? ' active' : '') + '" data-page="' + p + '">' + p + '</button>';
+				nums.innerHTML = html;
+				document.getElementById('prevPage').disabled = state.page <= 1;
+				document.getElementById('nextPage').disabled = state.page >= state.totalPages;
+			}
+			var range = document.getElementById('rangeLabel');
+			if (state.total) {
+				var start = (state.page - 1) * PAGE_SIZE + 1;
+				var end = Math.min(state.page * PAGE_SIZE, state.total);
+				range.textContent = start + '–' + end + ' от ' + state.total;
+			} else range.textContent = '';
+		}
+
+		function loadPage(page){
+			state.page = page || 1;
+			var grid = document.getElementById('newsGrid');
+			grid.innerHTML = '<p class="nx-empty" style="grid-column:1/-1">Зареждане…</p>';
+			return fetch(apiBase + '/api/news?page=' + state.page + '&limit=' + PAGE_SIZE)
+				.then(function(r){ if (!r.ok) throw new Error('Server error'); return r.json(); })
+				.then(function(res){
+					var data = res.data || [];
+					state.total = res.pagination ? res.pagination.total : data.length;
+					state.totalPages = res.pagination ? res.pagination.totalPages : 1;
+					renderGrid(data);
+					renderPagination();
+					return data;
 				})
-				.then(function(response) {
-					var news = response.data || [];
-					totalPages = response.pagination ? response.pagination.totalPages : 1;
-					
-					if (news.length === 0) {
-						grid.innerHTML = '<p style="text-align:center;padding:3rem;color:var(--muted);">Все още няма публикувани новини.</p>';
-						return;
-					}
-					
-					grid.innerHTML = '';
-					news.forEach(function(article) {
-						var card = document.createElement('a');
-						card.className = 'news-card';
-						// If the article has an external link, the card opens it in a new
-						// tab; otherwise it goes to the full article page.
-						if (article.link && /^https?:\/\//i.test(article.link)) {
-							card.href = article.link;
-							card.target = '_blank';
-							card.rel = 'noopener noreferrer';
-						} else {
-							card.href = 'news-article.html?slug=' + encodeURIComponent(article.slug);
-						}
-						
-						var html = '';
-						if (article.cover_image) {
-							html += '<img class="news-card-image" src="' + article.cover_image + '" alt="' + article.title + '" loading="lazy">';
-						}
-						
-						html += '<div class="news-card-content">';
-						html += '<div class="news-card-date">' + formatDate(article.published_date) + '</div>';
-						html += '<h2 class="news-card-title">' + article.title + '</h2>';
-						
-						if (article.excerpt) {
-							html += '<p class="news-card-excerpt">' + article.excerpt + '</p>';
-						}
-						
-						if (article.author) {
-							html += '<div class="news-card-author">- ' + article.author + '</div>';
-						}
-						
-						html += '</div>';
-						card.innerHTML = html;
-						grid.appendChild(card);
-					});
-					
-					updatePagination();
-				})
-				.catch(function(err) {
+				.catch(function(err){
 					console.error('Error loading news:', err);
-					grid.innerHTML = '<p style="text-align:center;padding:3rem;color:#ff6b6b;">Грешка при зареждане.</p>';
+					grid.innerHTML = '<p class="nx-empty" style="grid-column:1/-1;color:#ff6b6b">Грешка при зареждане.</p>';
 				});
 		}
-		
-		function updatePagination() {
-			document.getElementById('pageInfo').textContent = 'Страница ' + currentPage + ' от ' + totalPages;
-			document.getElementById('prevPage').disabled = currentPage === 1;
-			document.getElementById('nextPage').disabled = currentPage >= totalPages;
+
+		document.getElementById('prevPage').addEventListener('click', function(){
+			if (state.page > 1) { loadPage(state.page - 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+		});
+		document.getElementById('nextPage').addEventListener('click', function(){
+			if (state.page < state.totalPages) { loadPage(state.page + 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+		});
+		document.getElementById('pageNums').addEventListener('click', function(e){
+			var b = e.target.closest('button[data-page]');
+			if (!b) return;
+			var p = parseInt(b.dataset.page, 10);
+			if (p !== state.page) { loadPage(p); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+		});
+
+		// ── Featured fetch (separate small request; falls back to newest) ───
+		function loadFeatured(firstPageData){
+			return fetch(apiBase + '/api/news?featured=true&limit=3')
+				.then(function(r){ return r.ok ? r.json() : { data: [] }; })
+				.then(function(res){
+					var feat = (res.data || []).slice(0, 3);
+					if (!feat.length && firstPageData) feat = firstPageData.slice(0, 3);
+					state.featured = feat;
+					renderFeatured();
+					restartAutoplay();
+				})
+				.catch(function(){
+					if (firstPageData) { state.featured = firstPageData.slice(0, 3); renderFeatured(); restartAutoplay(); }
+				});
 		}
-		
-		document.getElementById('prevPage').addEventListener('click', function() {
-			if (currentPage > 1) {
-				loadNews(currentPage - 1);
-				window.scrollTo({ top: 0, behavior: 'smooth' });
-			}
+
+		// ── Newsletter ─────────────────────────────────────────────────────
+		document.getElementById('nlForm').addEventListener('submit', function(e){
+			e.preventDefault();
+			var form = this;
+			var email = document.getElementById('nlEmail').value.trim();
+			if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { document.getElementById('nlEmail').focus(); return; }
+			var btn = form.querySelector('button');
+			btn.disabled = true;
+			fetch(apiBase + '/api/newsletter/subscribe', {
+				method: 'POST', headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ email: email })
+			})
+			.then(function(r){ if (!r.ok) throw new Error('fail'); return r.json(); })
+			.then(function(){
+				form.parentNode.replaceChild((function(){
+					var d = document.createElement('div');
+					d.className = 'nx-nl-ok';
+					d.textContent = '✓ Благодарим! Очаквайте първия брой.';
+					return d;
+				})(), form);
+			})
+			.catch(function(){ btn.disabled = false; alert('Грешка при абониране. Опитайте отново.'); });
 		});
-		
-		document.getElementById('nextPage').addEventListener('click', function() {
-			if (currentPage < totalPages) {
-				loadNews(currentPage + 1);
-				window.scrollTo({ top: 0, behavior: 'smooth' });
-			}
-		});
-		
+
 		document.getElementById('year').textContent = new Date().getFullYear();
-		loadNews(1);
+
+		// initial load: grid first, then featured (with fallback to newest 3)
+		loadPage(1).then(function(data){ loadFeatured(data || []); });
 	})();
 	</script>
 </body>

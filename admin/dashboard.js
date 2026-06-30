@@ -881,9 +881,11 @@ async function uploadToR2(file, homeSlug, watermark, photographer) {
         document.getElementById('n_content').value = n.content || '';
         document.getElementById('n_cover').value = n.cover_image || '';
         document.getElementById('n_link').value = n.link || '';
+        document.getElementById('n_place').value = n.place || '';
         document.getElementById('n_date').value = n.published_date || new Date().toISOString().split('T')[0];
         document.getElementById('n_author').value = n.author || 'Екипът на Адресът на историята';
         document.getElementById('n_published').checked = n.is_published !== 0;
+        document.getElementById('n_featured').checked = n.is_featured === 1 || n.is_featured === true;
         renderNewsCoverPreview();
     }
 
@@ -939,7 +941,9 @@ async function uploadToR2(file, homeSlug, watermark, photographer) {
             link: document.getElementById('n_link').value.trim() || '',
             published_date: document.getElementById('n_date').value,
             author: document.getElementById('n_author').value.trim(),
-            is_published: document.getElementById('n_published').checked ? 1 : 0
+            place: document.getElementById('n_place').value.trim() || '',
+            is_published: document.getElementById('n_published').checked ? 1 : 0,
+            is_featured: document.getElementById('n_featured').checked ? 1 : 0
         };
         if (!newsData.title || !newsData.slug || !newsData.content) { alert('Title, slug, and content are required'); return; }
         var method = newsId ? 'PUT' : 'POST';
@@ -1123,18 +1127,18 @@ async function uploadToR2(file, homeSlug, watermark, photographer) {
             }
         }
         if (act === 'editNews') {
-            fetch(NEWS_API + '?all=true&limit=1000').then(function(r) { return r.json(); }).then(function(response) {
-                var article = (response.data || []).find(function(n) { return n.id == id; });
-                if (!article) throw new Error('Article not found');
+            // Fetch the full row (incl. content) by numeric id so every field round-trips.
+            fetch(NEWS_API + '/' + id).then(function(r) { return r.json(); }).then(function(article) {
+                if (!article || !article.id) throw new Error('Article not found');
                 document.getElementById('n_id').value = article.id;
                 fillNewsForm(article);
                 openNewsModal('Edit News Article');
             }).catch(function(err) { console.error(err); alert('Error loading article'); });
         }
         if (act === 'toggleNews') {
-            fetch(NEWS_API + '?all=true&limit=1000').then(function(r) { return r.json(); }).then(function(response) {
-                var article = (response.data || []).find(function(n) { return n.id == id; });
-                if (!article) throw new Error('Article not found');
+            // Fetch the full row first so the PUT preserves content and all fields.
+            fetch(NEWS_API + '/' + id).then(function(r) { return r.json(); }).then(function(article) {
+                if (!article || !article.id) throw new Error('Article not found');
                 article.is_published = article.is_published ? 0 : 1;
                 return fetch(NEWS_API + '/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(article) });
             }).then(function() { loadNews(); }).catch(function(err) { console.error(err); alert('Error updating article'); });

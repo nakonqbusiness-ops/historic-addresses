@@ -5,10 +5,13 @@
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<link rel="icon" type="image/png" href="/assets/img/favicon-96x96.png" sizes="96x96" />
+	<link rel="icon" type="image/svg+xml" href="/assets/img/favicon.svg" />
 	<link rel="shortcut icon" href="/assets/img/favicon.ico" />
-	
+	<link rel="apple-touch-icon" sizes="180x180" href="/assets/img/apple-touch-icon.png" />
+	<link rel="manifest" href="/assets/img/site.webmanifest" />
+
 	<title>Новина - Адресът на историята</title>
-	
+
 	<script>
 		(function() {
 			try {
@@ -18,152 +21,76 @@
 			} catch(e) {}
 		})();
 	</script>
-	
-	<link rel="stylesheet" href="assets/css/styles.css?v=17">
+
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+	<link rel="stylesheet" href="assets/css/styles.css?v=18">
 	<script defer src="assets/js/theme.js"></script>
-	
-	<style>
-		.article-header {
-			max-width: 800px;
-			margin: 0 auto 3rem;
-			text-align: center;
-		}
-		
-		.article-title {
-			font-size: clamp(2rem, 5vw, 3rem);
-			font-weight: 700;
-			margin: 0 0 1rem;
-			line-height: 1.2;
-			color: var(--fg);
-		}
-		
-		.article-meta {
-			display: flex;
-			gap: 1.5rem;
-			justify-content: center;
-			align-items: center;
-			color: var(--muted);
-			font-size: 0.9rem;
-			margin-bottom: 2rem;
-		}
-		
-		.article-cover {
-			width: 100%;
-			max-width: 900px;
-			height: auto;
-			max-height: 500px;
-			object-fit: cover;
-			border-radius: 12px;
-			margin: 0 auto 3rem;
-			display: block;
-			box-shadow: var(--shadow);
-		}
-		
-		.article-content {
-			max-width: 750px;
-			margin: 0 auto;
-			font-size: 1.1rem;
-			line-height: 1.8;
-			color: var(--fg);
-		}
-		
-		.article-content p {
-			margin-bottom: 1.5rem;
-		}
-		
-		.article-content h2 {
-			font-size: 1.6rem;
-			font-weight: 600;
-			margin: 2.5rem 0 1rem;
-			color: var(--fg);
-		}
-		
-		.article-content h3 {
-			font-size: 1.3rem;
-			font-weight: 600;
-			margin: 2rem 0 0.8rem;
-			color: var(--fg);
-		}
-		
-		.article-content ul,
-		.article-content ol {
-			margin: 1rem 0 1.5rem 2rem;
-		}
-		
-		.article-content li {
-			margin-bottom: 0.5rem;
-		}
-		
-		.article-content img {
-			max-width: 100%;
-			height: auto;
-			border-radius: 8px;
-			margin: 2rem 0;
-		}
-		
-		.article-content blockquote {
-			border-left: 3px solid var(--accent-strong);
-			padding-left: 1.5rem;
-			margin: 2rem 0;
-			font-style: italic;
-			color: var(--muted);
-		}
-		
-		.back-link {
-			display: inline-flex;
-			align-items: center;
-			gap: 0.5rem;
-			margin-bottom: 2rem;
-			color: var(--accent-strong);
-			text-decoration: none;
-			font-weight: 600;
-			transition: transform 0.3s ease;
-		}
-		
-		.back-link:hover {
-			transform: translateX(-4px);
-		}
-		
-		@media (max-width: 768px) {
-			.article-meta {
-				flex-direction: column;
-				gap: 0.5rem;
-			}
-		}
-	</style>
+	<script defer src="assets/js/transitions.js?v=2"></script>
     <script defer src="assets/js/account-nav.js?v=26"></script>
 </head>
 <body>
+	<!-- reading progress -->
+	<div class="nx-progress"><div class="nx-progress-fill" id="readProgress"></div></div>
+
 	<header class="site-header">
 		<a class="logo-link" href="index.html">
 			<img src="assets/img/HistAdrLogoOrig.png" alt="Адресът на историята" class="header-logo">
 			<span class="logo-text">Адресът на историята</span>
 		</a>
-		
+
 		<nav class="nav">
 			<a href="index.html">Начало</a>
 			<a href="map.html">Карта</a>
 			<a href="addresses.html">Адреси</a>
 			<a href="calendar.html">Календар</a>
-			<a href="news.html">Новини</a>
+			<a href="news.html" class="active">Новини</a>
 			<a href="about.html">За Нас</a>
 		<a class="nav-suggest" href="/suggest.html">Предложи</a>
 		<a class="nav-account" href="/login.html"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>Вход</span></a>
 		</nav>
-		
+
 		<button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode"></button>
 	</header>
 
-	<main class="container">
-		<a href="news.html" class="back-link">← Назад към новините</a>
-		
-		<div id="articleContent">
-			<p style="text-align:center;padding:3rem;color:var(--muted);">Зареждане...</p>
+	<main class="nx-page">
+		<div class="nx-back-strip">
+			<a href="news.html" class="nx-back"><span class="nx-arr">←</span> Назад към новините</a>
 		</div>
+
+		<div id="articleContent">
+			<article class="nx-article"><p class="nx-empty">Зареждане…</p></article>
+		</div>
+
+		<div id="relatedSection"></div>
 	</main>
 
 	<footer class="site-footer">
-		<p>© <span id="year"></span> Адресът на историята</p>
+		<div class="footer-inner">
+			<div class="footer-social">
+				<a href="https://instagram.com/historyaddress.bg" target="_blank" rel="noopener noreferrer" class="social-link">
+					<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
+					Instagram
+				</a>
+				<a href="mailto:historyaddressbg@gmail.com" class="social-link">
+					<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+					Email
+				</a>
+			</div>
+			<a href="https://buymeacoffee.com/historyaddress.bg" target="_blank" rel="noopener noreferrer" class="footer-donate" aria-label="Подкрепете ни - дарение">
+			  <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+			  Подкрепете ни
+			</a>
+
+			<p class="footer-links">
+				<a href="privacy.html">Поверителност</a> •
+				<a href="terms.html">Условия</a> •
+				<a href="copyright.html">Авторски права</a> <span>•</span> <a href="donation-terms.html">Дарения</a>
+			</p>
+			<p class="footer-copy">© <span id="year"></span> Адресът на историята</p>
+		</div>
 	</footer>
 
 	<script>
@@ -171,52 +98,126 @@
 		var apiBase = window.location.protocol === 'file:' ? 'http://localhost:3000' : window.location.origin;
 		var params = new URLSearchParams(window.location.search);
 		var slug = params.get('slug');
-		
+		var MONTHS = ['януари','февруари','март','април','май','юни','юли','август','септември','октомври','ноември','декември'];
+		var TINTS = [
+			'linear-gradient(150deg,#2a1d11,#7a5128)','linear-gradient(150deg,#221c14,#574733)',
+			'linear-gradient(150deg,#2e2114,#6b4a24)','linear-gradient(150deg,#1f1813,#4d3f2c)',
+			'linear-gradient(150deg,#2a1f12,#8a5e2c)','linear-gradient(150deg,#241a10,#5f4322)',
+			'linear-gradient(150deg,#201a13,#52432f)','linear-gradient(150deg,#2c2013,#73502a)'
+		];
+
+		document.getElementById('year').textContent = new Date().getFullYear();
+
+		function esc(s){ return String(s == null ? '' : s).replace(/[<>&"]/g, function(c){ return {'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]; }); }
+		function shortDate(d){ var x = new Date(d); if (isNaN(x)) return ''; return x.getDate() + ' ' + MONTHS[x.getMonth()]; }
+		function fullDate(d){ var x = new Date(d); if (isNaN(x)) return ''; return x.getDate() + ' ' + MONTHS[x.getMonth()] + ' ' + x.getFullYear(); }
+		function tintFor(a){
+			if (a.cover_image) return "url('" + a.cover_image.replace(/'/g, '%27').replace(/"/g, '%22') + "')";
+			var h = 0, s = a.slug || a.title || '';
+			for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+			return TINTS[h % TINTS.length];
+		}
+		function readMinutes(content){
+			var words = (String(content || '').trim().match(/\S+/g) || []).length;
+			return Math.max(1, Math.round(words / 180));
+		}
+		// Content is admin-authored (trusted). Turn blank-line groups into paragraphs.
+		function renderBody(content){
+			var src = String(content || '').trim();
+			if (/<(p|h2|h3|ul|ol|blockquote|figure|img)\b/i.test(src)) return src; // already HTML
+			return src.split(/\n{2,}/).map(function(p){
+				return '<p>' + p.trim().replace(/\n/g, '<br>') + '</p>';
+			}).join('');
+		}
+
 		if (!slug) {
-			document.getElementById('articleContent').innerHTML = '<p style="text-align:center;padding:3rem;color:#ff6b6b;">Невалиден линк</p>';
+			document.getElementById('articleContent').innerHTML = '<article class="nx-article"><p class="nx-empty" style="color:#ff6b6b">Невалиден линк</p></article>';
 			return;
 		}
-		
-		function formatDate(dateStr) {
-			var date = new Date(dateStr);
-			var months = ['януари', 'февруари', 'март', 'април', 'май', 'юни', 'юли', 'август', 'септември', 'октомври', 'ноември', 'декември'];
-			return date.getDate() + ' ' + months[date.getMonth()] + ' ' + date.getFullYear();
-		}
-		
+
 		fetch(apiBase + '/api/news/' + encodeURIComponent(slug))
-			.then(function(res) {
-				if (!res.ok) throw new Error('Not found');
-				return res.json();
-			})
-			.then(function(article) {
-				document.title = article.title + ' - Адресът на историята';
-				
-				var html = '<div class="article-header">';
-				html += '<h1 class="article-title">' + article.title + '</h1>';
-				html += '<div class="article-meta">';
-				html += '<span>📅 ' + formatDate(article.published_date) + '</span>';
-				if (article.author) {
-					html += '<span>✍️ ' + article.author + '</span>';
-				}
-				html += '</div>';
-				html += '</div>';
-				
-				if (article.cover_image) {
-					html += '<img class="article-cover" src="' + article.cover_image + '" alt="' + article.title + '">';
-				}
-				
-				html += '<div class="article-content">';
-				html += article.content.replace(/\n/g, '<br>');
-				html += '</div>';
-				
+			.then(function(res){ if (!res.ok) throw new Error('Not found'); return res.json(); })
+			.then(function(a){
+				document.title = a.title + ' - Адресът на историята';
+				var read = readMinutes(a.content);
+				var kicker = (a.place ? esc(a.place) + ' · ' : '') + esc(shortDate(a.published_date));
+				var html =
+					'<article class="nx-article" id="articleBody">' +
+						'<div class="nx-art-head">' +
+							'<div class="nx-art-kicker">' + (kicker || 'Новина') + '</div>' +
+							'<h1 class="nx-art-title">' + esc(a.title) + '</h1>' +
+							(a.excerpt ? '<p class="nx-art-deck">' + esc(a.excerpt) + '</p>' : '') +
+							'<div class="nx-art-byline">' +
+								'<span class="nx-author">' + esc(a.author || '') + '</span>' +
+								'<span>·</span><span>' + esc(fullDate(a.published_date)) + '</span>' +
+								'<span>·</span><span>' + read + ' мин четене</span>' +
+							'</div>' +
+						'</div>' +
+						'<div class="nx-hero" style="background:' + tintFor(a) + ';background-size:cover;background-position:center">' +
+							'<div class="nx-grain"></div>' +
+							'<div class="nx-vignette"></div>' +
+							'<span class="nx-photo-cap">ФОТО · АРХИВ „АДРЕСЪТ“</span>' +
+						'</div>' +
+						'<div class="nx-art-cap">' + esc(a.title) + ' · Архив „Адресът на историята“.</div>' +
+						'<div class="ar-body">' + renderBody(a.content) + '</div>' +
+					'</article>';
 				document.getElementById('articleContent').innerHTML = html;
+				initProgress();
+				loadRelated(a.slug);
 			})
-			.catch(function(err) {
+			.catch(function(err){
 				console.error('Error loading article:', err);
-				document.getElementById('articleContent').innerHTML = '<p style="text-align:center;padding:3rem;color:#ff6b6b;">Новината не е намерена</p>';
+				document.getElementById('articleContent').innerHTML = '<article class="nx-article"><p class="nx-empty" style="color:#ff6b6b">Новината не е намерена</p></article>';
 			});
-		
-		document.getElementById('year').textContent = new Date().getFullYear();
+
+		// ── Reading progress ──────────────────────────────────────────────
+		function initProgress(){
+			var bar = document.getElementById('readProgress');
+			var onScroll = function(){
+				var el = document.getElementById('articleBody');
+				if (!el) return;
+				var r = el.getBoundingClientRect();
+				var total = r.height - window.innerHeight;
+				var passed = Math.min(Math.max(-r.top, 0), Math.max(total, 1));
+				var pct = total > 0 ? Math.min(100, (passed / total) * 100) : 0;
+				bar.style.width = pct.toFixed(1) + '%';
+			};
+			window.addEventListener('scroll', onScroll, { passive: true });
+			window.addEventListener('resize', onScroll, { passive: true });
+			onScroll();
+		}
+
+		// ── Related ───────────────────────────────────────────────────────
+		function loadRelated(currentSlug){
+			fetch(apiBase + '/api/news?page=1&limit=4')
+				.then(function(r){ return r.ok ? r.json() : { data: [] }; })
+				.then(function(res){
+					var items = (res.data || []).filter(function(x){ return x.slug !== currentSlug; }).slice(0, 3);
+					if (!items.length) return;
+					var cards = items.map(function(a){
+						var ext = a.link && /^https?:\/\//i.test(a.link);
+						var href = ext ? a.link : 'news-article.html?slug=' + encodeURIComponent(a.slug);
+						var attrs = 'href="' + esc(href) + '"' + (ext ? ' target="_blank" rel="noopener noreferrer"' : '');
+						var dl = (a.place ? esc(a.place) + ' · ' : '') + esc(shortDate(a.published_date));
+						var read = a.read_minutes ? a.read_minutes + ' мин' : '';
+						return '<a class="nx-card" ' + attrs + '>' +
+							'<div class="nx-imgwrap">' +
+								'<div class="nx-img" style="background:' + tintFor(a) + ';background-size:cover;background-position:center"></div>' +
+								'<div class="nx-grain"></div>' +
+							'</div>' +
+							'<div class="nx-card-dateline">' + dl + '</div>' +
+							'<h3 class="nx-title">' + esc(a.title) + '</h3>' +
+							(read ? '<div class="nx-card-foot"><span>' + read + '</span></div>' : '') +
+						'</a>';
+					}).join('');
+					document.getElementById('relatedSection').innerHTML =
+						'<div class="nx-related">' +
+							'<div class="nx-sec-head" style="border-bottom:2px solid var(--nx-gold)"><div class="nx-sec-title">Продължете да четете</div></div>' +
+							'<div class="nx-grid">' + cards + '</div>' +
+						'</div>';
+				})
+				.catch(function(){});
+		}
 	})();
 	</script>
 </body>
