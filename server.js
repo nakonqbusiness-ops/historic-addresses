@@ -995,7 +995,10 @@ app.use((_req, res, next) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');        // no MIME sniffing
     res.setHeader('X-Frame-Options', 'DENY');                  // anti-clickjacking
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-    res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+    // geolocation=(self): the map's "my location" button needs it for same-origin
+    // pages. An empty allowlist () would make the browser auto-deny WITHOUT ever
+    // showing the native permission prompt. Mic/camera stay fully blocked.
+    res.setHeader('Permissions-Policy', 'geolocation=(self), microphone=(), camera=()');
     // HSTS: force HTTPS for 180 days. Honoured by browsers only over HTTPS, so it's a
     // no-op on localhost/http and safe to send unconditionally. No `preload` (that's a
     // hard-to-reverse commitment); includeSubDomains since the whole site is HTTPS.
@@ -2092,10 +2095,11 @@ app.post('/api/auth/change-password', requireUser, rateLimitAuth, async (req, re
 
 // Cheap "am I logged in?" check for the frontend.
 app.get('/api/auth/me', requireUser, async (req, res) => {
-    const user = await dbGet('SELECT id,email,role,display_name,email_verified,totp_enabled FROM users WHERE id=?', [req.user.sub]);
+    const user = await dbGet('SELECT id,email,role,display_name,avatar_url,email_verified,totp_enabled FROM users WHERE id=?', [req.user.sub]);
     if (!user) return res.status(401).json({ error: 'Not authenticated' });
     res.json({
         id: user.id, email: user.email, role: user.role, display_name: user.display_name,
+        avatar_url: user.avatar_url || null,          // header avatar pill
         email_verified: user.email_verified === 1,
         totp_enabled: user.totp_enabled === 1,
         totp_required: roleRequires2fa(user.role),   // staff must enrol

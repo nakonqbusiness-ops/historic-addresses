@@ -42,14 +42,14 @@
     // Compact, render-ready snapshot of /api/auth/me (only what buildUserMenu needs).
     function normalizeMe(me) {
         var name = (me.display_name && me.display_name.trim()) || me.email || 'Профил';
-        return { l: 1, name: name, role: me.role,
+        return { l: 1, name: name, role: me.role, av: me.avatar_url || '',
                  tr: me.totp_required ? 1 : 0, te: me.totp_enabled ? 1 : 0 };
     }
     // Identity signature: if the live value matches what we already painted, we skip
     // the DOM rebuild entirely (the no-reflow happy path).
     function authSig(info) {
         return info && info.l === 1
-            ? 'auth|' + info.name + '|' + info.role + '|' + info.tr + '|' + info.te
+            ? 'auth|' + info.name + '|' + info.role + '|' + (info.av || '') + '|' + info.tr + '|' + info.te
             : 'guest';
     }
 
@@ -172,8 +172,15 @@
         btn.setAttribute('aria-haspopup', 'true');
         btn.setAttribute('aria-expanded', 'false');
         btn.setAttribute('aria-label', 'Профил меню');
+        // Profile photo (200×200 webp from R2) when set; initial as the fallback.
+        // Inline-styled so no styles.css change (and version bump) is needed.
+        var avatarHtml = info.av
+            ? '<span class="nav-user-avatar" style="overflow:hidden;padding:0">' +
+                  '<img src="' + escapeHtml(info.av) + '" alt="" ' +
+                  'style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block"></span>'
+            : '<span class="nav-user-avatar">' + escapeHtml(initial) + '</span>';
         btn.innerHTML =
-            '<span class="nav-user-avatar">' + escapeHtml(initial) + '</span>' +
+            avatarHtml +
             '<svg class="nav-user-chevron" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>';
 
         var menu = document.createElement('div');

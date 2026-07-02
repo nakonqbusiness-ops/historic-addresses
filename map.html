@@ -383,7 +383,7 @@ body.is-auth .panel-fav { display:flex; }
 /* Clean padding off the map edges (bottom-left corner, above the attribution line). */
 .leaflet-bottom.leaflet-left .locate-ctrl { margin:0 0 18px 14px; }
 </style>
-    <script defer src="assets/js/account-nav.js?v=26"></script>
+    <script defer src="assets/js/account-nav.js?v=27"></script>
     <script defer src="assets/js/scroll-hint.js?v=3"></script>
 </head>
 <body>
@@ -662,7 +662,7 @@ window.addEventListener('DOMContentLoaded', function () {
        request, and no error state can occur on page load. First click does a
        fast getCurrentPosition for an immediate fix, then watchPosition keeps the
        pulsing blue dot (+ accuracy circle) following the user until toggled off. */
-    var userLoc = { watchId:null, marker:null, circle:null, btn:null, followed:false };
+    var userLoc = { watchId:null, pending:false, marker:null, circle:null, btn:null, followed:false };
     var userLocIcon = L.divIcon({ className:'user-loc-icon', html:'<div class="user-loc-dot"></div>', iconSize:[14,14], iconAnchor:[7,7] });
 
     function userLocUpdate(pos) {
@@ -688,15 +688,24 @@ window.addEventListener('DOMContentLoaded', function () {
         }
     }
     function startUserLoc() {
-        if (!('geolocation' in navigator) || userLoc.watchId !== null) return;
+        if (!('geolocation' in navigator) || userLoc.watchId !== null || userLoc.pending) return;
+        userLoc.pending = true;
         userLoc.btn.classList.add('searching');
         userLoc.followed = false;   /* recenter once, on the first fix */
         var opts = { enableHighAccuracy:true, maximumAge:15000, timeout:20000 };
-        /* Immediate one-shot fix, then continuous tracking for the live dot. */
-        navigator.geolocation.getCurrentPosition(userLocUpdate, userLocError, opts);
-        userLoc.watchId = navigator.geolocation.watchPosition(userLocUpdate, userLocError, opts);
+        /* SEQUENTIAL: one getCurrentPosition carries the native permission prompt;
+           continuous tracking starts only AFTER the user grants and a fix arrives.
+           (Firing watchPosition concurrently caused racing duplicate requests.) */
+        navigator.geolocation.getCurrentPosition(function(pos){
+            userLoc.pending = false;
+            userLocUpdate(pos);
+            if (userLoc.watchId === null) {
+                userLoc.watchId = navigator.geolocation.watchPosition(userLocUpdate, userLocError, opts);
+            }
+        }, userLocError, opts);
     }
     function stopUserLoc() {
+        userLoc.pending = false;
         if (userLoc.watchId !== null) { navigator.geolocation.clearWatch(userLoc.watchId); userLoc.watchId = null; }
         if (userLoc.marker) { map.removeLayer(userLoc.marker); userLoc.marker = null; }
         if (userLoc.circle) { map.removeLayer(userLoc.circle); userLoc.circle = null; }

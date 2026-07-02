@@ -325,7 +325,7 @@
             .sub-card > .place-body { order:3; flex-basis:100%; }
         }
     </style>
-    <script defer src="assets/js/account-nav.js?v=26"></script>
+    <script defer src="assets/js/account-nav.js?v=27"></script>
 </head>
 
 <body class="pf-page">
@@ -1280,6 +1280,18 @@
             document.getElementById('pfAvatar').textContent = initials(shownName);
             avaRemove.hidden = true;
         }
+        // Mirror into the header's avatar pill (account-nav) so the change shows
+        // immediately on this page - the nav cache is refreshed separately.
+        var pill = document.querySelector('.nav-user-avatar');
+        if (pill) {
+            if (url) {
+                pill.style.overflow = 'hidden'; pill.style.padding = '0';
+                pill.innerHTML = '<img src="' + url.replace(/"/g, '&quot;') + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">';
+            } else {
+                pill.style.overflow = ''; pill.style.padding = '';
+                pill.textContent = initials(shownName).charAt(0);
+            }
+        }
     }
     function setPubStatus(status) {
         if (!status) { pubStatus.hidden = true; return; }
@@ -1359,6 +1371,7 @@
             .then(function(r) {
                 if (!r.ok) throw new Error((r.d && r.d.error) || 'upload failed');
                 setAvatarUI(r.d.avatar_url);
+                if (window.haAuth && window.haAuth.refresh) window.haAuth.refresh();   // header cache
                 avaNote('');
                 toast('Профилната снимка е обновена.');
             })
@@ -1374,7 +1387,11 @@
         avaRemove.disabled = true;
         fetch('/api/user/avatar', { method: 'DELETE', credentials: 'include' })
             .then(function(r) { if (!r.ok) throw new Error(); return r.json(); })
-            .then(function() { setAvatarUI(null); toast('Снимката е премахната.'); })
+            .then(function() {
+                setAvatarUI(null);
+                if (window.haAuth && window.haAuth.refresh) window.haAuth.refresh();   // header cache
+                toast('Снимката е премахната.');
+            })
             .catch(function() { toast('Грешка. Опитайте отново.'); })
             .then(function() { avaRemove.disabled = false; });
     });
