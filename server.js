@@ -489,15 +489,24 @@ function approvalEmailHtml(placeTitle, link) {
     return emailLayout(body, 'Вашият адрес е одобрен и вече е на картата!');
 }
 // TRIGGER 1: sent the moment a place is submitted (registered users and guests).
-function submissionReceivedEmailHtml(placeTitle) {
+// Guests get a prominent "create your profile" call-to-action - submissions made
+// with their email attach automatically when the account is created.
+function submissionReceivedEmailHtml(placeTitle, isGuest = false) {
     const titleLine = placeTitle
         ? `<p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:#5a4a33;">Получихме предложението Ви <strong style="color:#cd853f;">„${escHtml(placeTitle)}"</strong>.</p>` : '';
+    const cta = isGuest
+      ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:22px 0 4px;"><tr><td style="background:#fbf3e3;border:1px solid #e6d9c2;border-radius:12px;padding:20px 22px;text-align:center;">
+           <p style="margin:0 0 4px;font-size:16px;font-weight:700;color:#3a2f1f;">Следете статуса на предложението си</p>
+           <p style="margin:0 0 2px;font-size:13.5px;line-height:1.65;color:#5a4a33;">Създайте безплатен профил с този имейл и предложението Ви ще се появи автоматично в него - заедно с известия за одобрение, любими места и още.</p>
+           ${emailButton(DOMAIN + '/register.html', 'Създай своя профил')}
+         </td></tr></table>`
+      : emailButton(DOMAIN + '/profile.html#activity', 'Виж статуса в профила си');
     const body =
       `<h1 style="margin:0 0 14px;font-family:Georgia,serif;font-size:25px;font-weight:700;color:#3a2f1f;">Благодарим Ви! 📨</h1>
        <p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:#5a4a33;">Благодарим ви, вашето предложение за адрес бе изпратено за модерация!</p>
        ${titleLine}
        <p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:#5a4a33;">Нашият екип ще го прегледа и ще Ви уведомим по имейл за решението. 🏛️</p>
-       <p style="margin:14px 0 0;font-size:13px;line-height:1.6;color:#8b7355;">Ако нямате профил, можете да си създадете - предложенията, направени с този имейл, ще се появят автоматично в него.</p>`;
+       ${cta}`;
     return emailLayout(body, 'Получихме Вашето предложение за адрес');
 }
 // TRIGGER 3: sent when a moderator returns a submission for correction, with their note.
@@ -523,6 +532,56 @@ function rejectionEmailHtml(placeTitle, reason) {
        <p style="margin:14px 0 0;font-size:14px;line-height:1.7;color:#5a4a33;">Благодарим Ви, че се включихте. Винаги сте добре дошли да предложите друга локация.</p>
        ${emailButton(DOMAIN + '/suggest.html', 'Предложи друга локация')}`;
     return emailLayout(body, 'Относно Вашето предложение за адрес');
+}
+
+// Follower digest: sent when a creator someone follows gets new locations approved.
+// Deliberately AGGREGATED wording (no per-address details) because the 24 h throttle
+// means one email may cover several approvals.
+function followDigestEmailHtml(creatorName, creatorId) {
+    const link = `${DOMAIN}/user/${encodeURIComponent(creatorId)}`;
+    const body =
+      `<h1 style="margin:0 0 14px;font-family:Georgia,serif;font-size:24px;font-weight:700;color:#3a2f1f;">Нови локации в архива 🏛️</h1>
+       <p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:#5a4a33;"><strong style="color:#cd853f;">${escHtml(creatorName)}</strong>, когото следвате в Адресът на историята, има новоодобрени локации на картата.</p>
+       ${emailButton(link, 'Виж профила и новите адреси')}
+       <p style="margin:14px 0 0;font-size:12px;line-height:1.6;color:#8b7355;">Получавате най-много един такъв имейл на ден за този сътрудник. За да спрете известията, спрете да го следвате от профила му.</p>`;
+    return emailLayout(body, `Нови одобрени локации от ${creatorName}`);
+}
+
+// Notify a creator's followers about freshly approved content - throttled to ONE
+// email per follower per creator per 24 h via follow_email_log. The timestamp is
+// claimed BEFORE sending, so overlapping approval requests can't double-send.
+const FOLLOW_EMAIL_WINDOW_MS = 24 * 3600 * 1000;
+async function notifyFollowersOfApproval(creatorId) {
+    if (!creatorId || !resend) return;
+    try {
+        const creator = await dbGet('SELECT display_name FROM users WHERE id=?', [creatorId]);
+        const creatorName = (creator && creator.display_name && creator.display_name.trim()) || 'Сътрудник';
+        const rows = await dbAll(
+            `SELECT f.follower_id, u.email, l.sent_at
+             FROM user_follows f
+             JOIN users u ON u.id = f.follower_id
+             LEFT JOIN follow_email_log l ON l.follower_id = f.follower_id AND l.creator_id = f.followee_id
+             WHERE f.followee_id = ?`,
+            [creatorId]
+        );
+        const now = Date.now();
+        for (const r of rows) {
+            if (!r.email) continue;
+            if (r.sent_at && now - Number(r.sent_at) < FOLLOW_EMAIL_WINDOW_MS) continue;   // throttled
+            await dbRun(
+                `INSERT INTO follow_email_log (follower_id, creator_id, sent_at) VALUES (?,?,?)
+                 ON CONFLICT(follower_id, creator_id) DO UPDATE SET sent_at=excluded.sent_at`,
+                [r.follower_id, creatorId, now]
+            );
+            await sendEmail({
+                to: r.email,
+                subject: `Нови локации от ${creatorName} 🏛️`,
+                html: followDigestEmailHtml(creatorName, creatorId),
+            });
+        }
+    } catch (e) {
+        console.warn('follower digest failed:', e.message);
+    }
 }
 
 // Module-level HTML escaper for values dropped into email templates.
@@ -1125,6 +1184,13 @@ app.get('/address.html', async (req, res, next) => {
     }
 });
 
+// Public user profile: pretty URL /user/<id> serves the (client-rendered) user.html.
+// Registered before express.static so it wins over the 404 fallback.
+app.get('/user/:id', (_req, res) => {
+    res.set('Cache-Control', 'no-cache');
+    res.sendFile(path.join(__dirname, 'user.html'));
+});
+
 // ── Static files ──────────────────────────────────────────────────────────────
 // HTML must always revalidate (otherwise edited pages stay stale for up to a day);
 // hashed/versioned assets can cache long.
@@ -1333,6 +1399,16 @@ function initDB() {
         db.run('ALTER TABLE users ADD COLUMN totp_secret TEXT', () => {});
         db.run('ALTER TABLE users ADD COLUMN totp_enabled INTEGER DEFAULT 0', () => {});
         db.run('ALTER TABLE users ADD COLUMN totp_backup_codes TEXT', () => {});
+        // ── Public profile (bio / interests / avatar) + anti-troll approval pipeline ──
+        // interests is a JSON array of short strings. avatar_url points to a 200×200
+        // WebP in R2 (avatars/ prefix). profile_status gates the PUBLIC profile page:
+        // 'approved' | 'pending_approval'. Pre-existing accounts are grandfathered as
+        // approved (the ALTER default backfills them); NEW registrations and any bio/
+        // interests edit flip the status to 'pending_approval' until an admin approves.
+        db.run('ALTER TABLE users ADD COLUMN bio TEXT', () => {});
+        db.run('ALTER TABLE users ADD COLUMN interests TEXT', () => {});
+        db.run('ALTER TABLE users ADD COLUMN avatar_url TEXT', () => {});
+        db.run("ALTER TABLE users ADD COLUMN profile_status TEXT NOT NULL DEFAULT 'approved'", () => {});
 
         // ── Per-user activity (favorites / visited) ───────────────────────────
         // address_id references a home id; user_id cascades on user deletion.
@@ -1347,6 +1423,28 @@ function initDB() {
         )`);
         db.run('CREATE INDEX IF NOT EXISTS idx_activity_user ON user_activity(user_id, status)');
         db.run('CREATE INDEX IF NOT EXISTS idx_activity_addr ON user_activity(address_id)');
+
+        // ── Follows (public profiles) ──────────────────────────────────────────
+        // follower_id follows followee_id. Both cascade away with the account.
+        db.run(`CREATE TABLE IF NOT EXISTS user_follows (
+            follower_id TEXT NOT NULL,
+            followee_id TEXT NOT NULL,
+            created_at  TEXT NOT NULL,
+            PRIMARY KEY (follower_id, followee_id),
+            FOREIGN KEY(follower_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY(followee_id) REFERENCES users(id) ON DELETE CASCADE
+        )`);
+        db.run('CREATE INDEX IF NOT EXISTS idx_follows_followee ON user_follows(followee_id)');
+        // Anti-spam throttle for follower notifications: remembers when each follower
+        // was last emailed about a given creator. One row per (follower, creator) pair;
+        // notifyFollowersOfApproval() skips anyone contacted in the last 24 h, so a bulk
+        // approval run can never fan out into an email flood.
+        db.run(`CREATE TABLE IF NOT EXISTS follow_email_log (
+            follower_id TEXT NOT NULL,
+            creator_id  TEXT NOT NULL,
+            sent_at     INTEGER NOT NULL,
+            PRIMARY KEY (follower_id, creator_id)
+        )`);
 
         // ── Crowdsourced submissions (moderation queue) ───────────────────────
         // Never touches the live `homes` table until a moderator approves.
@@ -1430,6 +1528,9 @@ function migrateHomes() {
             { name: 'name_lower',   type: 'TEXT' },
             // Optional credit shown on the address page ("Предложено от …").
             { name: 'credited_to',  type: 'TEXT' },
+            // The user account that suggested this place (set on moderation approval).
+            // Lets the address page link the credit to the public profile /user/<id>.
+            { name: 'contributor_id', type: 'TEXT' },
         ].filter(c => !have.has(c.name));
 
         // Create indexes only once their columns are guaranteed to exist,
@@ -1711,6 +1812,7 @@ function rowToHome(row, listMode = false) {
         death_date:  row.death_date,
         category:    row.category || 'home',
         credited_to: row.credited_to || null,
+        contributor_id: row.contributor_id || null,
     };
 }
 
@@ -1750,8 +1852,10 @@ app.post('/api/auth/register', rateLimitAuth, async (req, res) => {
         const now = new Date().toISOString();
         const newsletter = (req.body && (req.body.newsletter === true || req.body.newsletter === 1)) ? 1 : 0;
         // email_verified starts at 0 → the account is restricted until the link is clicked.
+        // profile_status starts at 'pending_approval' → the PUBLIC profile page stays
+        // hidden until an admin approves it (anti-troll pipeline). Site usage is unaffected.
         await dbRun(
-            'INSERT INTO users (id,email,password_hash,role,permissions,newsletter,created_at,email_verified) VALUES (?,?,?,?,?,?,?,0)',
+            "INSERT INTO users (id,email,password_hash,role,permissions,newsletter,created_at,email_verified,profile_status) VALUES (?,?,?,?,?,?,?,0,'pending_approval')",
             [id, email, password_hash, 'user', '[]', newsletter, now]
         );
 
@@ -2081,7 +2185,7 @@ app.post('/api/2fa/backup-codes', rateLimitAuth, requireUser, async (req, res) =
 // Profile: the user's data + their favorite and visited addresses.
 app.get('/api/user/profile', requireUser, async (req, res) => {
     try {
-        const user = await dbGet('SELECT id,email,role,permissions,display_name,newsletter,created_at,email_verified FROM users WHERE id=?', [req.user.sub]);
+        const user = await dbGet('SELECT id,email,role,permissions,display_name,newsletter,created_at,email_verified,bio,interests,avatar_url,profile_status FROM users WHERE id=?', [req.user.sub]);
         if (!user) return res.status(404).json({ error: 'User not found' });
 
         const rows = await dbAll(
@@ -2144,11 +2248,17 @@ app.get('/api/user/profile', requireUser, async (req, res) => {
             id:            user.id,
             email:         user.email,
             display_name:  user.display_name || null,
+            bio:           user.bio || '',
+            interests:     parseInterests(user.interests),
+            avatar_url:    user.avatar_url || null,
+            profile_status: user.profile_status || 'approved',
             newsletter:    user.newsletter === 1,
             email_verified: user.email_verified === 1,
             role:          user.role,
             permissions:   (() => { try { return JSON.parse(user.permissions || '[]'); } catch { return []; } })(),
             created_at:    user.created_at,
+            followers_count: await dbGet('SELECT COUNT(*) AS n FROM user_follows WHERE followee_id=?', [req.user.sub]).then(r => r.n).catch(() => 0),
+            following_count: await dbGet('SELECT COUNT(*) AS n FROM user_follows WHERE follower_id=?', [req.user.sub]).then(r => r.n).catch(() => 0),
             favorites:     rows.filter(r => r.status === 'favorite').map(toItem),
             visited:       rows.filter(r => r.status === 'visited').map(toItem),
             submissions:   submissions,
@@ -2165,7 +2275,31 @@ app.get('/api/user/profile', requireUser, async (req, res) => {
     }
 });
 
-// Update the user's editable profile fields (currently just display name).
+// ── Public-profile field helpers ─────────────────────────────────────────────
+// interests is stored as a JSON array of short plain-text strings.
+const MAX_INTERESTS = 10;
+function parseInterests(s) {
+    try { const a = JSON.parse(s || '[]'); return Array.isArray(a) ? a.filter(x => typeof x === 'string') : []; }
+    catch { return []; }
+}
+// Accepts an array OR a comma-separated string; sanitizes, dedupes, caps.
+function normalizeInterests(raw) {
+    let arr = Array.isArray(raw) ? raw : String(raw || '').split(',');
+    const seen = new Set(), out = [];
+    for (const item of arr) {
+        const t = sanitizeText(String(item || ''), 30).trim();
+        if (!t) continue;
+        const k = t.toLowerCase();
+        if (seen.has(k)) continue;
+        seen.add(k); out.push(t);
+        if (out.length >= MAX_INTERESTS) break;
+    }
+    return out;
+}
+
+// Update the user's editable profile fields. Changing the PUBLIC text (bio or
+// interests) sends the profile back into moderation: profile_status flips to
+// 'pending_approval' and the public page hides until an admin re-approves it.
 app.put('/api/user/profile', requireUser, async (req, res) => {
     try {
         const b = req.body || {};
@@ -2178,10 +2312,253 @@ app.put('/api/user/profile', requireUser, async (req, res) => {
             const nl = (b.newsletter === true || b.newsletter === 1) ? 1 : 0;
             await dbRun('UPDATE users SET newsletter=? WHERE id=?', [nl, req.user.sub]);
         }
-        const row = await dbGet('SELECT display_name, newsletter FROM users WHERE id=?', [req.user.sub]);
-        res.json({ display_name: row.display_name || null, newsletter: row.newsletter === 1 });
+        if (b.bio !== undefined || b.interests !== undefined) {
+            const cur = await dbGet('SELECT bio, interests FROM users WHERE id=?', [req.user.sub]);
+            if (!cur) return res.status(401).json({ error: 'Not authenticated' });
+            // sanitizeText collapses whitespace-only input to '' → stored as NULL.
+            const newBio       = (b.bio !== undefined) ? (sanitizeText(String(b.bio || ''), 600) || null) : (cur.bio || null);
+            const newInterests = (b.interests !== undefined) ? normalizeInterests(b.interests) : parseInterests(cur.interests);
+            const curInterests = parseInterests(cur.interests);
+            const bioChanged       = (newBio || '') !== (cur.bio || '');
+            const interestsChanged = JSON.stringify(newInterests) !== JSON.stringify(curInterests);
+            if (bioChanged || interestsChanged) {
+                // Moderation is only for NEW public text. Deletions can't contain
+                // profanity, so they bypass the pending_approval pipeline entirely:
+                //  • text added or rewritten           → pending_approval (admin reviews)
+                //  • everything cleared (bio+interests) → approved immediately
+                //  • removal-only edit, older approved  → keep the current status
+                //    text remains (a pending profile stays pending for that text)
+                const addedText = (bioChanged && newBio) || (interestsChanged && newInterests.length);
+                let statusSet = '';
+                if (addedText)                              statusSet = ", profile_status='pending_approval'";
+                else if (!newBio && !newInterests.length)   statusSet = ", profile_status='approved'";
+                await dbRun(`UPDATE users SET bio=?, interests=?${statusSet} WHERE id=?`,
+                    [newBio, newInterests.length ? JSON.stringify(newInterests) : null, req.user.sub]);
+            }
+        }
+        const row = await dbGet('SELECT display_name, newsletter, bio, interests, avatar_url, profile_status FROM users WHERE id=?', [req.user.sub]);
+        res.json({
+            display_name: row.display_name || null, newsletter: row.newsletter === 1,
+            bio: row.bio || '', interests: parseInterests(row.interests),
+            avatar_url: row.avatar_url || null, profile_status: row.profile_status || 'approved',
+        });
     } catch (e) {
         console.error('profile update error:', e.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// ── Profile avatar (200×200 WebP, hard 20 KB cap → keeps R2 lean) ─────────────
+// The CLIENT pre-compresses via Canvas (200×200 webp q0.7) and the request is
+// rejected above 20 KB; the SERVER then re-encodes through sharp anyway, so a
+// crafted payload can never land in R2 as-is.
+const AVATAR_MAX_BYTES = 20 * 1024;
+const avatarUpload = multer({
+    storage:    multer.memoryStorage(),
+    limits:     { fileSize: AVATAR_MAX_BYTES, files: 1 },
+    fileFilter: (_req, file, cb) =>
+        file.mimetype.startsWith('image/') ? cb(null, true) : cb(new Error('NOT_IMAGE'), false),
+});
+function acceptAvatar(field) {
+    const mw = avatarUpload.single(field);
+    return (req, res, next) => mw(req, res, (err) => {
+        if (!err) return next();
+        if (err.code === 'LIMIT_FILE_SIZE') return res.status(400).json({ error: 'Снимката е над 20 KB. Опитайте с по-малко изображение.' });
+        return res.status(400).json({ error: 'Невалиден файл - качете изображение.' });
+    });
+}
+app.post('/api/user/avatar', requireUser, acceptAvatar('avatar'), async (req, res) => {
+    try {
+        if (!req.file || !req.file.buffer) return res.status(400).json({ error: 'Липсва файл.' });
+        if (!looksLikeImage(req.file.buffer)) return res.status(400).json({ error: 'Невалиден файл - качете изображение.' });
+
+        // Normalize to exactly 200×200 WebP regardless of what the client sent.
+        // Step the quality down if a busy image lands over the 20 KB budget.
+        let out = null;
+        for (const quality of [70, 55, 40]) {
+            out = await sharp(req.file.buffer, SHARP_OPTS).rotate()
+                .resize(200, 200, { fit: 'cover' }).webp({ quality }).toBuffer();
+            if (out.length <= AVATAR_MAX_BYTES) break;
+        }
+        if (!out || out.length > AVATAR_MAX_BYTES) {
+            return res.status(400).json({ error: 'Снимката не може да се компресира под 20 KB. Опитайте с друга.' });
+        }
+
+        const prev = await dbGet('SELECT avatar_url FROM users WHERE id=?', [req.user.sub]);
+        // Versioned key (immutable cache headers) - the old object is deleted below.
+        const key = `avatars/${req.user.sub}_${Date.now()}.webp`;
+        await r2.send(new PutObjectCommand({
+            Bucket: R2_BUCKET, Key: key, Body: out,
+            ContentType: 'image/webp', CacheControl: 'public, max-age=31536000',
+        }));
+        const url = `${R2_PUBLIC_URL}/${key}`;
+        await dbRun('UPDATE users SET avatar_url=? WHERE id=?', [url, req.user.sub]);
+        if (prev && prev.avatar_url) await deleteR2(prev.avatar_url);
+        res.json({ avatar_url: url, bytes: out.length });
+    } catch (e) {
+        console.error('avatar upload error:', e.message);
+        res.status(500).json({ error: 'Грешка при качване. Опитайте отново.' });
+    }
+});
+app.delete('/api/user/avatar', requireUser, async (req, res) => {
+    try {
+        const prev = await dbGet('SELECT avatar_url FROM users WHERE id=?', [req.user.sub]);
+        if (prev && prev.avatar_url) await deleteR2(prev.avatar_url);
+        await dbRun('UPDATE users SET avatar_url=NULL WHERE id=?', [req.user.sub]);
+        res.json({ avatar_url: null });
+    } catch (e) {
+        console.error('avatar delete error:', e.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// ── PUBLIC user profile ────────────────────────────────────────────────────────
+// Powers /user/<id>. NEVER exposes the email - only the display name. A profile
+// that is pending approval (or whose owner is banned) returns a clean moderation
+// state to the public, but stays fully visible to admins/owners (is_staff_view),
+// so the dashboard "Преглед" link always works.
+app.get('/api/users/:id/public', async (req, res) => {
+    try {
+        const u = await dbGet(
+            'SELECT id, display_name, bio, interests, avatar_url, profile_status, banned_until, created_at, role, email_verified FROM users WHERE id=?',
+            [req.params.id]
+        );
+        if (!u) return res.status(404).json({ error: 'Потребителят не е намерен' });
+
+        // Optional viewer identity (guests are fine): staff see hidden profiles,
+        // logged-in viewers get their follow state back.
+        let staffViewer = false, viewerId = null;
+        try {
+            const token = req.cookies && req.cookies[AUTH_COOKIE];
+            if (token) {
+                const claims = jwt.verify(token, JWT_SECRET);
+                const vr = await dbGet('SELECT id, role FROM users WHERE id=?', [claims.sub]);
+                if (vr) {
+                    viewerId = vr.id;
+                    staffViewer = roleRank(vr.role) >= ROLE_RANK.admin;
+                }
+            }
+        } catch { /* invalid/expired cookie → treat as guest */ }
+
+        const hidden = (u.profile_status || 'approved') !== 'approved' || isBanned(u.banned_until);
+        if (hidden && !staffViewer) {
+            res.set('Cache-Control', 'no-store');
+            return res.json({ id: u.id, moderation: true });
+        }
+
+        const toCard = r => {
+            let imgs = []; try { imgs = JSON.parse(r.images || '[]'); } catch {}
+            return {
+                slug: r.slug, name: r.name, address: r.address || '',
+                category: r.category || 'home',
+                image: imgs[0] ? (ensureThumb(imgs[0]).thumb || imgs[0].path) : null,
+            };
+        };
+        // All approved contributions (cards capped at 60; stats use the full set).
+        const approvedRows = await dbAll(
+            `SELECT h.slug, h.name, h.address, h.category, h.images
+             FROM pending_addresses p JOIN homes h ON h.slug = p.result_slug
+             WHERE p.user_id = ? AND p.status = 'approved'
+             ORDER BY p.reviewed_at DESC`,
+            [u.id]
+        );
+        let photosAdded = 0;
+        for (const r of approvedRows) {
+            try { photosAdded += (JSON.parse(r.images || '[]') || []).length; } catch {}
+        }
+        const proposed = approvedRows.slice(0, 60).map(toCard);
+        // NB: favorites/bookmarks are deliberately NOT exposed here - saved places
+        // are private and visible only to the account owner (/api/user/profile).
+
+        const counts = await dbGet('SELECT COUNT(*) AS submitted FROM pending_addresses WHERE user_id=?', [u.id]);
+        const fl = await dbGet('SELECT COUNT(*) AS n FROM user_follows WHERE followee_id=?', [u.id]);
+        let viewerFollows = false;
+        if (viewerId && viewerId !== u.id) {
+            const vf = await dbGet('SELECT 1 AS f FROM user_follows WHERE follower_id=? AND followee_id=?', [viewerId, u.id]);
+            viewerFollows = !!vf;
+        }
+
+        // Badges/rank/stats must never go stale after a moderation action - forbid
+        // any browser/proxy caching of this payload (revalidate on every fetch).
+        res.set('Cache-Control', 'no-store');
+        res.json({
+            id:            u.id,
+            name:          (u.display_name && u.display_name.trim()) || 'Потребител',
+            avatar_url:    u.avatar_url || null,
+            member_since:  u.created_at,
+            bio:           u.bio || '',
+            interests:     parseInterests(u.interests),
+            role:          u.role || 'user',
+            verified:      u.email_verified === 1,
+            approved_count:  approvedRows.length,
+            submitted_count: (counts && counts.submitted) || 0,
+            photos_added:    photosAdded,
+            followers:       (fl && fl.n) || 0,
+            proposed,
+            moderation:    hidden,          // true only when a staff member views a hidden profile
+            is_staff_view: hidden && staffViewer,
+            viewer_logged:  !!viewerId,
+            viewer_is_self: viewerId === u.id,
+            viewer_follows: viewerFollows,
+        });
+    } catch (e) {
+        console.error('public profile error:', e.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// The logged-in user's social lists: who they follow, and who follows them.
+// Private - powers the "Последвани" / "Последователи" tabs on the dashboard.
+app.get('/api/user/follows', requireUser, async (req, res) => {
+    try {
+        const toPerson = r => ({
+            id: r.id,
+            name: (r.display_name && r.display_name.trim()) || 'Потребител',
+            avatar_url: r.avatar_url || null,
+            since: r.fcreated,
+        });
+        const following = (await dbAll(
+            `SELECT u.id, u.display_name, u.avatar_url, f.created_at AS fcreated
+             FROM user_follows f JOIN users u ON u.id = f.followee_id
+             WHERE f.follower_id = ? ORDER BY f.created_at DESC LIMIT 500`,
+            [req.user.sub]
+        )).map(toPerson);
+        const followers = (await dbAll(
+            `SELECT u.id, u.display_name, u.avatar_url, f.created_at AS fcreated
+             FROM user_follows f JOIN users u ON u.id = f.follower_id
+             WHERE f.followee_id = ? ORDER BY f.created_at DESC LIMIT 500`,
+            [req.user.sub]
+        )).map(toPerson);
+        res.set('Cache-Control', 'no-store');
+        res.json({ following, followers, following_count: following.length, followers_count: followers.length });
+    } catch (e) {
+        console.error('follows list error:', e.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Follow / unfollow a public profile (logged-in users only).
+app.post('/api/users/:id/follow', requireUser, rateLimitActivity, async (req, res) => {
+    if (req.params.id === req.user.sub) return res.status(400).json({ error: 'Не можете да последвате себе си.' });
+    try {
+        const target = await dbGet('SELECT id FROM users WHERE id=?', [req.params.id]);
+        if (!target) return res.status(404).json({ error: 'Потребителят не е намерен' });
+        await dbRun('INSERT OR IGNORE INTO user_follows (follower_id, followee_id, created_at) VALUES (?,?,?)',
+            [req.user.sub, target.id, new Date().toISOString()]);
+        const fl = await dbGet('SELECT COUNT(*) AS n FROM user_follows WHERE followee_id=?', [target.id]);
+        res.json({ following: true, followers: fl.n });
+    } catch (e) {
+        console.error('follow error:', e.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+app.delete('/api/users/:id/follow', requireUser, rateLimitActivity, async (req, res) => {
+    try {
+        await dbRun('DELETE FROM user_follows WHERE follower_id=? AND followee_id=?', [req.user.sub, req.params.id]);
+        const fl = await dbGet('SELECT COUNT(*) AS n FROM user_follows WHERE followee_id=?', [req.params.id]);
+        res.json({ following: false, followers: fl.n });
+    } catch (e) {
+        console.error('unfollow error:', e.message);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -2472,11 +2849,12 @@ app.post('/api/suggest-guest', rateLimitSuggest, acceptPhotos('images'), async (
         );
         res.status(201).json({ id, status: 'pending', photos: urls.length });
 
-        // TRIGGER 1: confirm receipt to the guest (fire-and-forget).
+        // TRIGGER 1: confirm receipt to the guest (fire-and-forget), with the
+        // "Създай своя профил" conversion CTA.
         sendEmail({
             to: email,
             subject: 'Получихме Вашето предложение за адрес 📨',
-            html: submissionReceivedEmailHtml(title),
+            html: submissionReceivedEmailHtml(title, true),
         }).catch(() => {});
     } catch (e) {
         console.error('guest suggest error:', e.message);
@@ -2728,7 +3106,14 @@ app.post('/api/admin/moderate/:id', requireRole('admin'), acceptPhotos('images')
         const category    = normCategory(b.category || row.category);
         const lat = (b.lat !== undefined) ? (b.lat !== '' && isFinite(+b.lat) ? +b.lat : null) : row.lat;
         const lng = (b.lng !== undefined) ? (b.lng !== '' && isFinite(+b.lng) ? +b.lng : null) : row.lng;
-        const credit = sanitizeText(b.credit, 120) || null;
+        // Credit line: moderator override wins; otherwise default to the submitter's
+        // display name so registered contributors get their public-profile link.
+        const contributorId = row.user_id || null;
+        let credit = sanitizeText(b.credit, 120) || null;
+        if (!credit && contributorId) {
+            const su = await dbGet('SELECT display_name FROM users WHERE id=?', [contributorId]);
+            if (su && su.display_name) credit = sanitizeText(su.display_name, 120) || null;
+        }
 
         // Tags (comma-separated) and sources (semicolon/newline-separated), like the admin panel.
         const tags    = sanitizeText(b.tags, 500).split(',').map(s => s.trim()).filter(Boolean).slice(0, 30);
@@ -2782,12 +3167,12 @@ app.post('/api/admin/moderate/:id', requireRole('admin'), acceptPhotos('images')
         await dbRun(
             `INSERT INTO homes
                 (id,slug,name,name_lower,biography,address,lat,lng,images,photo_date,
-                 sources,tags,published,created_at,updated_at,portrait_url,birth_date,death_date,date_label,category,credited_to)
-             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+                 sources,tags,published,created_at,updated_at,portrait_url,birth_date,death_date,date_label,category,credited_to,contributor_id)
+             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
             [slug, slug, title, (title || '').toLowerCase(), description,
              (addressStr || city) || null, lat, lng,
              JSON.stringify(images), null, JSON.stringify(sources), JSON.stringify(tags),
-             1, now, now, null, birth_date, death_date, date_label, category, credit]
+             1, now, now, null, birth_date, death_date, date_label, category, credit, contributorId]
         );
         await dbRun("UPDATE pending_addresses SET status='approved', reviewed_at=?, reviewed_by=?, result_slug=? WHERE id=?",
             [now, req.user.sub, slug, row.id]);
@@ -2805,6 +3190,10 @@ app.post('/api/admin/moderate/:id', requireRole('admin'), acceptPhotos('images')
                 html: approvalEmailHtml(title, `${DOMAIN}/address.html?slug=${encodeURIComponent(slug)}`),
             }))
             .catch(() => {});
+        // Follower digest (fire-and-forget): tell people who follow this creator.
+        // Hard-throttled inside to max ONE email per follower per creator per 24 h,
+        // so approving many submissions at once still produces a single message.
+        if (contributorId) notifyFollowersOfApproval(contributorId).catch(() => {});
     } catch (e) {
         console.error('moderate error:', e.message);
         res.status(500).json({ error: 'Грешка при обработка. Опитайте отново.' });
@@ -2814,23 +3203,102 @@ app.post('/api/admin/moderate/:id', requireRole('admin'), acceptPhotos('images')
 // ── User / role management (owner only) ───────────────────────────────────────
 // ── User management ──────────────────────────────────────────────────────────
 // Visible to admins+ (admins see emails/profiles; moderators have no access here).
+// Query params (all optional, so existing callers keep the legacy behaviour):
+//   q=      instant search over display name + email (Unicode case-insensitive)
+//   status= pending | approved | banned   (profile-moderation state)
+//   sort=   created_desc | created_asc | status
+// Filtering/sorting happens in JS over the (≤2000-row) result set - SQLite's
+// LOWER() can't fold Cyrillic, and at this table size it's instant anyway.
 app.get('/api/admin/users', requireRole('admin'), async (req, res) => {
     try {
         const rows = await dbAll(
             `SELECT u.id, u.email, u.role, u.display_name, u.created_at, u.banned_until,
+                    u.bio, u.interests, u.avatar_url, u.profile_status, u.email_verified,
                     (SELECT COUNT(*) FROM pending_addresses p WHERE p.user_id = u.id) AS submissions
              FROM users u ORDER BY
                 CASE u.role WHEN 'owner' THEN 0 WHEN 'admin' THEN 1 WHEN 'moderator' THEN 2 ELSE 3 END, u.created_at ASC
              LIMIT 2000`
         );
-        res.json(rows.map(r => ({
-            id: r.id, email: r.email, role: r.role, display_name: r.display_name || null,
-            created_at: r.created_at, submissions: r.submissions,
-            banned_until: Number(r.banned_until) || 0, banned: isBanned(r.banned_until),
-            self: r.id === req.user.sub,
-        })));
+        let users = rows.map(r => {
+            const banned = isBanned(r.banned_until);
+            return {
+                id: r.id, email: r.email, role: r.role, display_name: r.display_name || null,
+                created_at: r.created_at, submissions: r.submissions,
+                banned_until: Number(r.banned_until) || 0, banned,
+                bio: r.bio || '', interests: parseInterests(r.interests),
+                avatar_url: r.avatar_url || null,
+                email_verified: r.email_verified === 1,
+                profile_status: r.profile_status || 'approved',
+                // Combined moderation state used by the dashboard filter/badges.
+                status: banned ? 'banned' : ((r.profile_status || 'approved') === 'approved' ? 'approved' : 'pending'),
+                self: r.id === req.user.sub,
+            };
+        });
+
+        const q = String(req.query.q || '').trim().toLowerCase();
+        if (q) {
+            users = users.filter(u =>
+                (u.display_name || '').toLowerCase().includes(q) || u.email.toLowerCase().includes(q));
+        }
+        const status = String(req.query.status || '');
+        if (['pending', 'approved', 'banned'].includes(status)) {
+            users = users.filter(u => u.status === status);
+        }
+        const sort = String(req.query.sort || '');
+        if (sort === 'created_desc')      users.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+        else if (sort === 'created_asc')  users.sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)));
+        else if (sort === 'status') {
+            const rank = { pending: 0, approved: 1, banned: 2 };
+            users.sort((a, b) => (rank[a.status] - rank[b.status]) || String(b.created_at).localeCompare(String(a.created_at)));
+        }
+        res.json(users);
     } catch (e) {
         console.error('users list error:', e.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Admin moderation of a user's PUBLIC profile text: fully rewrite (or clear) the
+// bio/interests when they contain profanity/trolling. Admins may only touch users
+// of a LOWER rank (owners can edit anyone but другите owners).
+app.put('/api/admin/users/:id/profile', requireRole('admin'), async (req, res) => {
+    const b = req.body || {};
+    try {
+        const target = await dbGet('SELECT id, role FROM users WHERE id=?', [req.params.id]);
+        if (!target) return res.status(404).json({ error: 'Потребителят не е намерен' });
+        if (target.id !== req.user.sub && roleRank(target.role) >= roleRank(req.user.role)) {
+            return res.status(403).json({ error: 'Нямате права над този потребител.' });
+        }
+        const sets = [], params = [];
+        if (b.bio !== undefined)       { sets.push('bio=?');       params.push(sanitizeText(String(b.bio || ''), 600) || null); }
+        if (b.interests !== undefined) { const ints = normalizeInterests(b.interests); sets.push('interests=?'); params.push(ints.length ? JSON.stringify(ints) : null); }
+        if (!sets.length) return res.status(400).json({ error: 'Няма промени.' });
+        params.push(target.id);
+        await dbRun(`UPDATE users SET ${sets.join(', ')} WHERE id=?`, params);
+        const row = await dbGet('SELECT bio, interests, profile_status FROM users WHERE id=?', [target.id]);
+        res.json({ id: target.id, bio: row.bio || '', interests: parseInterests(row.interests), profile_status: row.profile_status || 'approved' });
+    } catch (e) {
+        console.error('admin profile edit error:', e.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Approve a public profile (or send it back to pending). Same rank rule as above.
+app.post('/api/admin/users/:id/profile-status', requireRole('admin'), async (req, res) => {
+    const status = (req.body && req.body.status) || '';
+    if (!['approved', 'pending_approval'].includes(status)) {
+        return res.status(400).json({ error: 'Невалиден статус' });
+    }
+    try {
+        const target = await dbGet('SELECT id, role FROM users WHERE id=?', [req.params.id]);
+        if (!target) return res.status(404).json({ error: 'Потребителят не е намерен' });
+        if (target.id !== req.user.sub && roleRank(target.role) >= roleRank(req.user.role)) {
+            return res.status(403).json({ error: 'Нямате права над този потребител.' });
+        }
+        await dbRun('UPDATE users SET profile_status=? WHERE id=?', [status, target.id]);
+        res.json({ id: target.id, profile_status: status });
+    } catch (e) {
+        console.error('profile-status error:', e.message);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -2879,9 +3347,11 @@ app.put('/api/admin/users/:id/display-name', requireRole('owner'), async (req, r
     }
 });
 
-// Ban / timeout a user, or lift it (owner only). Blocks them from submitting content.
+// Ban / timeout a user, or lift it. Admins may ban users/moderators; only owners
+// may ban admins (owners are untouchable). Blocks them from submitting content
+// and hides their public profile.
 //   body: { unban:true } | { permanent:true } | { days:N }
-app.post('/api/admin/users/:id/ban', requireRole('owner'), async (req, res) => {
+app.post('/api/admin/users/:id/ban', requireRole('admin'), async (req, res) => {
     if (req.params.id === req.user.sub) {
         return res.status(400).json({ error: 'Не можете да блокирате себе си.' });
     }
@@ -2898,6 +3368,9 @@ app.post('/api/admin/users/:id/ban', requireRole('owner'), async (req, res) => {
         const target = await dbGet('SELECT id, role FROM users WHERE id=?', [req.params.id]);
         if (!target) return res.status(404).json({ error: 'Потребителят не е намерен' });
         if (target.role === 'owner') return res.status(403).json({ error: 'Не можете да блокирате собственик.' });
+        if (roleRank(target.role) >= roleRank(req.user.role)) {
+            return res.status(403).json({ error: 'Нямате права над този потребител.' });
+        }
         await dbRun('UPDATE users SET banned_until=? WHERE id=?', [until, target.id]);
         res.json({ id: target.id, banned_until: until, banned: isBanned(until) });
     } catch (e) {

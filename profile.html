@@ -213,7 +213,7 @@
         .pf-nl-status.ok { color: #8bc78e; }
 
         /* ── 2FA ── */
-        #pf2faSetting.pf-flash { animation: pfFlash 2.6s ease; }
+        #pf2faSetting.pf-flash, .pf-setting.pf-flash { animation: pfFlash 2.6s ease; }
         @keyframes pfFlash {
             0%, 100% { box-shadow: var(--shadow-soft); border-color: var(--border); }
             12% { box-shadow: 0 0 0 3px rgba(205,133,63,0.55); border-color: var(--accent-strong); }
@@ -396,6 +396,12 @@
                         <span class="pf-pill muted" id="pfRole"></span>
                         <span class="pf-pill verified" id="pfVerifiedPill" hidden><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Потвърден</span>
                     </div>
+                    <!-- Prominent social stat: Последователи | Последвани (click → tab) -->
+                    <div class="pf-follow-stats" id="pfFollowStats" hidden>
+                        <button type="button" data-goto="followers">Последователи: <strong id="pfFollowersN">0</strong></button>
+                        <span class="pf-fs-sep">|</span>
+                        <button type="button" data-goto="following">Последвани: <strong id="pfFollowingN">0</strong></button>
+                    </div>
                     <div class="pf-idrule"></div>
                     <div class="pf-rank-head">
                         <span class="pf-rank-label">Към „<span id="pfRankNext">—</span>“</span>
@@ -410,6 +416,8 @@
                     <button class="pf-tab" data-tab="activity" type="button"><span class="pf-tab-ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6a2 2 0 0 1 2 2v0H7v0a2 2 0 0 1 2-2z"/><rect x="5" y="5" width="14" height="16" rx="2"/><path d="M9 11h6M9 15h4"/></svg></span>Активност</button>
                     <button class="pf-tab" data-tab="achievements" type="button"><span class="pf-tab-ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="9" r="5"/><path d="M9 13.5 7.5 21l4.5-2.6L16.5 21 15 13.5"/></svg></span>Постижения</button>
                     <button class="pf-tab" data-tab="saved" type="button"><span class="pf-tab-ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-4.6-9.2-9C1 8.5 2.8 5 6 5c2 0 3.2 1.2 4 2.4C10.8 6.2 12 5 14 5c3.2 0 5 3.5 3.2 7-2.2 4.4-9.2 9-9.2 9z"/></svg></span>Запазени</button>
+                    <button class="pf-tab" data-tab="followers" type="button"><span class="pf-tab-ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>Последователи</button>
+                    <button class="pf-tab" data-tab="following" type="button"><span class="pf-tab-ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="4"/><path d="M1 21v-2a4 4 0 0 1 4-4h8"/><path d="M16 11l2 2 4-4"/></svg></span>Последвани</button>
                     <button class="pf-tab" data-tab="settings" type="button"><span class="pf-tab-ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M5 12H3M21 12h-2.5M6 6l1.6 1.6M16.4 16.4 18 18M18 6l-1.6 1.6M7.6 16.4 6 18"/></svg></span>Настройки</button>
                 </nav>
             </aside>
@@ -418,6 +426,8 @@
 
         <!-- TAB: Моята активност -->
         <section class="pf-panel" id="tab-activity" hidden>
+            <!-- Profile-completion nudges (rendered only while bio/interests are empty) -->
+            <div id="pfCompleteCtas"></div>
             <div class="pf-section-head">
                 <h2 class="pf-section-title">Моите предложения</h2>
                 <span class="pf-section-count" id="subsCount"></span>
@@ -487,6 +497,26 @@
             </div>
         </section>
 
+        <!-- TAB: Последователи -->
+        <section class="pf-panel" id="tab-followers" hidden>
+            <div class="pf-section-head">
+                <h2 class="pf-section-title">👥 Последователи</h2>
+                <span class="pf-section-count" id="followersCount"></span>
+            </div>
+            <p class="pf-sub-hint">Хора, които следват Вашите приноси. Те получават най-много едно известие на ден, когато Ваши нови локации бъдат одобрени.</p>
+            <div class="pf-people" id="followersList"></div>
+        </section>
+
+        <!-- TAB: Последвани -->
+        <section class="pf-panel" id="tab-following" hidden>
+            <div class="pf-section-head">
+                <h2 class="pf-section-title">⭐ Последвани</h2>
+                <span class="pf-section-count" id="followingCount"></span>
+            </div>
+            <p class="pf-sub-hint">Сътрудници, които следвате. Ще получавате известие, когато добавят нови одобрени локации.</p>
+            <div class="pf-people" id="followingList"></div>
+        </section>
+
         <!-- TAB: Настройки -->
         <section class="pf-panel" id="tab-settings" hidden>
             <div class="pf-setting">
@@ -496,6 +526,96 @@
                     <input id="pfNameInput" class="pf-input" type="text" maxlength="60" placeholder="напр. Георги Петков" autocomplete="name">
                     <button id="pfNameSave" class="pf-btn pf-btn-gold" type="button">Запази</button>
                 </div>
+            </div>
+
+            <style>
+                .pf-ava-row { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+                .pf-ava-preview { width: 72px; height: 72px; border-radius: 50%; flex: 0 0 auto; overflow: hidden;
+                    border: 2px solid var(--pf-accent, var(--accent-strong)); background: var(--accent-gradient);
+                    display: flex; align-items: center; justify-content: center;
+                    font-weight: 700; font-size: 1.5rem; color: #1a1410; }
+                .pf-ava-preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
+                .pf-ava-msg { font-size: 0.8rem; color: var(--muted); margin: 0.5rem 0 0; }
+                .pf-pub-status { display: inline-block; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.05em;
+                    padding: 0.22rem 0.7rem; border-radius: 30px; margin-left: 0.5rem; vertical-align: middle; }
+                .pf-pub-status.ok { background: rgba(124,170,120,0.16); border: 1px solid rgba(124,170,120,0.5); color: #7caa78; }
+                .pf-pub-status.wait { background: rgba(205,133,63,0.14); border: 1px solid rgba(205,133,63,0.5); color: var(--accent-strong); }
+                #pfBio { min-height: 110px; resize: vertical; }
+                .pf-bio-count { font-size: 0.75rem; color: var(--muted); text-align: right; margin: 0.25rem 0 0; }
+                .pf-pub-link { font-size: 0.82rem; color: var(--accent-strong); text-decoration: none; font-weight: 700; }
+                .pf-pub-link:hover { text-decoration: underline; }
+                /* .pf-btn sets display:flex, which beats the UA [hidden] rule. */
+                #pfAvaRemove[hidden], #pfAvaMsg[hidden], .pf-pub-status[hidden], #pfPubLink[hidden] { display: none !important; }
+
+                /* ── Social stat in the identity card ── */
+                .pf-follow-stats { display: flex; align-items: center; gap: 0.55rem; margin-top: 0.75rem; flex-wrap: wrap; }
+                .pf-follow-stats[hidden] { display: none !important; }
+                .pf-follow-stats button { appearance: none; background: none; border: none; padding: 0; cursor: pointer;
+                    font: inherit; font-size: 0.82rem; font-weight: 600; color: var(--muted); }
+                .pf-follow-stats button strong { color: var(--accent-strong); font-size: 0.95rem; }
+                .pf-follow-stats button:hover { color: var(--fg); }
+                .pf-fs-sep { color: var(--muted); opacity: 0.5; }
+
+                /* ── People rows (Последователи / Последвани) ── */
+                .pf-people { display: flex; flex-direction: column; gap: 0.55rem; }
+                .pf-person { display: flex; align-items: center; gap: 0.85rem; text-decoration: none;
+                    padding: 0.65rem 0.95rem; border: 1px solid var(--line, var(--border)); border-radius: 12px;
+                    transition: border-color 0.18s ease, transform 0.18s ease; }
+                .pf-person:hover { border-color: var(--accent-strong); transform: translateX(3px); }
+                .pf-person-ava { width: 42px; height: 42px; border-radius: 50%; flex: 0 0 auto; overflow: hidden;
+                    background: var(--accent-gradient); display: flex; align-items: center; justify-content: center;
+                    font-weight: 800; font-size: 1rem; color: #1a1410; }
+                .pf-person-ava img { width: 100%; height: 100%; object-fit: cover; display: block; }
+                .pf-person-body { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 0.1rem; }
+                .pf-person-name { font-weight: 700; font-size: 0.94rem; color: var(--fg); overflow-wrap: anywhere; }
+                .pf-person-sub { font-size: 0.75rem; color: var(--muted); margin-top: 0.1rem; }
+                .pf-person-arr { color: var(--accent-strong); font-weight: 700; }
+                .pf-people-empty { color: var(--muted); text-align: center; padding: 2rem 1rem;
+                    border: 1px dashed var(--line, var(--border)); border-radius: 12px; font-size: 0.9rem; }
+
+                /* ── Profile-completion nudge cards ──
+                   NB: class is pf-nudge*, NOT pf-cta - .pf-cta is the page header's
+                   gold "Предложи локация" button and must not be restyled here. */
+                #pfCompleteCtas:not(:empty) { margin-bottom: 1.3rem; display: flex; flex-direction: column; gap: 0.7rem; }
+                .pf-nudge { display: flex; align-items: center; gap: 0.9rem; flex-wrap: wrap;
+                    border: 1px dashed rgba(205,133,63,0.5); background: rgba(205,133,63,0.06);
+                    border-radius: 14px; padding: 0.85rem 1.1rem; }
+                .pf-nudge-ico { font-size: 1.35rem; }
+                .pf-nudge-text { flex: 1 1 220px; font-size: 0.9rem; color: var(--muted); line-height: 1.5; margin: 0; }
+                .pf-nudge-btn { appearance: none; border: none; cursor: pointer; border-radius: 30px;
+                    padding: 0.5rem 1.1rem; font-size: 0.82rem; font-weight: 700;
+                    background: var(--accent-gradient); color: #1a1410; white-space: nowrap; }
+                .pf-nudge-btn:hover { filter: brightness(1.06); }
+            </style>
+
+            <div class="pf-setting">
+                <label class="pf-setting-label">Профилна снимка</label>
+                <p class="pf-setting-hint">Показва се в публичния Ви профил. Снимката се компресира автоматично във Вашия браузър до 200×200 px (WebP, под 20 KB), преди да бъде качена.</p>
+                <div class="pf-ava-row">
+                    <div class="pf-ava-preview" id="pfAvaPreview">•</div>
+                    <input type="file" id="pfAvaFile" accept="image/*" hidden>
+                    <button id="pfAvaUpload" class="pf-btn pf-btn-gold" type="button">📷 Качи снимка</button>
+                    <button id="pfAvaRemove" class="pf-btn pf-btn-ghost" type="button" hidden>Премахни</button>
+                </div>
+                <p class="pf-ava-msg" id="pfAvaMsg" hidden></p>
+            </div>
+
+            <div class="pf-setting">
+                <label class="pf-setting-label" for="pfBio">Публичен профил <span class="pf-pub-status" id="pfPubStatus" hidden></span></label>
+                <p class="pf-setting-hint">Кратко представяне и интереси, видими на публичната Ви страница. Всяка промяна минава през одобрение от модератор, преди профилът да стане публично видим. <a class="pf-pub-link" id="pfPubLink" href="#" hidden>Виж публичния си профил →</a></p>
+                <textarea id="pfBio" class="pf-input" maxlength="600" placeholder="Разкажете накратко за себе си - защо Ви вълнува историята на местата?"></textarea>
+                <p class="pf-bio-count"><span id="pfBioCount">0</span>/600</p>
+                <label class="pf-setting-label" for="pfInterests" style="margin-top:0.8rem">Интереси</label>
+                <p class="pf-setting-hint">До 10, разделени със запетая - напр. „Архитектура, История, Възраждане, Фотография“.</p>
+                <div class="pf-name-row">
+                    <input id="pfInterests" class="pf-input" type="text" maxlength="340" placeholder="Архитектура, История, Краезнание" list="pfInterestIdeas">
+                    <button id="pfPubSave" class="pf-btn pf-btn-gold" type="button">Запази</button>
+                </div>
+                <datalist id="pfInterestIdeas">
+                    <option value="Архитектура"></option><option value="История"></option>
+                    <option value="Възраждане"></option><option value="Фотография"></option>
+                    <option value="Краезнание"></option><option value="Култура"></option>
+                </datalist>
             </div>
 
             <div class="pf-setting">
@@ -674,7 +794,7 @@
     }
 
     // ── Tabs ──
-    var VALID_TABS = ['activity', 'achievements', 'saved', 'settings'];
+    var VALID_TABS = ['activity', 'achievements', 'saved', 'followers', 'following', 'settings'];
     function initTabs() {
         var tabs = document.querySelectorAll('.pf-tab');
         var strip = document.querySelector('.pf-tabs');
@@ -1076,6 +1196,9 @@
                 if (name) { sub.textContent = data.email; sub.hidden = false; } else { sub.hidden = true; }
                 document.getElementById('pfNameInput').value = name;
                 document.getElementById('pfNewsletter').checked = !!data.newsletter;
+                renderPublicProfile(data);
+                renderFollowStats(data);
+                renderCompleteCtas(data);
                 document.getElementById('pfRole').textContent = ROLE_LABEL[data.role] || data.role;
                 var since = formatDate(data.created_at);
                 document.getElementById('pfSince').textContent = since ? 'Член от ' + since : '';
@@ -1117,8 +1240,8 @@
         .then(function(d) {
             var name  = (d.display_name || '').trim();
             var shown = name || ACCOUNT.email;
-            document.getElementById('pfAvatar').textContent = initials(shown);
             document.getElementById('pfEmail').textContent = shown;
+            setAvatarUI(currentAvatarUrl);   // re-render seal: keeps the photo, else fresh initials
             var sub = document.getElementById('pfEmailSub');
             if (name) { sub.textContent = ACCOUNT.email; sub.hidden = false; } else { sub.hidden = true; }
             var g = document.getElementById('pfGreetName'); if (g) g.textContent = firstName(shown);
@@ -1127,6 +1250,272 @@
         })
         .catch(function() { toast('Грешка при запазване. Опитайте отново.'); })
         .then(function() { nameSave.disabled = false; });
+    });
+
+    // ── Public profile (avatar + bio + interests) ────────────────────────────
+    var avaPreview = document.getElementById('pfAvaPreview');
+    var avaFile    = document.getElementById('pfAvaFile');
+    var avaUpload  = document.getElementById('pfAvaUpload');
+    var avaRemove  = document.getElementById('pfAvaRemove');
+    var avaMsg     = document.getElementById('pfAvaMsg');
+    var bioInput   = document.getElementById('pfBio');
+    var bioCount   = document.getElementById('pfBioCount');
+    var intInput   = document.getElementById('pfInterests');
+    var pubSave    = document.getElementById('pfPubSave');
+    var pubStatus  = document.getElementById('pfPubStatus');
+    var pubLink    = document.getElementById('pfPubLink');
+    var AVATAR_LIMIT = 20 * 1024;   // hard cap, mirrored server-side
+
+    var currentAvatarUrl = null;
+    function setAvatarUI(url) {
+        currentAvatarUrl = url || null;
+        var shownName = document.getElementById('pfEmail').textContent || '';
+        if (url) {
+            avaPreview.innerHTML = '<img src="' + url.replace(/"/g, '&quot;') + '" alt="Профилна снимка">';
+            document.getElementById('pfAvatar').innerHTML =
+                '<img src="' + url.replace(/"/g, '&quot;') + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">';
+            avaRemove.hidden = false;
+        } else {
+            avaPreview.textContent = initials(shownName);
+            document.getElementById('pfAvatar').textContent = initials(shownName);
+            avaRemove.hidden = true;
+        }
+    }
+    function setPubStatus(status) {
+        if (!status) { pubStatus.hidden = true; return; }
+        var ok = status === 'approved';
+        pubStatus.textContent = ok ? '✓ одобрен' : '⏳ изчаква одобрение';
+        pubStatus.className = 'pf-pub-status ' + (ok ? 'ok' : 'wait');
+        pubStatus.hidden = false;
+    }
+    function renderPublicProfile(data) {
+        bioInput.value = data.bio || '';
+        bioCount.textContent = String(bioInput.value.length);
+        intInput.value = (data.interests || []).join(', ');
+        setAvatarUI(data.avatar_url || null);
+        setPubStatus(data.profile_status);
+        if (data.id) { pubLink.href = '/user/' + encodeURIComponent(data.id); pubLink.hidden = false; }
+    }
+    bioInput.addEventListener('input', function() { bioCount.textContent = String(bioInput.value.length); });
+
+    // Canvas compression: center-crop to a square, resize to exactly 200×200,
+    // encode as WebP q0.7. If the result is still over 20 KB (busy image), step
+    // the quality down; browsers without WebP encoding fall back to JPEG - the
+    // server re-encodes everything to WebP anyway.
+    function compressAvatar(file) {
+        return new Promise(function(resolve, reject) {
+            var url = URL.createObjectURL(file);
+            var img = new Image();
+            img.onload = function() {
+                URL.revokeObjectURL(url);
+                try {
+                    var side = Math.min(img.naturalWidth, img.naturalHeight);
+                    if (!side) return reject(new Error('bad image'));
+                    var sx = (img.naturalWidth - side) / 2, sy = (img.naturalHeight - side) / 2;
+                    var canvas = document.createElement('canvas');
+                    canvas.width = 200; canvas.height = 200;
+                    var ctx = canvas.getContext('2d');
+                    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+                    ctx.drawImage(img, sx, sy, side, side, 0, 0, 200, 200);
+                    var qualities = [0.7, 0.55, 0.4];
+                    (function attempt(qi, type) {
+                        canvas.toBlob(function(blob) {
+                            if (!blob) {
+                                // WebP encoding unsupported → retry the whole ladder as JPEG.
+                                if (type === 'image/webp') return attempt(0, 'image/jpeg');
+                                return reject(new Error('encode failed'));
+                            }
+                            if (blob.size <= AVATAR_LIMIT) return resolve(blob);
+                            if (qi + 1 < qualities.length) return attempt(qi + 1, type);
+                            reject(new Error('too big'));
+                        }, type, qualities[qi]);
+                    })(0, 'image/webp');
+                } catch (e) { reject(e); }
+            };
+            img.onerror = function() { URL.revokeObjectURL(url); reject(new Error('bad image')); };
+            img.src = url;
+        });
+    }
+    function avaNote(text, isError) {
+        avaMsg.textContent = text || '';
+        avaMsg.hidden = !text;
+        avaMsg.style.color = isError ? 'var(--danger, #c95050)' : '';
+    }
+    avaUpload.addEventListener('click', function() { avaFile.click(); });
+    avaFile.addEventListener('change', function() {
+        var file = avaFile.files && avaFile.files[0];
+        avaFile.value = '';
+        if (!file) return;
+        if (!/^image\//.test(file.type)) { avaNote('Моля изберете изображение.', true); return; }
+        avaUpload.disabled = true; avaNote('Компресиране…');
+        compressAvatar(file)
+            .then(function(blob) {
+                avaNote('Качване… (' + Math.round(blob.size / 1024 * 10) / 10 + ' KB)');
+                var fd = new FormData();
+                fd.append('avatar', blob, 'avatar.' + (blob.type === 'image/webp' ? 'webp' : 'jpg'));
+                return fetch('/api/user/avatar', { method: 'POST', credentials: 'include', body: fd })
+                    .then(function(r) { return r.json().catch(function(){ return {}; }).then(function(d) { return { ok: r.ok, d: d }; }); });
+            })
+            .then(function(r) {
+                if (!r.ok) throw new Error((r.d && r.d.error) || 'upload failed');
+                setAvatarUI(r.d.avatar_url);
+                avaNote('');
+                toast('Профилната снимка е обновена.');
+            })
+            .catch(function(e) {
+                avaNote(e && e.message === 'too big'
+                    ? 'Снимката не може да се компресира под 20 KB. Опитайте с по-семпло изображение.'
+                    : ((e && /[а-я]/i.test(e.message || '')) ? e.message : 'Грешка при качване. Опитайте отново.'), true);
+            })
+            .then(function() { avaUpload.disabled = false; });
+    });
+    avaRemove.addEventListener('click', function() {
+        if (!confirm('Да премахна профилната снимка?')) return;
+        avaRemove.disabled = true;
+        fetch('/api/user/avatar', { method: 'DELETE', credentials: 'include' })
+            .then(function(r) { if (!r.ok) throw new Error(); return r.json(); })
+            .then(function() { setAvatarUI(null); toast('Снимката е премахната.'); })
+            .catch(function() { toast('Грешка. Опитайте отново.'); })
+            .then(function() { avaRemove.disabled = false; });
+    });
+
+    // ── Social: follow stats + Последователи/Последвани lists ────────────────
+    function renderFollowStats(data) {
+        var wrap = document.getElementById('pfFollowStats');
+        document.getElementById('pfFollowersN').textContent = data.followers_count || 0;
+        document.getElementById('pfFollowingN').textContent = data.following_count || 0;
+        wrap.hidden = false;
+        // Also mirror the counts on the tab headers.
+        document.getElementById('followersCount').textContent = data.followers_count || 0;
+        document.getElementById('followingCount').textContent = data.following_count || 0;
+    }
+    // Click the stat → jump straight to the matching tab.
+    document.getElementById('pfFollowStats').addEventListener('click', function(e) {
+        var b = e.target.closest('button[data-goto]');
+        if (!b) return;
+        var t = document.querySelector('.pf-tab[data-tab="' + b.getAttribute('data-goto') + '"]');
+        if (t) t.click();
+    });
+
+    function personRow(p) {
+        var a = document.createElement('a');
+        a.className = 'pf-person';
+        a.href = '/user/' + encodeURIComponent(p.id);
+        var ava = document.createElement('span'); ava.className = 'pf-person-ava';
+        if (p.avatar_url) {
+            var img = document.createElement('img'); img.src = p.avatar_url; img.alt = ''; img.loading = 'lazy';
+            ava.appendChild(img);
+        } else {
+            ava.textContent = initials(p.name);
+        }
+        var body = document.createElement('span'); body.className = 'pf-person-body';
+        var nm = document.createElement('span'); nm.className = 'pf-person-name'; nm.textContent = p.name;
+        body.appendChild(nm);
+        if (p.since) {
+            var sub = document.createElement('span'); sub.className = 'pf-person-sub';
+            var d = formatDate(p.since);
+            sub.textContent = d ? 'от ' + d : '';
+            body.appendChild(sub);
+        }
+        var arr = document.createElement('span'); arr.className = 'pf-person-arr'; arr.textContent = '→';
+        a.appendChild(ava); a.appendChild(body); a.appendChild(arr);
+        return a;
+    }
+    var followsLoaded = false;
+    function loadFollows() {
+        if (followsLoaded) return;
+        followsLoaded = true;
+        fetch('/api/user/follows', { credentials: 'include', cache: 'no-store' })
+            .then(function(r) { if (!r.ok) throw new Error(); return r.json(); })
+            .then(function(d) {
+                var fill = function(listId, countId, statId, people, emptyText) {
+                    var list = document.getElementById(listId);
+                    list.innerHTML = '';
+                    if (!people.length) {
+                        var e = document.createElement('div'); e.className = 'pf-people-empty'; e.textContent = emptyText;
+                        list.appendChild(e);
+                    } else {
+                        people.forEach(function(p) { list.appendChild(personRow(p)); });
+                    }
+                    document.getElementById(countId).textContent = people.length;
+                    document.getElementById(statId).textContent = people.length;
+                };
+                fill('followersList', 'followersCount', 'pfFollowersN', d.followers || [],
+                     'Все още никой не Ви следва. Продължавайте да добавяте локации - общността ще Ви открие!');
+                fill('followingList', 'followingCount', 'pfFollowingN', d.following || [],
+                     'Не следвате никого. Открийте сътрудници от страниците на адресите и ги последвайте.');
+            })
+            .catch(function() {
+                followsLoaded = false;   // allow a retry on the next tab open
+                ['followersList', 'followingList'].forEach(function(id) {
+                    document.getElementById(id).innerHTML = '<div class="pf-people-empty">Грешка при зареждане. Отворете таба отново.</div>';
+                });
+            });
+    }
+    ['followers', 'following'].forEach(function(t) {
+        var btn = document.querySelector('.pf-tab[data-tab="' + t + '"]');
+        if (btn) btn.addEventListener('click', loadFollows);
+    });
+    // Deep link (#followers / #following) opens the tab before the click hooks fire.
+    if (location.hash === '#followers' || location.hash === '#following') loadFollows();
+
+    // ── Profile-completion nudges (empty bio / interests) ────────────────────
+    function gotoSetting(fieldId) {
+        var st = document.querySelector('.pf-tab[data-tab="settings"]');
+        if (st) st.click();
+        setTimeout(function() {
+            var field = document.getElementById(fieldId);
+            if (!field) return;
+            var box = field.closest('.pf-setting') || field;
+            box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            box.classList.add('pf-flash');
+            setTimeout(function() { box.classList.remove('pf-flash'); }, 2800);
+            try { field.focus({ preventScroll: true }); } catch (e) { field.focus(); }
+        }, 180);
+    }
+    function ctaCard(icon, text, btnLabel, fieldId) {
+        var card = document.createElement('div'); card.className = 'pf-nudge';
+        var ico = document.createElement('span'); ico.className = 'pf-nudge-ico'; ico.textContent = icon;
+        var txt = document.createElement('p'); txt.className = 'pf-nudge-text'; txt.textContent = text;
+        var btn = document.createElement('button'); btn.type = 'button'; btn.className = 'pf-nudge-btn'; btn.textContent = btnLabel;
+        btn.addEventListener('click', function() { gotoSetting(fieldId); });
+        card.appendChild(ico); card.appendChild(txt); card.appendChild(btn);
+        return card;
+    }
+    function renderCompleteCtas(data) {
+        var wrap = document.getElementById('pfCompleteCtas');
+        wrap.innerHTML = '';
+        if (!(data.bio || '').trim()) {
+            wrap.appendChild(ctaCard('✍️', 'Разкажи на общността за себе си - кратко описание прави профила ти запомнящ се.', 'Добави описание', 'pfBio'));
+        }
+        if (!(data.interests || []).length) {
+            wrap.appendChild(ctaCard('🏛️', 'Какви исторически теми те вълнуват? Избери интереси, за да покажеш какво търсиш из архива.', 'Избери интереси', 'pfInterests'));
+        }
+    }
+
+    pubSave.addEventListener('click', function() {
+        pubSave.disabled = true;
+        fetch('/api/user/profile', {
+            method: 'PUT', credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                bio: bioInput.value.trim(),
+                interests: intInput.value.split(',').map(function(s){ return s.trim(); }).filter(Boolean).slice(0, 10)
+            })
+        })
+        .then(function(r) { if (!r.ok) throw new Error(); return r.json(); })
+        .then(function(d) {
+            bioInput.value = d.bio || '';
+            bioCount.textContent = String(bioInput.value.length);
+            intInput.value = (d.interests || []).join(', ');
+            setPubStatus(d.profile_status);
+            renderCompleteCtas(d);   // dismiss the completion nudges once filled in
+            toast(d.profile_status === 'approved'
+                ? 'Профилът е запазен.'
+                : 'Запазено! Промените ще станат публични след одобрение от модератор.');
+        })
+        .catch(function() { toast('Грешка при запазване. Опитайте отново.'); })
+        .then(function() { pubSave.disabled = false; });
     });
 
     // ── Newsletter toggle ──

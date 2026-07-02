@@ -215,6 +215,45 @@
         .user-act.del:hover:not(:disabled) { border-color: #8c2824; background: rgba(140,40,36,0.12); }
         @media (max-width: 620px) { .user-row { grid-template-columns: 1fr; } .user-controls { justify-content: flex-start; } }
 
+        /* ── User-moderation toolbar (search / filter / sort) ── */
+        .users-toolbar { display: flex; gap: 0.6rem; flex-wrap: wrap; margin: 0 0 0.9rem; }
+        .users-toolbar input[type="search"] { flex: 1 1 220px; min-width: 0; padding: 0.6rem 0.9rem; border-radius: 10px;
+            border: 1px solid var(--border); background: var(--card); color: var(--fg); font-size: 0.9rem; }
+        .users-toolbar select { padding: 0.6rem 0.7rem; border-radius: 10px; border: 1px solid var(--border);
+            background: var(--card); color: var(--fg); font-size: 0.85rem; cursor: pointer; }
+        .users-toolbar input:focus, .users-toolbar select:focus { outline: none; border-color: var(--accent-strong); }
+        .users-count { align-self: center; font-size: 0.8rem; color: var(--muted); white-space: nowrap; }
+
+        /* ── Row extras: avatar + profile-status badge ── */
+        .user-row { grid-template-columns: auto 1fr auto; }
+        .user-ava { width: 42px; height: 42px; border-radius: 50%; overflow: hidden; flex: 0 0 auto;
+            border: 1px solid var(--border); background: linear-gradient(135deg, #cd853f, #daa520);
+            display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1rem; color: #1a1410; }
+        .user-ava img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .user-status-badge { font-size: 0.64rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em;
+            padding: 0.12rem 0.45rem; border-radius: 6px; white-space: nowrap; }
+        .user-status-badge.pending  { color: #d9a86a; border: 1px solid rgba(205,133,63,0.5); background: rgba(205,133,63,0.08); }
+        .user-status-badge.approved { color: #7fae9b; border: 1px solid rgba(127,174,155,0.45); background: rgba(127,174,155,0.07); }
+        .user-status-badge.banned   { color: #d07b74; border: 1px solid rgba(192,86,79,0.5); background: rgba(192,86,79,0.1); }
+
+        /* ── Expandable profile editor under a row ── */
+        .user-profile-panel { grid-column: 1 / -1; border-top: 1px dashed var(--border); padding-top: 0.9rem; margin-top: 0.35rem; }
+        .user-profile-panel label { display: block; font-size: 0.74rem; font-weight: 800; text-transform: uppercase;
+            letter-spacing: 0.04em; color: var(--muted); margin: 0.7rem 0 0.3rem; }
+        .user-profile-panel textarea, .user-profile-panel input[type="text"] { width: 100%; box-sizing: border-box;
+            padding: 0.55rem 0.75rem; border-radius: 9px; border: 1px solid var(--border);
+            background: var(--bg); color: var(--fg); font-size: 0.88rem; font-family: inherit; }
+        .user-profile-panel textarea { min-height: 84px; resize: vertical; }
+        .user-profile-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.85rem; }
+        .up-btn { padding: 0.5rem 0.95rem; border-radius: 9px; border: 1px solid var(--border); background: var(--bg);
+            color: var(--fg); font-size: 0.82rem; font-weight: 700; cursor: pointer; }
+        .up-btn:hover:not(:disabled) { border-color: var(--accent-strong); }
+        .up-btn:disabled { opacity: 0.5; cursor: default; }
+        .up-btn.gold { background: linear-gradient(135deg, #cd853f, #daa520); border: none; color: #1a1410; }
+        .up-btn.approve { border-color: rgba(127,174,155,0.6); color: #7fae9b; }
+        .up-btn.danger { border-color: rgba(192,86,79,0.6); color: #d07b74; }
+        .up-btn-link { text-decoration: none; display: inline-flex; align-items: center; }
+
         /* Strict delete-user modal */
         .udel-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 9999; padding: 1rem; }
         .udel-box { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 1.6rem; max-width: 420px; width: 100%; box-shadow: var(--shadow); }
@@ -296,6 +335,22 @@
 
         <div id="viewUsers" style="display:none">
             <p class="users-hint"><strong>Собственик</strong> - пълен достъп, управлява администратори, преименува, блокира и изтрива профили; <strong>Администратор</strong> - одобрява/отхвърля и управлява модератори; <strong>Модератор</strong> - оставя вътрешни бележки; <strong>Потребител</strong> - обикновен достъп.</p>
+            <div class="users-toolbar">
+                <input type="search" id="usersSearch" placeholder="🔍 Търси по име или имейл…" autocomplete="off">
+                <select id="usersStatus" title="Филтър по статус">
+                    <option value="">Всички статуси</option>
+                    <option value="pending">⏳ Изчакващи</option>
+                    <option value="approved">✓ Одобрени</option>
+                    <option value="banned">⛔ Блокирани</option>
+                </select>
+                <select id="usersSort" title="Подреждане">
+                    <option value="">По роля (стандартно)</option>
+                    <option value="created_desc">Най-нови първо</option>
+                    <option value="created_asc">Най-стари първо</option>
+                    <option value="status">По статус</option>
+                </select>
+                <span class="users-count" id="usersCount"></span>
+            </div>
             <div id="usersList" class="users-list"></div>
         </div>
     </div>
@@ -877,18 +932,49 @@
 
     // ── User / role management (admin sees + manages moderators; owner does all) ──
     var ROLE_LABEL = { user: 'Потребител', moderator: 'Модератор', admin: 'Администратор', owner: 'Собственик' };
+    var STATUS_LABEL = { pending: '⏳ изчаква', approved: '✓ одобрен', banned: '⛔ блокиран' };
     function isOwner() { return myRole === 'owner'; }
+    // Profile moderation (edit text / approve): admins may moderate anyone of a LOWER
+    // rank; owners everyone but other owners; and everyone on this page (admin+) may
+    // moderate their OWN profile - an owner shouldn't need a second admin to approve
+    // their bio. Banning is the exception: never available against yourself.
+    function canModerate(u) {
+        if (u.self) return true;
+        if (isOwner()) return u.role !== 'owner';
+        return (ROLE_RANK[u.role] || 0) < (ROLE_RANK[myRole] || 0);
+    }
+    function canBan(u) { return !u.self && canModerate(u); }
+
+    // Toolbar → server query (?q= &status= &sort=). Search debounced for instant feel.
+    var usersSearch = document.getElementById('usersSearch');
+    var usersStatus = document.getElementById('usersStatus');
+    var usersSort   = document.getElementById('usersSort');
+    var usersDebounce = null;
+    usersSearch.addEventListener('input', function(){
+        clearTimeout(usersDebounce);
+        usersDebounce = setTimeout(loadUsers, 250);
+    });
+    usersStatus.addEventListener('change', loadUsers);
+    usersSort.addEventListener('change', loadUsers);
+
     function loadUsers() {
         var list = document.getElementById('usersList');
         list.innerHTML = '<div class="mod-state"><div class="mod-spinner"></div><span>Зареждане…</span></div>';
-        fetch('/api/admin/users', { credentials: 'include' })
+        var params = new URLSearchParams();
+        if (usersSearch.value.trim()) params.set('q', usersSearch.value.trim());
+        if (usersStatus.value) params.set('status', usersStatus.value);
+        if (usersSort.value) params.set('sort', usersSort.value);
+        var qs = params.toString();
+        fetch('/api/admin/users' + (qs ? '?' + qs : ''), { credentials: 'include' })
             .then(function(res){
                 if (res.status === 403) { list.innerHTML = '<div class="mod-empty">Нямате достъп до управление на потребители.</div>'; throw 'no'; }
                 if (!res.ok) throw new Error();
                 return res.json();
             })
             .then(function(users){
+                document.getElementById('usersCount').textContent = users.length + ' ' + (users.length === 1 ? 'профил' : 'профила');
                 list.innerHTML = '';
+                if (!users.length) { list.innerHTML = '<div class="mod-empty"><span class="mod-empty-icon">🔍</span>Няма профили, отговарящи на търсенето.</div>'; return; }
                 users.forEach(function(u){ list.appendChild(buildUserRow(u)); });
             })
             .catch(function(err){ if (err === 'no') return; list.innerHTML = '<div class="mod-empty"><span class="mod-empty-icon">⚠️</span>Грешка при зареждане.</div>'; });
@@ -897,12 +983,25 @@
     function buildUserRow(u) {
         var row = document.createElement('div'); row.className = 'user-row';
 
+        // Avatar (compressed 200×200 webp) or initials.
+        var ava = document.createElement('div'); ava.className = 'user-ava';
+        if (u.avatar_url) {
+            var ai = document.createElement('img'); ai.src = u.avatar_url; ai.alt = ''; ai.loading = 'lazy';
+            ava.appendChild(ai);
+        } else {
+            ava.textContent = ((u.display_name || u.email || '•').trim()[0] || '•').toUpperCase();
+        }
+        row.appendChild(ava);
+
         var info = document.createElement('div'); info.className = 'user-info';
         var nameLine = document.createElement('div'); nameLine.className = 'user-email';
         nameLine.textContent = u.display_name ? u.display_name : u.email;
         var badge = document.createElement('span'); badge.className = 'user-role-badge ' + u.role; badge.textContent = ROLE_LABEL[u.role] || u.role;
         nameLine.appendChild(badge);
-        if (u.banned) { var bb = document.createElement('span'); bb.className = 'user-ban-badge'; bb.textContent = '⛔ блокиран'; nameLine.appendChild(bb); }
+        // Combined moderation status: banned > pending_approval > approved.
+        var st = document.createElement('span'); st.className = 'user-status-badge ' + (u.status || 'approved');
+        st.textContent = STATUS_LABEL[u.status] || u.status; st.title = 'Статус на публичния профил';
+        nameLine.appendChild(st);
         if (u.self) { var self = document.createElement('span'); self.className = 'user-self'; self.textContent = '(вие)'; nameLine.appendChild(self); }
         info.appendChild(nameLine);
         if (u.display_name) { var sub = document.createElement('div'); sub.className = 'user-subemail'; sub.textContent = u.email; info.appendChild(sub); }
@@ -946,24 +1045,109 @@
         });
         controls.appendChild(sel);
 
-        // Owner-only actions: rename, ban/timeout, delete.
-        if (isOwner() && !u.self) {
-            var rename = mkUserBtn('✏️', 'Преименувай', function(){ doRename(u, nameLine, badge); });
-            controls.appendChild(rename);
+        // Profile moderation (admin+ over lower ranks, incl. own profile): view/edit
+        // bio+interests, approve. Ban is separate - never offered against yourself.
+        if (canModerate(u)) {
+            var prof = mkUserBtn('👤', 'Профил - преглед и модерация', function(){ toggleProfilePanel(u, row, st); });
+            controls.appendChild(prof);
+        }
+        if (canBan(u)) {
             var ban = mkUserBtn(u.banned ? '✅' : '⛔', u.banned ? 'Отблокирай' : 'Блокирай', function(){ doBan(u, ban, nameLine); });
             ban.classList.add(u.banned ? 'unban' : 'ban');
-            if (u.role !== 'owner') controls.appendChild(ban);
-            if (u.role !== 'owner') {
-                var r2fa = mkUserBtn('🔓', 'Нулирай 2FA (при загубен достъп)', function(){ doReset2fa(u); });
-                controls.appendChild(r2fa);
-                var del = mkUserBtn('🗑', 'Изтрий профила', function(){ doDeleteUser(u, row); });
-                del.classList.add('del');
-                controls.appendChild(del);
-            }
+            controls.appendChild(ban);
+        }
+        // Owner-only actions: rename, reset-2FA, delete.
+        if (isOwner() && !u.self && u.role !== 'owner') {
+            var rename = mkUserBtn('✏️', 'Преименувай', function(){ doRename(u, nameLine, badge); });
+            controls.appendChild(rename);
+            var r2fa = mkUserBtn('🔓', 'Нулирай 2FA (при загубен достъп)', function(){ doReset2fa(u); });
+            controls.appendChild(r2fa);
+            var del = mkUserBtn('🗑', 'Изтрий профила', function(){ doDeleteUser(u, row); });
+            del.classList.add('del');
+            controls.appendChild(del);
         }
 
         row.appendChild(info); row.appendChild(controls);
         return row;
+    }
+
+    // ── Inline profile editor: edit bio/interests, approve or ban the profile ──
+    function setStatusBadge(stEl, u) {
+        stEl.className = 'user-status-badge ' + (u.status || 'approved');
+        stEl.textContent = STATUS_LABEL[u.status] || u.status;
+    }
+    function toggleProfilePanel(u, row, stEl) {
+        var open = row.querySelector('.user-profile-panel');
+        if (open) { open.remove(); return; }
+
+        var panel = document.createElement('div'); panel.className = 'user-profile-panel';
+
+        var bioLbl = document.createElement('label'); bioLbl.textContent = 'Кратко био (публично)';
+        var bio = document.createElement('textarea'); bio.maxLength = 600;
+        bio.placeholder = '(празно)'; bio.value = u.bio || '';
+        var intLbl = document.createElement('label'); intLbl.textContent = 'Интереси (до 10, разделени със запетая)';
+        var ints = document.createElement('input'); ints.type = 'text'; ints.maxLength = 340;
+        ints.placeholder = '(няма)'; ints.value = (u.interests || []).join(', ');
+        var readOnly = !canModerate(u);   // e.g. an admin viewing another admin (owner-only)
+        bio.disabled = readOnly; ints.disabled = readOnly;
+
+        var actions = document.createElement('div'); actions.className = 'user-profile-actions';
+        var view = document.createElement('a'); view.className = 'up-btn up-btn-link';
+        view.textContent = '👁 Виж публичния профил'; view.href = '/user/' + encodeURIComponent(u.id); view.target = '_blank';
+        actions.appendChild(view);
+
+        if (!readOnly) {
+            var save = document.createElement('button'); save.type = 'button'; save.className = 'up-btn gold'; save.textContent = '💾 Запази текста';
+            save.addEventListener('click', function(){
+                save.disabled = true;
+                fetch('/api/admin/users/' + encodeURIComponent(u.id) + '/profile', {
+                    method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ bio: bio.value.trim(), interests: ints.value })
+                })
+                .then(function(res){ return res.json().catch(function(){ return {}; }).then(function(d){ return { ok: res.ok, d: d }; }); })
+                .then(function(r){
+                    save.disabled = false;
+                    if (!r.ok) { toast((r.d && r.d.error) || 'Грешка при запазване.'); return; }
+                    u.bio = r.d.bio; u.interests = r.d.interests;
+                    bio.value = r.d.bio || ''; ints.value = (r.d.interests || []).join(', ');
+                    toast('Профилният текст е обновен.', { duration: 2000 });
+                })
+                .catch(function(){ save.disabled = false; toast('Грешка при свързване.'); });
+            });
+            actions.appendChild(save);
+
+            var isPending = u.status === 'pending';
+            var appr = document.createElement('button'); appr.type = 'button';
+            appr.className = 'up-btn ' + (isPending ? 'approve' : '');
+            appr.textContent = isPending ? '✓ Одобри профила' : '↩ Върни за преглед';
+            appr.addEventListener('click', function(){
+                var target = isPending ? 'approved' : 'pending_approval';
+                appr.disabled = true;
+                fetch('/api/admin/users/' + encodeURIComponent(u.id) + '/profile-status', {
+                    method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: target })
+                })
+                .then(function(res){ return res.json().catch(function(){ return {}; }).then(function(d){ return { ok: res.ok, d: d }; }); })
+                .then(function(r){
+                    appr.disabled = false;
+                    if (!r.ok) { toast((r.d && r.d.error) || 'Грешка.'); return; }
+                    u.profile_status = r.d.profile_status;
+                    u.status = u.banned ? 'banned' : (r.d.profile_status === 'approved' ? 'approved' : 'pending');
+                    setStatusBadge(stEl, u);
+                    isPending = u.status === 'pending';
+                    appr.className = 'up-btn ' + (isPending ? 'approve' : '');
+                    appr.textContent = isPending ? '✓ Одобри профила' : '↩ Върни за преглед';
+                    toast(r.d.profile_status === 'approved' ? 'Профилът е одобрен и вече е публичен.' : 'Профилът е върнат за преглед (скрит от публиката).', { duration: 2200 });
+                })
+                .catch(function(){ appr.disabled = false; toast('Грешка при свързване.'); });
+            });
+            actions.appendChild(appr);
+        }
+
+        panel.appendChild(bioLbl); panel.appendChild(bio);
+        panel.appendChild(intLbl); panel.appendChild(ints);
+        panel.appendChild(actions);
+        row.appendChild(panel);
     }
 
     function mkUserBtn(icon, title, onClick) {
@@ -1026,9 +1210,9 @@
             u.banned = !!r.data.banned;
             btn.textContent = u.banned ? '✅' : '⛔'; btn.title = u.banned ? 'Отблокирай' : 'Блокирай';
             btn.classList.toggle('ban', !u.banned); btn.classList.toggle('unban', u.banned);
-            var old = nameLine.querySelector('.user-ban-badge');
-            if (u.banned && !old) { var bb = document.createElement('span'); bb.className = 'user-ban-badge'; bb.textContent = '⛔ блокиран'; nameLine.appendChild(bb); }
-            else if (!u.banned && old) old.remove();
+            u.status = u.banned ? 'banned' : ((u.profile_status || 'approved') === 'approved' ? 'approved' : 'pending');
+            var stEl = nameLine.querySelector('.user-status-badge');
+            if (stEl) setStatusBadge(stEl, u);
             toast(u.banned ? 'Профилът е блокиран' : 'Профилът е отблокиран', { duration: 1800 });
         })
         .catch(function(){ btn.disabled = false; toast('Грешка при свързване.'); });

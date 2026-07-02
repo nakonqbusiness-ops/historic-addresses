@@ -104,6 +104,8 @@
 .dp-ci-icon{font-size:.85rem;opacity:.65;flex-shrink:0}
 .dp-ci-lbl{font-size:.58rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:.05rem}
 .dp-ci-val{font-size:.83rem;color:var(--fg);line-height:1.3}
+.dp-contrib{color:var(--accent-strong);text-decoration:none;font-weight:700;border-bottom:1px dashed currentColor}
+.dp-contrib:hover{opacity:.85}
 .dp-map{display:inline-flex;align-items:center;gap:.4rem;padding:.4rem .9rem;border-radius:7px;border:1px solid var(--accent-strong);color:var(--accent-strong);text-decoration:none;font-size:.75rem;font-weight:700;font-family:var(--fb);transition:all .2s;white-space:nowrap;align-self:center}
 .dp-map:hover{background:var(--accent-strong);color:#fff}
 .dp-map:hover .arr{transform:translateX(3px)}
@@ -510,7 +512,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')closeEmailMo
         p.address?'<div class="dp-ci"><span class="dp-ci-icon">📍</span><div><div class="dp-ci-lbl">Адрес</div><div class="dp-ci-val">'+esc(p.address)+'</div></div></div>':'',
         dateRows,
         p.photo_date?'<div class="dp-ci"><span class="dp-ci-icon">📷</span><div><div class="dp-ci-lbl">Снимка</div><div class="dp-ci-val">'+esc(p.photo_date)+'</div></div></div>':'',
-        p.credited_to?'<div class="dp-ci"><span class="dp-ci-icon">🙏</span><div><div class="dp-ci-lbl">Предложено от</div><div class="dp-ci-val">'+esc(p.credited_to)+'</div></div></div>':'',
+        p.credited_to?'<div class="dp-ci"><span class="dp-ci-icon">🙏</span><div><div class="dp-ci-lbl">Предложено от</div><div class="dp-ci-val">'+(p.contributor_id?'<a class="dp-contrib" href="/user/'+encodeURIComponent(p.contributor_id)+'">'+esc(p.credited_to)+'</a>':esc(p.credited_to))+'</div></div></div>':'',
         mapHref?'<a class="dp-map" href="'+mapHref+'">🗺️ Карта <span class="arr">→</span></a>':''
       ].join('');
       if(infoItems.trim()) col.insertAdjacentHTML('beforeend','<div class="dp-card">'+infoItems+'</div>');

@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="bg" data-theme="dark">
+<head>
+    <script>/*ha-auth-boot*/(function(){var d=document.documentElement;try{var c=JSON.parse(localStorage.getItem('ha_auth_v1')||'null');d.classList.add(c&&c.l===1?'ha-auth':'ha-guest');}catch(e){d.classList.add('ha-guest');}try{var t=localStorage.getItem('theme-preference');if(t==='system')t='dark';d.setAttribute('data-theme',(t==='light'||t==='dark')?t:'dark');}catch(e){d.setAttribute('data-theme','dark');}})();</script>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <link rel="icon" type="image/png" href="/assets/img/favicon-96x96.png" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="/assets/img/favicon.svg" />
+    <link rel="shortcut icon" href="/assets/img/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/img/apple-touch-icon.png" />
+    <link rel="manifest" href="/assets/img/site.webmanifest" />
+
+    <title>Профил на сътрудник - Адресът на историята</title>
+    <meta name="description" content="Публичен профил на сътрудник в Адресът на историята.">
+    <meta name="robots" content="noindex, follow">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Mulish:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="/assets/css/styles.css?v=17">
+    <script defer src="/assets/js/theme.js"></script>
+    <script defer src="/assets/js/transitions.js?v=2"></script>
+    <script defer src="/assets/js/account-nav.js?v=26"></script>
+
+    <style>
+        :root { --font-display: 'Cormorant Garamond', Georgia, serif; --font-body: 'Mulish', sans-serif; }
+        .up-page, .up-page * { font-family: var(--font-body); }
+
+        .up-main { max-width: 900px; margin: 0 auto; padding: clamp(1.5rem, 4vw, 3rem) 1.25rem 5rem; }
+
+        /* ── Loading / info states ── */
+        .up-state { text-align: center; padding: 4rem 1rem; color: var(--muted); }
+        .up-spinner { width: 34px; height: 34px; margin: 0 auto 1rem; border-radius: 50%;
+            border: 3px solid var(--border); border-top-color: var(--accent-strong); animation: upSpin 0.8s linear infinite; }
+        @keyframes upSpin { to { transform: rotate(360deg); } }
+        .up-state-icon { font-size: 2.6rem; margin-bottom: 0.8rem; }
+        .up-state h1 { font-family: var(--font-display); font-size: 1.9rem; color: var(--fg); margin: 0 0 0.5rem; }
+        .up-state p { max-width: 460px; margin: 0 auto 1.4rem; line-height: 1.65; }
+        .up-state a.up-home { display: inline-block; padding: 0.7rem 1.5rem; border-radius: 30px;
+            background: var(--accent-gradient); color: #1a1410; font-weight: 700; text-decoration: none; font-size: 0.9rem; }
+
+        /* ── Identity card with cover banner ── */
+        .up-card { position: relative; background: var(--card); border: 1px solid var(--border); border-radius: 18px;
+            box-shadow: var(--shadow); overflow: hidden; margin-bottom: 1.6rem; }
+        .up-cover { height: 132px; position: relative;
+            background:
+                radial-gradient(ellipse 65% 120% at 18% 0%, rgba(218,165,32,0.34), transparent 60%),
+                radial-gradient(ellipse 50% 100% at 85% 20%, rgba(205,133,63,0.28), transparent 55%),
+                linear-gradient(160deg, rgba(205,133,63,0.16), rgba(26,20,16,0.05) 55%),
+                var(--card); }
+        .up-cover::before { content: ''; position: absolute; inset: 0; opacity: 0.5;
+            background-image: repeating-linear-gradient(115deg, transparent 0 26px, rgba(205,133,63,0.07) 26px 27px); }
+        .up-cover::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(205,133,63,0.55), transparent); }
+
+        /* Only the AVATAR overlaps the cover: the name/actions row starts below the
+           cover's decorative gold line, so long names can never collide with it. */
+        .up-head { display: flex; gap: 1.25rem; align-items: flex-end; flex-wrap: wrap;
+            padding: 0.35rem clamp(1.25rem, 3.5vw, 2rem) 0; position: relative; }
+        .up-avatar { margin-top: -54px; width: 108px; height: 108px; border-radius: 50%; flex: 0 0 auto;
+            border: 3px solid var(--card); outline: 2px solid var(--accent-strong); background: var(--accent-gradient);
+            display: flex; align-items: center; justify-content: center; overflow: hidden;
+            font-family: var(--font-display); font-size: 2.4rem; font-weight: 700; color: #1a1410;
+            box-shadow: 0 10px 26px rgba(0,0,0,0.35); }
+        .up-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .up-idm { min-width: 0; flex: 1; padding-bottom: 0.15rem; }
+        .up-name { font-family: var(--font-display); font-size: clamp(1.65rem, 4.5vw, 2.3rem); font-weight: 700;
+            color: var(--fg); margin: 0 0 0.15rem; line-height: 1.08; overflow-wrap: anywhere; }
+        .up-since { color: var(--muted); font-size: 0.85rem; margin: 0; }
+
+        .up-follow-wrap { display: flex; align-items: center; gap: 0.65rem; padding-bottom: 0.35rem; }
+        .up-follow { appearance: none; cursor: pointer; border: none; border-radius: 30px; padding: 0.62rem 1.35rem;
+            font-size: 0.88rem; font-weight: 700; background: var(--accent-gradient); color: #1a1410;
+            transition: transform 0.15s ease, opacity 0.15s ease; }
+        .up-follow:hover:not(:disabled) { transform: translateY(-1px); }
+        .up-follow:disabled { opacity: 0.6; cursor: default; }
+        .up-follow.following { background: transparent; border: 1px solid var(--accent-strong); color: var(--accent-strong); }
+        .up-edit-link { display: inline-block; padding: 0.6rem 1.25rem; border-radius: 30px; border: 1px solid var(--border);
+            color: var(--fg); font-size: 0.85rem; font-weight: 700; text-decoration: none; }
+        .up-edit-link:hover { border-color: var(--accent-strong); color: var(--accent-strong); }
+
+        /* ── Pills (role / verified / rank) ── */
+        .up-pills { display: flex; flex-wrap: wrap; gap: 0.45rem; padding: 0.85rem clamp(1.25rem, 3.5vw, 2rem) 0; }
+        .up-pill { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.72rem; font-weight: 800;
+            letter-spacing: 0.05em; text-transform: uppercase; padding: 0.3rem 0.75rem; border-radius: 30px;
+            border: 1px solid var(--border); color: var(--muted); }
+        .up-pill.rank     { color: var(--accent-strong); border-color: rgba(205,133,63,0.5); background: rgba(205,133,63,0.1); }
+        .up-pill.verified { color: #7caa78; border-color: rgba(124,170,120,0.5); background: rgba(124,170,120,0.1); }
+        .up-pill.role-moderator { color: #7fae9b; border-color: rgba(127,174,155,0.5); background: rgba(127,174,155,0.08); }
+        .up-pill.role-admin,
+        .up-pill.role-owner { color: #e0c98a; border-color: rgba(224,201,138,0.5); background: rgba(224,201,138,0.08); }
+
+        /* ── Stats strip ── */
+        .up-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 0.6rem;
+            padding: 1.1rem clamp(1.25rem, 3.5vw, 2rem) 0; }
+        .up-stat { text-align: center; background: rgba(205,133,63,0.05); border: 1px solid var(--border);
+            border-radius: 12px; padding: 0.7rem 0.5rem 0.6rem; }
+        .up-stat-n { font-family: var(--font-display); font-size: 1.55rem; font-weight: 700; color: var(--accent-strong); line-height: 1.1; }
+        .up-stat-l { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-top: 0.15rem; }
+
+        .up-body { padding: 1.1rem clamp(1.25rem, 3.5vw, 2rem) clamp(1.25rem, 3.5vw, 1.8rem); }
+        .up-staffnote { margin: 0 0 1.2rem; padding: 0.65rem 0.9rem; border-radius: 10px; font-size: 0.85rem; line-height: 1.5;
+            background: rgba(205,133,63,0.12); border: 1px solid rgba(205,133,63,0.45); color: var(--fg); }
+        .up-bio { color: var(--fg); opacity: 0.92; line-height: 1.7; font-size: 0.97rem; margin: 0; white-space: pre-line; overflow-wrap: anywhere; }
+        .up-tags { display: flex; flex-wrap: wrap; gap: 0.45rem; margin-top: 1rem; }
+        .up-tag { font-size: 0.74rem; font-weight: 700; letter-spacing: 0.04em; padding: 0.28rem 0.75rem; border-radius: 30px;
+            background: rgba(205,133,63,0.13); border: 1px solid rgba(205,133,63,0.4); color: var(--accent-strong); }
+
+        /* ── Badge shelf (unlocked medallions) ── */
+        .up-badges { display: flex; flex-wrap: wrap; gap: 1rem; margin-top: 1.35rem; padding-top: 1.2rem;
+            border-top: 1px dashed var(--border); }
+        .up-badge { text-align: center; width: 84px; }
+        .up-badge img { width: 62px; height: auto; display: block; margin: 0 auto 0.3rem;
+            filter: drop-shadow(0 5px 9px rgba(0,0,0,0.4)); transition: transform 0.2s ease; }
+        .up-badge:hover img { transform: translateY(-3px) scale(1.06); }
+        .up-badge-n { font-size: 0.66rem; font-weight: 700; color: var(--muted); line-height: 1.25; }
+
+        /* ── Section head (proposed addresses) ── */
+        .up-sect { display: flex; align-items: baseline; gap: 0.5rem; margin: 0 0 1.1rem;
+            padding-bottom: 0.6rem; border-bottom: 1px solid var(--border); }
+        .up-sect h2 { font-family: var(--font-display); font-size: 1.4rem; font-weight: 700; color: var(--fg); margin: 0; }
+        .up-count { font-size: 0.8rem; font-weight: 700; color: var(--accent-strong); }
+
+        /* ── Address grid ── */
+        .up-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 1rem; }
+        .up-item { display: block; text-decoration: none; background: var(--card); border: 1px solid var(--border);
+            border-radius: 14px; overflow: hidden; transition: transform 0.18s ease, border-color 0.18s ease; }
+        .up-item:hover { transform: translateY(-3px); border-color: var(--accent-strong); }
+        .up-thumb { aspect-ratio: 4 / 3; background: var(--border); display: flex; align-items: center; justify-content: center; font-size: 1.8rem; }
+        .up-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .up-item-b { padding: 0.7rem 0.85rem 0.85rem; }
+        .up-item-n { font-weight: 700; font-size: 0.92rem; color: var(--fg); margin: 0 0 0.2rem; line-height: 1.35; }
+        .up-item-a { font-size: 0.78rem; color: var(--muted); margin: 0; line-height: 1.4; }
+        .up-empty { color: var(--muted); text-align: center; padding: 2.4rem 1rem; border: 1px dashed var(--border); border-radius: 14px; font-size: 0.92rem; }
+
+        @media (max-width: 560px) {
+            .up-cover { height: 104px; }
+            .up-head { gap: 0.9rem; }
+            .up-avatar { margin-top: -44px; width: 88px; height: 88px; font-size: 2rem; }
+            .up-follow-wrap { width: 100%; padding-bottom: 0; }
+            .up-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.7rem; }
+        }
+    </style>
+</head>
+
+<body class="up-page">
+
+<header class="site-header">
+    <a class="logo-link" href="/index.html">
+        <img src="/assets/img/HistAdrLogoOrig.png" alt="Адресът на историята" class="header-logo">
+        <span class="logo-text">Адресът на историята</span>
+    </a>
+    <nav class="nav">
+        <a href="/index.html">Начало</a>
+        <a href="/map.html">Карта</a>
+        <a href="/addresses.html">Адреси</a>
+        <a href="/calendar.html">Календар</a>
+        <a href="/news.html">Новини</a>
+        <a href="/about.html">За Нас</a>
+    <a class="nav-suggest" href="/suggest.html">Предложи</a>
+    <a class="nav-account" href="/login.html"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>Вход</span></a>
+    </nav>
+    <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode"></button>
+</header>
+
+<main class="up-main" id="upMain">
+    <div class="up-state" id="upLoading">
+        <div class="up-spinner"></div>
+        <span>Зареждане на профила…</span>
+    </div>
+</main>
+
+<script>
+(function () {
+    'use strict';
+    var main = document.getElementById('upMain');
+
+    function esc(s) {
+        return String(s == null ? '' : s)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+    function fmtDate(iso) {
+        try {
+            return new Date(iso).toLocaleDateString('bg-BG', { year: 'numeric', month: 'long' });
+        } catch (e) { return ''; }
+    }
+    function initials(name) {
+        var parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+        if (!parts.length) return '•';
+        return parts.slice(0, 2).map(function (p) { return p[0].toUpperCase(); }).join('');
+    }
+    // /user/<id> pretty URL, with ?id= as a fallback.
+    function profileId() {
+        var m = location.pathname.match(/\/user\/([^\/]+)\/?$/);
+        if (m) return decodeURIComponent(m[1]);
+        return new URLSearchParams(location.search).get('id') || '';
+    }
+
+    // Same ladders as profile.html - keep the two in sync.
+    var RANKS = [
+        { min: 0,  name: 'Новобранец' },
+        { min: 1,  name: 'Изследовател' },
+        { min: 5,  name: 'Хронист' },
+        { min: 10, name: 'Архивар' },
+        { min: 15, name: 'Картограф' },
+        { min: 30, name: 'Легенда' }
+    ];
+    function rankName(approved) {
+        var r = RANKS[0];
+        for (var i = 0; i < RANKS.length; i++) { if (approved >= RANKS[i].min) r = RANKS[i]; }
+        return r.name;
+    }
+    function badges(p) {
+        var a = p.approved_count || 0, s = p.submitted_count || 0, ph = p.photos_added || 0;
+        return [
+            { img: 'badge-4-scroll.png', name: 'Хронист',              desc: 'Първо подадено предложение', on: s  >= 1  },
+            { img: 'badge-1-gate.png',   name: 'Първи стъпки',         desc: 'Първо одобрено предложение', on: a  >= 1  },
+            { img: 'badge-2-houses.png', name: 'Градски изследовател', desc: '5 одобрени предложения',     on: a  >= 5  },
+            { img: 'badge-3-camera.png', name: 'Фотограф',             desc: '10 добавени снимки',         on: ph >= 10 },
+            { img: 'badge-5-map.png',    name: 'Картограф',            desc: '15 одобрени предложения',    on: a  >= 15 },
+            { img: 'badge-6-star.png',   name: 'Легенда',              desc: '30 одобрени предложения',    on: a  >= 30 }
+        ].filter(function (b) { return b.on; });
+    }
+    var ROLE_PILL = {
+        moderator: { label: 'Модератор',     cls: 'role-moderator', icon: '🛡️' },
+        admin:     { label: 'Администратор', cls: 'role-admin',     icon: '🛡️' },
+        owner:     { label: 'Собственик',    cls: 'role-owner',     icon: '👑' }
+    };
+
+    function stateHtml(icon, title, text) {
+        return '<div class="up-state"><div class="up-state-icon">' + icon + '</div>' +
+               '<h1>' + esc(title) + '</h1><p>' + esc(text) + '</p>' +
+               '<a class="up-home" href="/addresses.html">Разгледай адресите</a></div>';
+    }
+
+    function itemCard(it) {
+        var thumb = it.image
+            ? '<img src="' + esc(it.image) + '" alt="' + esc(it.name) + '" loading="lazy" decoding="async">'
+            : '🏛️';
+        return '<a class="up-item" href="/address.html?slug=' + encodeURIComponent(it.slug) + '">' +
+               '<div class="up-thumb">' + thumb + '</div>' +
+               '<div class="up-item-b"><p class="up-item-n">' + esc(it.name) + '</p>' +
+               (it.address ? '<p class="up-item-a">📍 ' + esc(it.address) + '</p>' : '') +
+               '</div></a>';
+    }
+    function gridHtml(items, emptyText) {
+        if (!items || !items.length) return '<div class="up-empty">' + esc(emptyText) + '</div>';
+        return '<div class="up-grid">' + items.map(itemCard).join('') + '</div>';
+    }
+
+    function render(p) {
+        document.title = p.name + ' - Адресът на историята';
+        var avatar = p.avatar_url
+            ? '<img src="' + esc(p.avatar_url) + '" alt="' + esc(p.name) + '" width="200" height="200">'
+            : esc(initials(p.name));
+
+        // Pills: staff role, verified, contribution rank.
+        var pills = [];
+        var rp = ROLE_PILL[p.role];
+        if (rp) pills.push('<span class="up-pill ' + rp.cls + '">' + rp.icon + ' ' + rp.label + '</span>');
+        if (p.verified) pills.push('<span class="up-pill verified">✓ Потвърден</span>');
+        pills.push('<span class="up-pill rank">🏅 ' + esc(rankName(p.approved_count || 0)) + '</span>');
+
+        // Follow area: self → edit link; guest → login; user → toggle.
+        var followHtml;
+        if (p.viewer_is_self) {
+            followHtml = '<a class="up-edit-link" href="/profile.html#settings">✏️ Редактирай профила</a>';
+        } else {
+            followHtml = '<button class="up-follow' + (p.viewer_follows ? ' following' : '') + '" id="upFollow" type="button">' +
+                         (p.viewer_follows ? '✓ Следваш' : '＋ Последвай') + '</button>';
+        }
+
+        var stats =
+            '<div class="up-stats">' +
+                '<div class="up-stat"><div class="up-stat-n">' + (p.approved_count || 0) + '</div><div class="up-stat-l">Одобрени адреса</div></div>' +
+                '<div class="up-stat"><div class="up-stat-n">' + (p.photos_added || 0) + '</div><div class="up-stat-l">Добавени снимки</div></div>' +
+                '<div class="up-stat"><div class="up-stat-n" id="upFollowers">' + (p.followers || 0) + '</div><div class="up-stat-l">Последователи</div></div>' +
+            '</div>';
+
+        var tags = (p.interests && p.interests.length)
+            ? '<div class="up-tags">' + p.interests.map(function (t) { return '<span class="up-tag">' + esc(t) + '</span>'; }).join('') + '</div>'
+            : '';
+
+        var earned = badges(p);
+        var badgesHtml = earned.length
+            ? '<div class="up-badges">' + earned.map(function (b) {
+                  return '<div class="up-badge" title="' + esc(b.name + ' - ' + b.desc) + '">' +
+                         '<img src="/assets/img/badges/' + b.img + '" alt="' + esc(b.name) + '" loading="lazy">' +
+                         '<div class="up-badge-n">' + esc(b.name) + '</div></div>';
+              }).join('') + '</div>'
+            : '';
+
+        var staffNote = p.is_staff_view
+            ? '<p class="up-staffnote">🛡️ Този профил <strong>не е публично видим</strong> (изчаква одобрение или е блокиран). Виждате го, защото сте администратор.</p>'
+            : '';
+
+        main.innerHTML =
+            staffNote +
+            '<div class="up-card">' +
+                '<div class="up-cover"></div>' +
+                '<div class="up-head">' +
+                    '<div class="up-avatar">' + avatar + '</div>' +
+                    '<div class="up-idm">' +
+                        '<h1 class="up-name">' + esc(p.name) + '</h1>' +
+                        '<p class="up-since">🗓️ Член от ' + esc(fmtDate(p.member_since)) + '</p>' +
+                    '</div>' +
+                    '<div class="up-follow-wrap">' + followHtml + '</div>' +
+                '</div>' +
+                '<div class="up-pills">' + pills.join('') + '</div>' +
+                stats +
+                '<div class="up-body">' +
+                    (p.bio ? '<p class="up-bio">' + esc(p.bio) + '</p>' : '') +
+                    tags +
+                    badgesHtml +
+                '</div>' +
+            '</div>' +
+            // Saved/bookmarked places are private by design - the public page shows
+            // only the user's approved contributions.
+            '<div class="up-sect"><h2>Предложени адреси</h2><span class="up-count">' + p.proposed.length + '</span></div>' +
+            '<div id="pane-proposed">' + gridHtml(p.proposed, 'Все още няма одобрени предложения.') + '</div>';
+
+        // Follow toggle.
+        var followBtn = document.getElementById('upFollow');
+        if (followBtn) {
+            var following = !!p.viewer_follows;
+            followBtn.addEventListener('click', function () {
+                if (!p.viewer_logged) { location.href = '/login.html'; return; }
+                followBtn.disabled = true;
+                fetch('/api/users/' + encodeURIComponent(p.id) + '/follow', {
+                    method: following ? 'DELETE' : 'POST', credentials: 'include'
+                })
+                .then(function (r) { if (!r.ok) throw new Error(); return r.json(); })
+                .then(function (d) {
+                    following = !!d.following;
+                    followBtn.textContent = following ? '✓ Следваш' : '＋ Последвай';
+                    followBtn.classList.toggle('following', following);
+                    var n = document.getElementById('upFollowers');
+                    if (n && d.followers !== undefined) n.textContent = d.followers;
+                })
+                .catch(function () {})
+                .then(function () { followBtn.disabled = false; });
+            });
+        }
+    }
+
+    var id = profileId();
+    if (!id) {
+        main.innerHTML = stateHtml('🔍', 'Профилът не е намерен', 'Липсва идентификатор на потребител.');
+        return;
+    }
+    // no-store: badges/rank/stats must reflect moderation actions immediately.
+    fetch('/api/users/' + encodeURIComponent(id) + '/public', { credentials: 'include', cache: 'no-store' })
+        .then(function (res) {
+            if (res.status === 404) throw 'notfound';
+            if (!res.ok) throw new Error();
+            return res.json();
+        })
+        .then(function (p) {
+            if (p.moderation && !p.is_staff_view) {
+                main.innerHTML = stateHtml('🕰️', 'Профилът е в процес на модерация',
+                    'Този профил в момента се преглежда от нашия екип и не е публично достъпен. Заповядайте отново по-късно.');
+                return;
+            }
+            render(p);
+        })
+        .catch(function (err) {
+            main.innerHTML = (err === 'notfound')
+                ? stateHtml('🔍', 'Профилът не е намерен', 'Този потребител не съществува или профилът е премахнат.')
+                : stateHtml('⚠️', 'Възникна грешка', 'Профилът не можа да бъде зареден. Опитайте отново.');
+        });
+})();
+</script>
+</body>
+</html>

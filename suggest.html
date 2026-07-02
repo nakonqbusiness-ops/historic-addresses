@@ -192,7 +192,7 @@
         <div class="sg-success" id="sgSuccess">
             <div class="sg-success-icon">✓</div>
             <h2>Благодарим Ви!</h2>
-            <p id="sgSuccessText">Вашето предложение беше изпратено успешно и очаква одобрение от модератор. Можете да следите състоянието му в профила си.</p>
+            <p id="sgSuccessText">Вашето предложение беше изпратено успешно и очаква одобрение от модератор. Проверете имейла си за детайли.</p>
             <div class="sg-success-actions" id="sgSuccessActions">
                 <a class="primary" href="profile.html">Моите предложения</a>
                 <button type="button" id="sgAgain">Предложи още една</button>
@@ -397,11 +397,11 @@
         var txt = document.getElementById('sgSuccessText');
         var actions = document.getElementById('sgSuccessActions');
         if (loggedIn) {
-            txt.textContent = 'Вашето предложение беше изпратено успешно и очаква одобрение от модератор. Можете да следите състоянието му в профила си.';
-            actions.innerHTML = '<a class="primary" href="profile.html">Моите предложения</a><button type="button" id="sgAgain">Предложи още една</button>';
+            txt.textContent = 'Вашето предложение беше изпратено успешно и очаква одобрение от модератор. Проверете имейла си за детайли.';
+            actions.innerHTML = '<a class="primary" href="profile.html">Виж статуса в профила си</a><button type="button" id="sgAgain">Предложи още една</button>';
         } else {
-            txt.textContent = 'Вашето предложение беше изпратено успешно и очаква одобрение. Изпратихме потвърждение на имейла Ви и ще Ви уведомим за решението. Създайте профил със същия имейл, за да следите предложенията си.';
-            actions.innerHTML = '<a class="primary" href="register.html">Създай профил</a><button type="button" id="sgAgain">Предложи още една</button>';
+            txt.textContent = 'Вашето предложение беше изпратено успешно и очаква одобрение от модератор. Проверете имейла си за детайли.';
+            actions.innerHTML = '<a class="primary" href="register.html">Създай профил, за да следиш статуса</a><button type="button" id="sgAgain">Предложи още една</button>';
         }
         document.getElementById('sgAgain').addEventListener('click', resetForm);
         formWrap.style.display = 'none';
